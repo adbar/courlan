@@ -94,30 +94,32 @@ def find_target(url):
 
 with open(args.inputfile, 'r') as inputfh:
     with open(args.outputfile, 'w') as outputfh:
-        for url in inputfh:
-            i += 1
-            target = None
-            # sanitize
-            url = url.lower().rstrip('\n')
+        # avoid errors (todo: solve)
+        try:
+            for url in inputfh:
+                i += 1
+                target = None
+                # sanitize
+                url = url.lower().rstrip('\n')
 
-            # filters
-            if re.match('http', url) and len(url) > 11:
-                # akamai/fbcdn, etc.
-                if not re.search(r'\.blogspot\.|\.google\.|\.tumblr\.|\.typepad\.com|\.wp\.com|\.archive\.|akamai|fbcdn|baidu\.com|\.gravatar\.', url):
-                    # test if part of the URL is interesting
-                    target = find_target(url)
+                # filters
+                if re.match('http', url) and len(url) > 11:
+                    # akamai/fbcdn, etc.
+                    if not re.search(r'\.blogspot\.|\.google\.|\.tumblr\.|\.typepad\.com|\.wp\.com|\.archive\.|akamai|fbcdn|baidu\.com|\.gravatar\.', url):
+                        # test if part of the URL is interesting
+                        target = find_target(url)
 
-            # limit path depth and filter out queries
-            if target and not re.search(r'=|\.php', target) and len(re.findall(r'/', target)) <= 4:
-                # make sure the host name is fresh
-                normalize = re.search(r'https?://(www\.)?(.+?)/', target)
-                if normalize and normalize.group(2) not in known_hosts:
-                # if True:
-                    known_hosts.add(normalize.group(2))
-                    outputfh.write(target + '\n')
-                    j += 1
-            #except UnicodeDecodeError:
-            #    print ('Unicode error line', i + 1)
+                # limit path depth and filter out queries
+                if target and not re.search(r'=|\.php', target) and len(re.findall(r'/', target)) <= 4:
+                    # make sure the host name is fresh
+                    normalize = re.search(r'https?://(www\.)?(.+?)/', target)
+                    if normalize and normalize.group(2) not in known_hosts:
+                    # if True:
+                        known_hosts.add(normalize.group(2))
+                        outputfh.write(target + '\n')
+                        j += 1
+        except UnicodeDecodeError:
+            print ('Unicode error line', i + 1)
 
 
 print ('# lines seen:\t\t', i)

@@ -1,4 +1,4 @@
-URL-tools
+URL-Tools
 =========
 
 Diverse scripts designed to handle URL lists, made available under GPL license.
@@ -9,10 +9,11 @@ Designed for Python3, may not work on Python 2.X
 Normalize URLs in CommonCrawl reverted prefix format
 ----------------------------------------------------
 
-Revert URLs to their usual form.
+Revert URLs to their usual form:
+- Input: `at.anthropology.www/people/whartl/courses_current:http`
+- Output: `http://www.anthropology.at/people/whartl/courses_current`
 
-    input: at.anthropology.www/people/whartl/courses_current:http
-    output: http://www.anthropology.at/people/whartl/courses_current
+The script also tries to normalize the URLs and to catch potential errors during the process. It works better if the URLs are sorted.
 
 Information about usage:
 
