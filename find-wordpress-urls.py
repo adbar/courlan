@@ -92,8 +92,8 @@ def find_target(url):
 
     return None
 
-with open(args.inputfile, 'r') as inputfh:
-    with open(args.outputfile, 'w') as outputfh:
+with open(args.inputfile, 'r', encoding='utf-8') as inputfh:
+    with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
         # avoid errors (todo: solve)
         try:
             for url in inputfh:
