@@ -47,6 +47,20 @@ Information about usage:
       -l, --lax         use lax patterns
 
 
+Sample URL list
+---------------
+
+Information about usage:
+
+    python3 urls-sample.py [-h] -i INPUTFILE -o OUTPUTFILE [-s SIZE] [-v]
+
+    -h, --help            show this help message and exit
+    -i INPUTFILE, --inputfile INPUTFILE
+    -o OUTPUTFILE, --outputfile OUTPUTFILE
+    -s SIZE, --size SIZE  sample size
+    -v, --verbose         verbose mode
+
+
 Related Projects
 ----------------
 
