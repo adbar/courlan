@@ -20,9 +20,10 @@ import validators # https://github.com/kvesteri/validators
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--inputfile', dest='inputfile', help='input file', required=True)
 parser.add_argument('-o', '--outputfile', dest='outputfile', help='output file', required=True)
-parser.add_argument('-s', '--size', dest='size', help='sample size', type=int, default=1000)
+parser.add_argument('-s', '--size', dest='size', help='size of sample per domain', type=int, default=1000)
 parser.add_argument('-v', '--verbose', dest='verbose', help='verbose mode', action='store_true')
 parser.add_argument('--nowarnings', dest='nowarnings', help='disable sort warnings', action='store_true')
+parser.add_argument('--excludesize', dest='excludesize', help='exclude domains with more than n URLs', type=int) # default=10000
 args = parser.parse_args()
 
 
@@ -33,7 +34,7 @@ locale.setlocale(locale.LC_ALL, "")
 
 
 # classify on the fly
-with open(args.inputfile, 'r', encoding='utf-8') as inputfh:
+with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
     with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
         for line in inputfh:
             # use standard parsing library
@@ -75,10 +76,15 @@ with open(args.inputfile, 'r', encoding='utf-8') as inputfh:
                         print (lastseen, '\t\turls:', len(urlbuffer))
                 # or sample URLs
                 else:
-                    for item in sample(urlbuffer, args.size):
-                        outputfh.write(item + '\n')
-                    if args.verbose is True:
-                        print (lastseen, '\t\turls:', len(urlbuffer), '\tprop.:', args.size/len(urlbuffer))
+                    # threshold for large websites
+                    if args.excludesize is None or len(urlbuffer) <= args.excludesize:
+                        for item in sample(urlbuffer, args.size):
+                            outputfh.write(item + '\n')
+                        if args.verbose is True:
+                            print (lastseen, '\t\turls:', len(urlbuffer), '\tprop.:', args.size/len(urlbuffer))
+                    else:
+                        if args.verbose is True:
+                            print ('discarded (exclude size):', lastseen, '\t\turls:', len(urlbuffer))
 
                 urlbuffer = []
                 urlbuffer.append(url)
