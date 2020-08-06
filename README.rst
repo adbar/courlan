@@ -1,6 +1,16 @@
 URL-Tools
 =========
 
+
+.. image:: https://img.shields.io/travis/adbar/urltools.svg
+    :target: https://travis-ci.org/adbar/urltools
+    :alt: Travis build status
+
+.. image:: https://img.shields.io/codecov/c/github/adbar/urltools.svg
+    :target: https://codecov.io/gh/adbar/urltools
+    :alt: Code Coverage
+
+
 Diverse scripts designed to handle URL lists, made available under GPL license.
 
 Designed for Python3, may not work on Python 2.X
