@@ -1,0 +1,30 @@
+# Compiled python modules.
+*.pyc
+
+# logs
+*.log
+
+# packaging
+dist/
+build/
+*.egg-info/
+
+# tests
+.cache/
+.eggs/
+.tox/
+.coverage
+
+# docs
+docs/_autosummary/
+docs/_build/
+docs/_static/
+docs/_template/
+
+# profiling
+*.tmp
+*.lprof
+
+
+### appvevor removed
+appveyor.yml
