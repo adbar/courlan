@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 ### Code made available on https://github.com/adbar/url-tools under GPL license.
-### (C) Adrien Barbaresi, 2016.
+### (C) Adrien Barbaresi, 2017.
 
 # Purpose: filter a URL list and select a random subset of n URLs per domain name
 ## takes a sorted URL list as input!
@@ -12,10 +12,11 @@ from collections import defaultdict
 from functools import cmp_to_key
 import locale
 from random import sample
-import regex as re
 import sys
+# import tldextract
 from urllib.parse import urlparse
-import validators # https://github.com/kvesteri/validators
+
+from urltools import urlcheck
 
 
 parser = argparse.ArgumentParser()
@@ -34,50 +35,6 @@ urlbuffer = set()
 lastseen = None
 if args.nowarnings is False:
     locale.setlocale(locale.LC_ALL, "")
-
-
-
-def clean(url):
-    # trim
-    url = url.strip()
-    # clean the input string
-    url = url.replace('[ \t]+', '')
-    match = re.search(r'^(https?://.+?)https?://.+?$', url)
-    if match:
-        url = match.group(1)
-    return url
-
-
-def validate(url):
-    # validate (https://github.com/gruns/furl ?)
-    if bool(parsed_url.scheme) is False or len(parsed_url.netloc) < 5:
-        return False
-    if parsed_url.scheme != 'http' and parsed_url.scheme != 'https':
-        return False
-    if validators.url(parsed_url.geturl()) is False:
-        return False
-    # default
-    return True
-
-
-def typefilter(url):
-    # not suited and obvious extensions
-    if re.search(r'^http://add?s?\.|^http://banner\.|doubleclick|tradedoubler\.com|livestream|live\.|videos?\.|feed$|rss$', url, re.IGNORECASE):
-        return False
-    if re.search(r'\.atom$|\.json$|\.css$|\.xml$|\.js$|\.jpg$|\.jpeg$|\.png$|\.gif$|\.tiff$|\.pdf$|\.ogg$|\.mp3$|\.m4a$|\.aac$|\.avi$|\.mp4$|\.mov$|\.webm$|\.flv$|\.ico$|\.pls$|\.zip$|\.tar$|\.gz$|\.iso$|\.swf$', url, re.IGNORECASE):
-        return False
-    if re.search(r'\.jpg[&?]|\.jpeg[&?]|\.png[&?]|\.gif[&?]|\.pdf[&?]|\.ogg[&?]|\.mp3[&?]|\.avi[&?]|\.mp4[&?]', url, re.IGNORECASE):
-        return False
-    # default
-    return True
-
-
-def spamfilter(url):
-    # re.IGNORECASE flag or line.lower()
-    if re.search(r'[\./_-](porno?|xxx|fick|arsch)', url, re.IGNORECASE) or re.search(r'(cams|cash|porno?|sex|xxx)[\./_-]', url,  re.IGNORECASE) or re.search(r'gangbang|incest|erotik|sexy', url, re.IGNORECASE) or re.search(r'[\./_-](adult|ass|sex|cam)[\./_-]', url,  re.IGNORECASE):
-        return False
-    # default
-    return True
 
 
 
@@ -122,25 +79,10 @@ with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
         for line in inputfh:
 
             # first basic filter
-            if not re.match('https?://', line):
+            if urlcheck(line, False) is False:
                 continue
 
-            # clean
-            url = clean(line)
-
-            # use standard parsing library
-            try:
-                parsed_url = urlparse(url)
-            except ValueError:
-                continue
-
-            # validate
-            if validate(parsed_url) is False:
-                continue
-            if typefilter(url) is False:
-                continue
-            if spamfilter(url) is False:
-                continue
+            parsed_url = urlparse(url)
 
             # initialize
             if lastseen is None:
