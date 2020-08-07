@@ -36,4 +36,4 @@ def test_validate():
 def test_urlcheck():
     assert urlcheck('AAA', False) is None
     assert urlcheck('http://ab', False) is None
-    # assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test', False) is None
+    assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test', False) == ('https://www.dwds.de/test', 'dwds.de')

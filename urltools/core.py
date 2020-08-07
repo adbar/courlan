@@ -1,5 +1,6 @@
 
 import logging
+import re
 
 from urllib.parse import urlsplit, urldefrag # urlparse urlunparse,
 
@@ -16,6 +17,7 @@ from .settings import *
 
 
 
+no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 
