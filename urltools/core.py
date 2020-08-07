@@ -1,4 +1,5 @@
 
+import logging
 
 from urllib.parse import urlsplit, urldefrag # urlparse urlunparse,
 
