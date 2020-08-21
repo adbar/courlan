@@ -56,17 +56,17 @@ setup(
     license='GPLv3+',
     packages=['urltools'],
     #package_data={},
-    #include_package_data=True,
+    include_package_data=True,
     python_requires='>=3.4',
     install_requires=[
-        'tldextract',
         'furl',
+        'tldextract',
         'url_normalize',
     ],
     #extras_require=extras,
-    #entry_points = {
-    #    'console_scripts': ['urltools=urltools.cli:main'],
-    #},
+    entry_points = {
+        'console_scripts': ['urltools=urltools.cli:main'],
+    },
     # platforms='any',
     tests_require=['pytest', 'tox'],
     zip_safe=False,
