@@ -59,6 +59,9 @@ script:
   - tox
   # - pytest tests/unit_tests.py --cov=codecov
 
+after_success:
+  - codecov
+
 notifications:
   email:
     on_success: never
