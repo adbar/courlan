@@ -12,6 +12,11 @@ def test_clean():
     assert clean('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
     assert clean('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
     assert clean('https://www.dwds.de/garbledhttps://www.dwds.de/') == 'https://www.dwds.de'
+    assert clean('http://example.com/index.html#term') == 'http://example.com/index.html'
+    assert clean('http://example.com/index.html?term1=10&amp;term2=test') == 'http://example.com/index.html?term1=10&term2=test'
+    assert clean('http://ndex.html#term') is None
+    assert clean('http://example.com/test.js') is None
+    assert clean('http://example.invalid/') is None
 
 
 def test_spamfilter():
@@ -25,6 +30,8 @@ def test_typefilter():
     assert typefilter('http://www.example.org/category/123') is False
     assert typefilter('http://www.example.org/test.xml?param=test') is False
     assert typefilter('http://www.example.org/test.asp') is True
+    assert typefilter('http://ads.example.org/') is False
+    assert typefilter('http://my-videos.com/') is False
 
 
 def test_validate():
