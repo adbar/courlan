@@ -20,7 +20,6 @@ from .settings import *
 no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
 
 
-
 def validate(parsed_url):
     if bool(parsed_url.scheme) is False or len(parsed_url.netloc) < 4:
         return False
@@ -81,9 +80,7 @@ def urlcheck(url, redbool):
             raise ValueError
 
         # content filters
-        if typefilter(url) is False:
-            raise ValueError
-        if spamfilter(url) is False:
+        if typefilter(url) is False or spamfilter(url) is False:
             raise ValueError
 
         # normalization

@@ -1,4 +1,5 @@
 
+import logging
 import requests
 
 
@@ -15,10 +16,10 @@ def redirection_test(url):
         Nothing.
     """
     headers = requests.utils.default_headers()
-    headers.update({
-        "Connection" : "close",  # another way to cover tracks
-        "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
-    })
+    #headers.update({
+    #    "Connection" : "close",  # another way to cover tracks
+    #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
+    #})
     try:
         rhead = requests.head(url, allow_redirects=True, headers=headers)
     except (requests.exceptions.MissingSchema, requests.exceptions.InvalidURL):

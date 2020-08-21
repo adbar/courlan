@@ -30,7 +30,8 @@ def test_typefilter():
 
 
 def test_validate():
-    assert validate(urlsplit('ftp://www.test.org/test')) is False
+    assert validate(urlsplit('ntp://www.test.org/test')) is False
+    assert validate(urlsplit('ftps://www.test.org/test')) is False
     assert validate(urlsplit('http://t.g/test')) is False
     assert validate(urlsplit('http://test.org/test')) is True
 
@@ -38,7 +39,12 @@ def test_validate():
 def test_urlcheck():
     assert urlcheck('AAA', False) is None
     assert urlcheck('http://ab', False) is None
+    assert urlcheck('ftps://example.org/', False) is None
     assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test', False) == ('https://www.dwds.de/test', 'dwds.de')
     assert urlcheck('http://example.com/index.html#term', False)[0] == 'http://example.com/index.html'
     assert urlcheck('http://example.com/test.js', False) is None
+    assert urlcheck('http://example.com/test.html?lang=en', False) is None
+    assert urlcheck('http://twitter.com/', False) is None
     # assert urlcheck('http://example.invalid/', False) is None
+    assert urlcheck('https://www.httpbin.org/status/200', True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+
