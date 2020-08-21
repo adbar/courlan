@@ -12,11 +12,6 @@ def test_clean():
     assert clean('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
     assert clean('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
     assert clean('https://www.dwds.de/garbledhttps://www.dwds.de/') == 'https://www.dwds.de'
-    assert clean('http://example.com/index.html#term') == 'http://example.com/index.html'
-    assert clean('http://example.com/index.html?term1=10&amp;term2=test') == 'http://example.com/index.html?term1=10&term2=test'
-    assert clean('http://ndex.html#term') is None
-    assert clean('http://example.com/test.js') is None
-    assert clean('http://example.invalid/') is None
 
 
 def test_spamfilter():
@@ -44,3 +39,6 @@ def test_urlcheck():
     assert urlcheck('AAA', False) is None
     assert urlcheck('http://ab', False) is None
     assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test', False) == ('https://www.dwds.de/test', 'dwds.de')
+    assert urlcheck('http://example.com/index.html#term', False)[0] == 'http://example.com/index.html'
+    assert urlcheck('http://example.com/test.js', False) is None
+    # assert urlcheck('http://example.invalid/', False) is None
