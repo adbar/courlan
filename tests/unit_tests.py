@@ -1,3 +1,6 @@
+## This file is available from https://github.com/adbar/urltools
+## under GNU GPL v3 license
+
 
 from urllib.parse import urlsplit
 
