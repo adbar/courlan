@@ -9,3 +9,4 @@ allowed_parameters = ('aid', 'article_id', 'artnr', 'id', 'itemid', 'objectid', 
 controlled_parameters = ('lang', 'language')
 accepted_lang = ('de', 'deutsch', 'ger', 'german')
 # accepted_lang = ('en')
+

@@ -37,14 +37,14 @@ def test_validate():
 
 
 def test_urlcheck():
-    assert urlcheck('AAA', False) is None
-    assert urlcheck('http://ab', False) is None
-    assert urlcheck('ftps://example.org/', False) is None
-    assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test', False) == ('https://www.dwds.de/test', 'dwds.de')
-    assert urlcheck('http://example.com/index.html#term', False)[0] == 'http://example.com/index.html'
-    assert urlcheck('http://example.com/test.js', False) is None
-    assert urlcheck('http://example.com/test.html?lang=en', False) is None
-    assert urlcheck('http://twitter.com/', False) is None
+    assert urlcheck('AAA') is None
+    assert urlcheck('http://ab') is None
+    assert urlcheck('ftps://example.org/') is None
+    assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test') == ('https://www.dwds.de/test', 'dwds.de')
+    assert urlcheck('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
+    assert urlcheck('http://example.com/test.js') is None
+    assert urlcheck('http://example.com/test.html?lang=en') is None
+    assert urlcheck('http://twitter.com/') is None
     # assert urlcheck('http://example.invalid/', False) is None
-    assert urlcheck('https://www.httpbin.org/status/200', True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+    assert urlcheck('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
 

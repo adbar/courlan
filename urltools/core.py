@@ -31,10 +31,20 @@ def validate(parsed_url):
     return True
 
 
+def extract_domain(url):
+    try:
+        tldinfo = no_fetch_extract(url)
+    except TypeError:
+        logging.debug('tld: %s', tldinfo)
+        return None
+    # domain TLD blacklist
+    if tldinfo.domain in blacklist:
+        return None
+    # return domain
+    return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
-## chain of validators
-def urlcheck(url, redbool):
+def urlcheck(url, with_redirects=False):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -92,38 +102,17 @@ def urlcheck(url, redbool):
         return None
 
     # domain info
-    try:
-        tldinfo = no_fetch_extract(url)
-    except TypeError:
-        logging.debug('tld: %s', tldinfo)
+    domain = extract_domain(url)
+    if domain is None:
         return None
-    # domain TLD blacklist
-    if tldinfo.domain in blacklist:
-        return None
-
-    domain = re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
     ## URL probably OK
     # get potential redirect
-    if redbool is True:
+    if with_redirects is True:
         url2 = redirection_test(url)
         if url2 is not None:
-            # domain info
-            try:
-                tldinfo = no_fetch_extract(url2)
-            except TypeError:
-                logging.debug('tld: %s', tldinfo)
-                return None
-            # domain TLD blacklist
-            if tldinfo.domain in blacklist:
-                return None
-
-            domain2 = re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
-            if domain2 != domain:
+            domain2 = extract_domain(url)
+            if domain2 is not None and domain2 != domain:
                 return (url2, domain2)
-
-    # hot fix: &amp;
-    if '&amp;' in url:
-        url = url.replace('&amp;', '&')
 
     return (url, domain)

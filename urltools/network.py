@@ -1,5 +1,7 @@
 
 import logging
+import socket
+
 import requests
 
 
@@ -34,7 +36,7 @@ def redirection_test(url):
         logging.error('unknown: %s %s', url, err) # sys.exc_info()[0]
     else:
         # response
-        if rhead.status_code == requests.codes.ok:
+        if rhead.status_code == 200:
             logging.info('redirection found: %s', rhead.url)
             return rhead.url
     #else:

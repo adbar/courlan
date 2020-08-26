@@ -29,4 +29,3 @@ def clean(url):
     url = url.lower()
     return url
 
-
