@@ -1,14 +1,16 @@
 
+#import locale
 import logging
 import re
 
-from urllib.parse import urlsplit, urldefrag # urlparse urlunparse,
+#from functools import cmp_to_key
+from random import sample
+from urllib.parse import urlparse, urlsplit, urldefrag # urlunparse,
 
 import tldextract
 
 from furl import furl
 from url_normalize import url_normalize
-
 
 from .clean import clean
 from .filters import spamfilter, typefilter
@@ -116,3 +118,47 @@ def urlcheck(url, with_redirects=False):
                 return (url2, domain2)
 
     return (url, domain)
+
+
+def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, verbose=False):
+    lastseen, urlbuffer, sampled = None, set(), list()
+    for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
+        # first basic filter
+        if urlcheck(url) is None:
+            continue
+        # initialize
+        parsed_url = urlparse(url)
+        if lastseen is None:
+            lastseen = parsed_url.netloc
+        # dump URL
+        # url = parsed_url.geturl()
+        # continue collection
+        if parsed_url.netloc == lastseen:
+            urlbuffer.add(url)
+        # sample, drop, fresh start
+        else:
+            # threshold for too small websites
+            if exclude_min is None or len(urlbuffer) >= exclude_min:
+                # write all the buffer
+                if len(urlbuffer) <= samplesize:
+                    sampled.extend(urlbuffer)
+                    if verbose is True:
+                        print(lastseen, '\t\turls:', len(urlbuffer))
+                # or sample URLs
+                else:
+                    # threshold for too large websites
+                    if exclude_max is None or len(urlbuffer) <= exclude_max:
+                        sampled.extend(sample(urlbuffer, samplesize))
+                        if verbose is True:
+                            print(lastseen, '\t\turls:', len(urlbuffer), '\tprop.:', samplesize/len(urlbuffer))
+                    else:
+                        if verbose is True:
+                            print('discarded (exclude size):', lastseen, '\t\turls:', len(urlbuffer))
+            else:
+                if verbose is True:
+                    print('discarded (exclude size):', lastseen, '\t\turls:', len(urlbuffer))
+            urlbuffer = set()
+            urlbuffer.add(url)
+        lastseen = parsed_url.netloc
+    return sampled
+

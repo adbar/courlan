@@ -2,7 +2,7 @@
 from urllib.parse import urlsplit
 
 from urltools.clean import clean
-from urltools.core import urlcheck, validate
+from urltools.core import sample_urls, urlcheck, validate
 from urltools.filters import spamfilter, typefilter
 
 
@@ -47,4 +47,9 @@ def test_urlcheck():
     assert urlcheck('http://twitter.com/') is None
     # assert urlcheck('http://example.invalid/', False) is None
     assert urlcheck('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+
+
+def test_sample():
+    # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
+    assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2'], 1)) == 1
 
