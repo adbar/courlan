@@ -1,8 +1,17 @@
+"""
+Unit tests for the courlan package.
+"""
+
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
+import os
+import sys
+
+from unittest.mock import patch
 
 from courlan.clean import clean_url
+from courlan.cli import parse_args
 from courlan.core import check_url, sample_urls, validate_url
 from courlan.filters import spamfilter, typefilter
 
@@ -50,6 +59,17 @@ def test_urlcheck():
     # assert urlcheck('http://example.invalid/', False) is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
+
+
+def test_cli():
+    '''test the command-line interface'''
+    testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v']
+    with patch.object(sys, 'argv', testargs):
+        args = parse_args(testargs)
+    assert args.inputfile == 'input.txt'
+    assert args.outputfile == 'output.txt'
+    assert args.verbose is True
+    assert os.system('courlan --help') == 0  # exit status
 
 
 def test_sample():
