@@ -2,6 +2,14 @@ coURLan: clean, filter and sample URLs
 ======================================
 
 
+.. image:: https://img.shields.io/pypi/v/courlan.svg
+    :target: https://pypi.python.org/pypi/courlan
+    :alt: Python package
+
+.. image:: https://img.shields.io/pypi/pyversions/courlan.svg
+    :target: https://pypi.python.org/pypi/courlan
+    :alt: Python versions
+
 .. image:: https://img.shields.io/travis/adbar/courlan.svg
     :target: https://travis-ci.org/adbar/courlan
     :alt: Travis build status
@@ -15,20 +23,21 @@ coURLan: clean, filter and sample URLs
 Features
 --------
 
+- Cleaning and filtering targeting non-spam HTML pages with primarily text
 - URL validation
-- Cleaning
 - Sampling by domain name
+- Command-line interface (CLI) and Python tool
 
 
-Let the coURLan fish out juicy URLs for you:
+**Let the coURLan fish out juicy URLs for you!**
 
 .. image:: courlan_harns-march.jpg
     :alt: Courlan 
     :align: center
-    :width: 85%
+    :width: 75%
     :target: https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg
 
-Source: `Limpkin, Harn's Marsh by Russ <https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg>`_, CC BY 2.0.
+Here is a `courlan <https://en.wiktionary.org/wiki/courlan>`_. Source: `Limpkin at Harn's Marsh by Russ <https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg>`_, CC BY 2.0.
 
 
 
@@ -48,8 +57,11 @@ This Python package is tested on Linux, macOS and Windows systems, it is compati
 Usage
 -----
 
+Current focus is on German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+
+
 Command-line
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 .. code-block:: bash
 
@@ -77,14 +89,31 @@ optional arguments:
 
 
 Python
-^^^^^^
+~~~~~~
 
 .. code-block:: python
 
-    >>> from courlan.core import urlcheck
-    >>> urlcheck(my_list)
+    # All operations chained
+    >>> from courlan.core import check_url
+    >>> url, domain_name = check_url(my_url)
+    # Check for redirects (HEAD request)
+    >>> url, domain_name = check_url(my_url, with_redirects=True)
+    # Cleaning only
     >>> from courlan.clean import clean_url
     >>> my_url = clean_url(my_url)
+    # URL validation
+    >>> from courlan.filters import validate_url
+    >>> result, parsed_url = validate_url(my_url)
+    # Sampling by domain name
+    >>> from courlan.core import sample_urls
+    >>> my_sample = sample_urls(my_urls, 100)
+    # optional: exclude_min=None, exclude_max=None, verbose=False
+
+
+Additional scripts
+~~~~~~~~~~~~~~~~~~
+
+Scripts designed to handle URL lists are found under ``helpers``.
 
 
 License
@@ -92,13 +121,7 @@ License
 
 *coURLan* is distributed under the `GNU General Public License v3.0 <https://github.com/adbar/courlan/blob/master/LICENSE>`_
 
-If you wish to redistribute this library but feel bounded by the license conditions you consider interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_ , `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or contacting me. See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
-
-
-Additional scripts
-------------------
-
-In addition, diverse scripts designed to handle URL lists are found under ``helpers``.
+If you wish to redistribute this library but feel bounded by the license conditions please consider interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_, `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or contacting me. See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
 
 
 Contributing
@@ -112,9 +135,9 @@ Feel free to file issues on the `dedicated page <https://github.com/adbar/courla
 Author
 ------
 
-This effort is part of methods to derive information from web documents in order to build text databases for research (chiefly linguistic analysis and natural language processing). A significant challenge resides in the ability to extract and pre-process web texts to meet scientific expectations: Web corpus construction involves numerous design decisions, and this software package can help facilitate collection and enhance corpus quality.
+This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). A significant challenge resides in the ability to extract and pre-process web texts to meet scientific expectations: Web corpus construction involves numerous design decisions, and this software package can help facilitate collection and enhance corpus quality.
 
 -  Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_", Proceedings of KONVENS 2019, Kaleidoscope Abstracts, 2019.
 -  Barbaresi, A. "`Efficient construction of metadata-enhanced web corpora <https://hal.archives-ouvertes.fr/hal-01371704v2/document>`_", Proceedings of the `10th Web as Corpus Workshop (WAC-X) <https://www.sigwac.org.uk/wiki/WAC-X>`_, 2016.
 
-You can contact me via my `contact page <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.
+Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.

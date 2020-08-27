@@ -3,9 +3,10 @@ Helpers
 
 
 Normalize URLs in CommonCrawl reverted prefix format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------------------
 
 Revert URLs to their usual form:
+
 - Input: ``at.anthropology.www/people/whartl/courses_current:http``
 - Output: ``http://www.anthropology.at/people/whartl/courses_current``
 
@@ -15,7 +16,7 @@ Information about usage: ``python3 common-crawl-normalize.py -h``
 
 
 Find URLs pointing to WordPress sites
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 Extract URLs which match common WordPress structural patterns for URLs, according to the notion of `permalink structure <https://codex.wordpress.org/Using_Permalinks#Choosing_your_permalink_structure>`_ in the WordPress manual. See `guessing if a URL points to a WordPress blog <http://adrien.barbaresi.eu/blog/guessing-url-points-wordpress-blog.html>`_ for more information.
 
