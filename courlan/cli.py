@@ -14,15 +14,21 @@ from .core import check_url, sample_urls
 def parse_args(args):
     """Define parser for command-line arguments"""
     argsparser = argparse.ArgumentParser()
-    argsparser.add_argument("-v", "--verbose",
-                            help="increase output verbosity",
-                            action="store_true")
     argsparser.add_argument("-i", "--inputfile",
                             help="""name of input file""",
                             type=str, required=True)
     argsparser.add_argument("-o", "--outputfile",
                             help="""name of input file""",
                             type=str, required=True)
+    argsparser.add_argument("-v", "--verbose",
+                            help="increase output verbosity",
+                            action="store_true")
+    argsparser.add_argument("-l", "--language",
+                            help="use language filter",
+                            action="store_true")
+    argsparser.add_argument("-r", "--redirects",
+                            help="check redirects",
+                            action="store_true")
     argsparser.add_argument('-s', '--sample',
                             help='use sampling',
                             action="store_true")
@@ -46,7 +52,7 @@ def main():
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
             with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
                 for line in inputfh:
-                    result = check_url(line)
+                    result = check_url(line, with_redirects=args.redirects, with_language=args.language)
                     if result is not None:
                         outputfh.write(result[0] + '\n')
     else:

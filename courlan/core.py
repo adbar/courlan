@@ -42,7 +42,7 @@ def extract_domain(url):
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
-def check_url(url, with_redirects=False):
+def check_url(url, with_redirects=False, with_language=False):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -75,7 +75,7 @@ def check_url(url, with_redirects=False):
                     if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
                         del fobject.args[qelem]
                     # control language
-                    elif teststr in CONTROL_PARAMS:
+                    elif teststr in CONTROL_PARAMS and with_language is True:
                         if fobject.args[qelem].lower() not in TARGET_LANG:
                             logging.debug('bad lang: %s %s', url, fobject.args[qelem].lower)
                             raise ValueError
