@@ -112,6 +112,8 @@ def check_url(url, with_redirects=False, with_language=False):
             domain2 = extract_domain(url)
             if domain2 is not None and domain2 != domain:
                 return (url2, domain2)
+        else:
+            return None
 
     return (url, domain)
 

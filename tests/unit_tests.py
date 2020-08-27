@@ -44,10 +44,12 @@ def test_urlcheck():
     assert check_url('https://www.dwds.de/test?param=test&amp;other=test') == ('https://www.dwds.de/test', 'dwds.de')
     assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
     assert check_url('http://example.com/test.js') is None
-    assert check_url('http://example.com/test.html?lang=en') is None
+    assert check_url('http://example.com/test.html?lang=en', with_language=True) is None
+    assert check_url('http://example.com/test.html?lang=en', with_language=False) is not None
     assert check_url('http://twitter.com/') is None
     # assert urlcheck('http://example.invalid/', False) is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+    assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
 
 
 def test_sample():
