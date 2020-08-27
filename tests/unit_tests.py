@@ -50,6 +50,7 @@ def test_urlcheck():
     assert check_url('AAA') is None
     assert check_url('http://ab') is None
     assert check_url('ftps://example.org/') is None
+    assert check_url('http://t.g/test') is None
     assert check_url('https://www.dwds.de/test?param=test&amp;other=test') == ('https://www.dwds.de/test', 'dwds.de')
     assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
     assert check_url('http://example.com/test.js') is None
@@ -59,6 +60,7 @@ def test_urlcheck():
     # assert urlcheck('http://example.invalid/', False) is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
+    assert check_url('https://www.ht.or', with_redirects=True) is None
 
 
 def test_cli():
@@ -73,8 +75,12 @@ def test_cli():
 
 
 def test_sample():
+    assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0)) == 0
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
-    assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2'], 1)) == 1
+    mylist = ['http://t.o/t1', 'http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2']
+    assert len(sample_urls(mylist, 1, verbose=True)) == 1
+    assert len(sample_urls(mylist, 1, exclude_min=10, verbose=True)) == 0
+    assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 0
 
 
 def test_examples():
