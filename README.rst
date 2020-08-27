@@ -29,15 +29,15 @@ Features
 - Command-line interface (CLI) and Python tool
 
 
-**Let the coURLan fish out juicy URLs for you!**
+**Let the coURLan fish out juicy bits for you!**
 
 .. image:: courlan_harns-march.jpg
     :alt: Courlan 
     :align: center
-    :width: 75%
+    :width: 65%
     :target: https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg
 
-Here is a `courlan <https://en.wiktionary.org/wiki/courlan>`_. Source: `Limpkin at Harn's Marsh by Russ <https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg>`_, CC BY 2.0.
+Here is a `courlan <https://en.wiktionary.org/wiki/courlan>`_ (source: `Limpkin at Harn's Marsh by Russ <https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg>`_, CC BY 2.0).
 
 
 
@@ -68,17 +68,20 @@ Command-line
     $ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
     $ courlan --help
 
-usage: courlan [-h] [-v] -i INPUTFILE -o OUTPUTFILE [-s]
+
+usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-v] [-l] [-r] [-s]
                [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
                [--exclude-min EXCLUDE_MIN]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --verbose         increase output verbosity
   -i INPUTFILE, --inputfile INPUTFILE
                         name of input file
   -o OUTPUTFILE, --outputfile OUTPUTFILE
                         name of input file
+  -v, --verbose         increase output verbosity
+  -l, --language        use language filter
+  -r, --redirects       check redirects
   -s, --sample          use sampling
   --samplesize SAMPLESIZE
                         size of sample per domain
@@ -88,23 +91,40 @@ optional arguments:
                         exclude domains with less than n URLs
 
 
+
 Python
 ~~~~~~
 
+All operations chained:
+
 .. code-block:: python
 
-    # All operations chained
     >>> from courlan.core import check_url
     >>> url, domain_name = check_url(my_url)
     # Check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
-    # Cleaning only
+
+
+Cleaning only:
+
+.. code-block:: python
+
     >>> from courlan.clean import clean_url
     >>> my_url = clean_url(my_url)
-    # URL validation
+
+
+URL validation:
+
+.. code-block:: python
+
     >>> from courlan.filters import validate_url
     >>> result, parsed_url = validate_url(my_url)
-    # Sampling by domain name
+
+
+Sampling by domain name:
+
+.. code-block:: python
+
     >>> from courlan.core import sample_urls
     >>> my_sample = sample_urls(my_urls, 100)
     # optional: exclude_min=None, exclude_max=None, verbose=False
@@ -119,9 +139,9 @@ Scripts designed to handle URL lists are found under ``helpers``.
 License
 -------
 
-*coURLan* is distributed under the `GNU General Public License v3.0 <https://github.com/adbar/courlan/blob/master/LICENSE>`_
+*coURLan* is distributed under the `GNU General Public License v3.0 <https://github.com/adbar/courlan/blob/master/LICENSE>`_. If you wish to redistribute this library but feel bounded by the license conditions please try interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_, `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or `contacting me <https://github.com/adbar/courlan#author>`_.
 
-If you wish to redistribute this library but feel bounded by the license conditions please consider interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_, `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or contacting me. See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
+See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
 
 
 Contributing
