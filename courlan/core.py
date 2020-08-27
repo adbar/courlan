@@ -1,3 +1,7 @@
+"""
+Core functions needed to make the module work.
+"""
+
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
@@ -17,7 +21,7 @@ from url_normalize import url_normalize
 from .clean import clean_url
 from .filters import spamfilter, typefilter, validate_url
 from .network import redirection_test
-from .settings import *
+from .settings import BLACKLIST, ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
 
 
 
@@ -25,13 +29,14 @@ no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 def extract_domain(url):
+    '''Extract domain name information using top-level domain info'''
     try:
         tldinfo = no_fetch_extract(url)
     except TypeError:
         logging.debug('tld: %s', tldinfo)
         return None
     # domain TLD blacklist
-    if tldinfo.domain in blacklist:
+    if tldinfo.domain in BLACKLIST:
         return None
     # return domain
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
@@ -67,11 +72,11 @@ def check_url(url, with_redirects=False):
                 fobject = furl(url)
                 for qelem in list(fobject.args):
                     teststr = qelem.lower()
-                    if teststr not in allowed_parameters and teststr not in controlled_parameters:
+                    if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
                         del fobject.args[qelem]
                     # control language
-                    elif teststr in controlled_parameters:
-                        if fobject.args[qelem].lower() not in accepted_lang:
+                    elif teststr in CONTROL_PARAMS:
+                        if fobject.args[qelem].lower() not in TARGET_LANG:
                             logging.debug('bad lang: %s %s', url, fobject.args[qelem].lower)
                             raise ValueError
                 url = fobject.url
@@ -112,6 +117,7 @@ def check_url(url, with_redirects=False):
 
 
 def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, verbose=False):
+    '''Sample a list of URLs by domain name, optionally using constraints on their number'''
     lastseen, urlbuffer, sampled = None, set(), list()
     for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
         # first basic filter

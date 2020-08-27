@@ -1,3 +1,7 @@
+"""
+Functions performing URL trimming and cleaning
+"""
+
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
@@ -6,6 +10,7 @@ import re
 
 
 def clean_url(url):
+    '''Strip unncessary parts and make sure only one URL is considered'''
     # trim
     url = url.strip()
     # clean the input string
@@ -30,4 +35,3 @@ def clean_url(url):
     # lower
     url = url.lower()
     return url
-
