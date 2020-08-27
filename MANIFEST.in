@@ -1,2 +1,4 @@
 include CONTRIBUTING.md HISTORY.md README.rst LICENSE tox.ini
 include tests/unit_tests.py
+include courlan_harns-march.jpg
+graft helpers/
