@@ -2,7 +2,7 @@
 Implements a basic command-line interface.
 """
 
-## This file is available from https://github.com/adbar/urltools
+## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
 import argparse

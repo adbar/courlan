@@ -1,11 +1,11 @@
-## This file is available from https://github.com/adbar/urltools
+## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
 import logging
 import re
 
 
-def clean(url):
+def clean_url(url):
     # trim
     url = url.strip()
     # clean the input string

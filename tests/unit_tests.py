@@ -1,20 +1,20 @@
-## This file is available from https://github.com/adbar/urltools
+## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
 
 from urllib.parse import urlsplit
 
-from urltools.clean import clean
-from urltools.core import sample_urls, urlcheck, validate
-from urltools.filters import spamfilter, typefilter
+from courlan.clean import clean_url
+from courlan.core import sample_urls, urlcheck, validate
+from courlan.filters import spamfilter, typefilter
 
 
 def test_clean():
-    assert clean('  https://www.dwds.de') == 'https://www.dwds.de'
-    assert clean('HTTPS://WWW.DWDS.DE/') == 'https://www.dwds.de'
-    assert clean('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
-    assert clean('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
-    assert clean('https://www.dwds.de/garbledhttps://www.dwds.de/') == 'https://www.dwds.de'
+    assert clean_url('  https://www.dwds.de') == 'https://www.dwds.de'
+    assert clean_url('HTTPS://WWW.DWDS.DE/') == 'https://www.dwds.de'
+    assert clean_url('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
+    assert clean_url('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
+    assert clean_url('https://www.dwds.de/garbledhttps://www.dwds.de/') == 'https://www.dwds.de'
 
 
 def test_spamfilter():

@@ -1,5 +1,5 @@
 [run]
-source = urltools
+source = courlan
 
 omit =
     tests/*

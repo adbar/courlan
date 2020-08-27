@@ -1,6 +1,6 @@
 """
 URL manipulation tools
-http://github.com/adbar/urltools
+http://github.com/adbar/courlan
 """
 
 # workaround for open() with encoding=''
@@ -19,9 +19,9 @@ def readme():
 
 
 setup(
-    name='urltools',
+    name='courlan',
     version='0.1.0',
-    description='URL manipulation tools',
+    description='Clean, filter and sample URLs',
     long_description=readme(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -49,12 +49,12 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Scientific/Engineering :: Information Analysis',
     ],
-    keywords=['urls'],
+    keywords=['urls', 'url-parsing', 'url-manipulation', 'preprocessing', 'validation'],
     url='http://github.com/adbar/urltools',
     author='Adrien Barbaresi',
     author_email='barbaresi@bbaw.de',
     license='GPLv3+',
-    packages=['urltools'],
+    packages=['courlan'],
     #package_data={},
     include_package_data=True,
     python_requires='>=3.4',
@@ -65,7 +65,7 @@ setup(
     ],
     #extras_require=extras,
     entry_points = {
-        'console_scripts': ['urltools=urltools.cli:main'],
+        'console_scripts': ['courlan=courlan.cli:main'],
     },
     # platforms='any',
     tests_require=['pytest', 'tox'],

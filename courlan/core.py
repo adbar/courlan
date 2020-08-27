@@ -1,4 +1,4 @@
-## This file is available from https://github.com/adbar/urltools
+## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
 #import locale
@@ -14,7 +14,7 @@ import tldextract
 from furl import furl
 from url_normalize import url_normalize
 
-from .clean import clean
+from .clean import clean_url
 from .filters import spamfilter, typefilter
 from .network import redirection_test
 from .settings import *
@@ -69,7 +69,7 @@ def urlcheck(url, with_redirects=False):
             raise ValueError
 
         # clean
-        url = clean(url)
+        url = clean_url(url)
 
         parsed_url = urlsplit(url) # was urlparse(url)
         if validate(parsed_url) is True:
