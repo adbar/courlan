@@ -8,7 +8,7 @@ Implements a basic command-line interface.
 import argparse
 import sys
 
-from .core import urlcheck, sample_urls
+from .core import check_url, sample_urls
 
 
 def parse_args(args):
@@ -46,7 +46,7 @@ def main():
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
             with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
                 for line in inputfh:
-                    result = urlcheck(line, False)
+                    result = check_url(line)
                     if result is not None:
                         outputfh.write(result[0] + '\n')
     else:

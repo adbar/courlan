@@ -2,10 +2,8 @@
 ## under GNU GPL v3 license
 
 
-from urllib.parse import urlsplit
-
 from courlan.clean import clean_url
-from courlan.core import sample_urls, urlcheck, validate
+from courlan.core import check_url, sample_urls, validate_url
 from courlan.filters import spamfilter, typefilter
 
 
@@ -33,26 +31,32 @@ def test_typefilter():
 
 
 def test_validate():
-    assert validate(urlsplit('ntp://www.test.org/test')) is False
-    assert validate(urlsplit('ftps://www.test.org/test')) is False
-    assert validate(urlsplit('http://t.g/test')) is False
-    assert validate(urlsplit('http://test.org/test')) is True
+    assert validate_url('ntp://www.test.org/test')[0] is False
+    assert validate_url('ftps://www.test.org/test')[0] is False
+    assert validate_url('http://t.g/test')[0] is False
+    assert validate_url('http://test.org/test')[0] is True
 
 
 def test_urlcheck():
-    assert urlcheck('AAA') is None
-    assert urlcheck('http://ab') is None
-    assert urlcheck('ftps://example.org/') is None
-    assert urlcheck('https://www.dwds.de/test?param=test&amp;other=test') == ('https://www.dwds.de/test', 'dwds.de')
-    assert urlcheck('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
-    assert urlcheck('http://example.com/test.js') is None
-    assert urlcheck('http://example.com/test.html?lang=en') is None
-    assert urlcheck('http://twitter.com/') is None
+    assert check_url('AAA') is None
+    assert check_url('http://ab') is None
+    assert check_url('ftps://example.org/') is None
+    assert check_url('https://www.dwds.de/test?param=test&amp;other=test') == ('https://www.dwds.de/test', 'dwds.de')
+    assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
+    assert check_url('http://example.com/test.js') is None
+    assert check_url('http://example.com/test.html?lang=en') is None
+    assert check_url('http://twitter.com/') is None
     # assert urlcheck('http://example.invalid/', False) is None
-    assert urlcheck('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+    assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
 
 
 def test_sample():
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2'], 1)) == 1
 
+
+def test_examples():
+    '''Test README examples'''
+    assert check_url('1234') is None
+    assert clean_url('HTTPS://WWW.DWDS.DE/') == 'https://www.dwds.de'
+    assert validate_url('1234')[0] is False

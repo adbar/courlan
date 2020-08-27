@@ -3,6 +3,8 @@
 
 import re
 
+from urllib.parse import urlsplit
+
 
 def typefilter(url):
     # directory
@@ -40,3 +42,14 @@ def spamfilter(url):
     # default
     return True
 
+
+def validate_url(url):
+    parsed_url = urlsplit(url) # was urlparse(url)
+    if bool(parsed_url.scheme) is False or len(parsed_url.netloc) < 4:
+        return False, None
+    if parsed_url.scheme not in ('http', 'https'):
+        return False, None
+    # if validators.url(parsed_url.geturl(), public=True) is False:
+    #    return False
+    # default
+    return True, parsed_url

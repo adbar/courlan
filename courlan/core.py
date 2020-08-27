@@ -7,7 +7,7 @@ import re
 
 #from functools import cmp_to_key
 from random import sample
-from urllib.parse import urlparse, urlsplit, urldefrag # urlunparse,
+from urllib.parse import urlparse, urldefrag # urlunparse
 
 import tldextract
 
@@ -15,24 +15,13 @@ from furl import furl
 from url_normalize import url_normalize
 
 from .clean import clean_url
-from .filters import spamfilter, typefilter
+from .filters import spamfilter, typefilter, validate_url
 from .network import redirection_test
 from .settings import *
 
 
 
 no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
-
-
-def validate(parsed_url):
-    if bool(parsed_url.scheme) is False or len(parsed_url.netloc) < 4:
-        return False
-    if parsed_url.scheme not in ('http', 'https'):
-        return False
-    # if validators.url(parsed_url.geturl(), public=True) is False:
-    #    return False
-    # default
-    return True
 
 
 def extract_domain(url):
@@ -48,7 +37,7 @@ def extract_domain(url):
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
-def urlcheck(url, with_redirects=False):
+def check_url(url, with_redirects=False):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -71,8 +60,8 @@ def urlcheck(url, with_redirects=False):
         # clean
         url = clean_url(url)
 
-        parsed_url = urlsplit(url) # was urlparse(url)
-        if validate(parsed_url) is True:
+        validation_test, parsed_url = validate_url(url)
+        if validation_test is True:
             # strip unwanted query parts
             if len(parsed_url.query) > 0:
                 fobject = furl(url)
@@ -126,7 +115,7 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, verbose
     lastseen, urlbuffer, sampled = None, set(), list()
     for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
         # first basic filter
-        if urlcheck(url) is None:
+        if check_url(url) is None:
             continue
         # initialize
         parsed_url = urlparse(url)
@@ -163,4 +152,3 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, verbose
             urlbuffer.add(url)
         lastseen = parsed_url.netloc
     return sampled
-
