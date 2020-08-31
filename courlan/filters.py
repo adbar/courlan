@@ -11,10 +11,10 @@ import re
 from urllib.parse import urlsplit
 
 
-WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/')
-PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b')  # , re.IGNORECASE (?=[&?])
-PATH_FILTER = re.compile(r'(impressum|index)(\.html)?')
-ADULT_FILTER = re.compile(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b|\b(?:arsch|fick|porno?)|(?:cash|swinger)\b')
+WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
+PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
+PATH_FILTER = re.compile(r'(impressum|index)(\.html)?', re.IGNORECASE)
+ADULT_FILTER = re.compile(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b|\b(?:arsch|fick|porno?)|(?:cash|swinger)\b', re.IGNORECASE)
 
 
 
@@ -28,7 +28,7 @@ def typefilter(url, strict=False):
         if url.endswith(('/feed', '/rss')):
             raise ValueError
         # embedded content
-        if re.search(r'/oembed\b', url):
+        if re.search(r'/oembed\b', url, re.IGNORECASE):
             raise ValueError
         # wordpress structure
         if WORDPRESS_FILTER.search(url):
@@ -37,9 +37,9 @@ def typefilter(url, strict=False):
         if strict is True and PARAM_FILTER.search(url):
             raise ValueError
         # not suitable
-        if re.match(r'https?://banner\.|https?://add?s?\.', url):
+        if re.match(r'https?://banner\.|https?://add?s?\.', url, re.IGNORECASE):
             raise ValueError
-        if re.search(r'\b(?:doubleclick|tradedoubler|livestream|live|videos?)\b', url):
+        if re.search(r'\b(?:doubleclick|tradedoubler|livestream|live|videos?)\b', url, re.IGNORECASE):
             raise ValueError
         # strict content filtering
         if strict is True and PATH_FILTER.search(url):
