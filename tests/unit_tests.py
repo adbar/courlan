@@ -68,6 +68,7 @@ def test_urlcheck():
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
     assert check_url('https://www.ht.or', with_redirects=True) is None
+    assert check_url('http://www.example') is not None
 
 
 def test_cli():

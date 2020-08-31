@@ -24,17 +24,13 @@ from .network import redirection_test
 from .settings import BLACKLIST, ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
 
 
-
-no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
+# extract callable that falls back to the included TLD snapshot, no live HTTP fetching
+TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 def extract_domain(url):
     '''Extract domain name information using top-level domain info'''
-    try:
-        tldinfo = no_fetch_extract(url)
-    except TypeError:
-        logging.debug('tld: %s', tldinfo)
-        return None
+    tldinfo = TLD_EXTRACTION(url)
     # domain TLD blacklist
     if tldinfo.domain in BLACKLIST:
         return None
@@ -68,6 +64,7 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         # spam
         if spamfilter(url) is False:
             raise ValueError
+        # structural elements
         if typefilter(url, strict) is False:
             raise ValueError
 
@@ -75,9 +72,16 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         validation_test, parsed_url = validate_url(url)
         if validation_test is False:
             raise ValueError
+
         # content filter based on extensions
         if extensionfilter(parsed_url.path) is False:
             raise ValueError
+
+        # strip fragments
+        if len(parsed_url.fragment) > 0:
+            url, _ = urldefrag(url)
+            # url = urlunsplit((parsed_url[0], parsed_url[1], parsed_url[2], parsed_url[3], ''))
+
         # strip unwanted query parts
         if len(parsed_url.query) > 0:
             fobject = furl(url)
@@ -88,13 +92,9 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
                 # control language
                 elif teststr in CONTROL_PARAMS and with_language is True:
                     if fobject.args[qelem].lower() not in TARGET_LANG:
-                        logging.debug('bad lang: %s %s', url, fobject.args[qelem].lower)
+                        logging.debug('bad lang: %s %s', url, fobject.args[qelem])
                         raise ValueError
             url = fobject.url
-        # strip fragments
-        if len(parsed_url.fragment) > 0:
-            url, _ = urldefrag(url)
-            # url = urlunsplit((parsed_url[0], parsed_url[1], parsed_url[2], parsed_url[3], ''))
 
         # normalization
         url = url_normalize(url)
