@@ -11,6 +11,13 @@ import re
 from urllib.parse import urlsplit
 
 
+WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/')
+PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b')  # , re.IGNORECASE (?=[&?])
+PATH_FILTER = re.compile(r'(impressum|index)(\.html)?')
+ADULT_FILTER = re.compile(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b|\b(?:arsch|fick|porno?)|(?:cash|swinger)\b')
+
+
+
 def typefilter(url, strict=False):
     '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
     # directory
@@ -24,18 +31,18 @@ def typefilter(url, strict=False):
         if re.search(r'/oembed\b', url):
             raise ValueError
         # wordpress structure
-        if re.search(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/', url):
+        if WORDPRESS_FILTER.search(url):
             raise ValueError
         # hidden in parameters
-        if strict is True and re.search(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', url): # , re.IGNORECASE (?=[&?])
+        if strict is True and PARAM_FILTER.search(url):
             raise ValueError
         # not suitable
-        if re.match('https?://banner.', url) or re.match(r'https?://add?s?\.', url):
+        if re.match(r'https?://banner\.|https?://add?s?\.', url):
             raise ValueError
         if re.search(r'\b(?:doubleclick|tradedoubler|livestream|live|videos?)\b', url):
             raise ValueError
         # strict content filtering
-        if strict is True and re.search(r'(impressum|index)(\.html)?', url):
+        if strict is True and PATH_FILTER.search(url):
             raise ValueError
     except ValueError:
         return False
@@ -56,7 +63,7 @@ def spamfilter(url):
     #for exp in (''):
     #    if exp in url:
     #        return False
-    if re.search(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b', url) or re.search(r'\b(?:arsch|fick|porno?)', url) or re.search(r'(?:cash|swinger)\b', url):
+    if ADULT_FILTER.search(url):
     #  or re.search(r'\b(?:sex)\b', url): # live|xxx|sex|ass|orgasm|cams|
         return False
     # default
