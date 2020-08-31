@@ -45,7 +45,7 @@ def typefilter(url, strict=False):
 
 def extensionfilter(component):
     '''Filter based on file extension'''
-    if re.search(r'https?://.+?/.+?\.[a-z]{2,5}$', component) and not component.endswith(('html', '.htm', '.asp', '.php', '.jsp', '.pl', '.cgi', '.cfm')):
+    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('html', '.htm', '.asp', '.php', '.jsp', '.pl', '.cgi', '.cfm')):
         return False
     return True
 
