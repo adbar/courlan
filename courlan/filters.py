@@ -11,32 +11,42 @@ import re
 from urllib.parse import urlsplit
 
 
-def typefilter(url):
+def typefilter(url, strict=False):
     '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
     # directory
     #if url.endswith('/'):
     #    return False
     try:
-        # extensions
-        if url.endswith(('.atom', '.json', '.css', '.xml', '.js', '.jpg', '.jpeg', '.png', '.gif', '.tiff', '.pdf', '.ogg', '.mp3', '.m4a', '.aac', '.avi', '.mp4', '.mov', '.webm', '.flv', '.ico', '.pls', '.zip', '.tar', '.gz', '.iso', '.swf', '.exe')):
-            raise ValueError
         # feeds
         if url.endswith(('/feed', '/rss')):
             raise ValueError
-        # navigation
-        if re.search(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives)/', url) or url.endswith('/index'):
+        # embedded content
+        if re.search(r'/oembed\b', url):
+            raise ValueError
+        # wordpress structure
+        if re.search(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/', url):
             raise ValueError
         # hidden in parameters
-        if re.search(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', url): # , re.IGNORECASE (?=[&?])
+        if strict is True and re.search(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', url): # , re.IGNORECASE (?=[&?])
             raise ValueError
         # not suitable
         if re.match('https?://banner.', url) or re.match(r'https?://add?s?\.', url):
             raise ValueError
         if re.search(r'\b(?:doubleclick|tradedoubler|livestream|live|videos?)\b', url):
             raise ValueError
+        # strict content filtering
+        if strict is True and re.search(r'(impressum|index)(\.html)?', url):
+            raise ValueError
     except ValueError:
         return False
     # default
+    return True
+
+
+def extensionfilter(component):
+    '''Filter based on file extension'''
+    if re.search(r'https?://.+?/.+?\.[a-z]{2,5}$', component) and not component.endswith(('html', '.htm', '.asp', '.php', '.jsp', '.pl', '.cgi', '.cfm')):
+        return False
     return True
 
 

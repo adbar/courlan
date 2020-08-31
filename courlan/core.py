@@ -19,7 +19,7 @@ from furl import furl
 from url_normalize import url_normalize
 
 from .clean import clean_url
-from .filters import spamfilter, typefilter, validate_url
+from .filters import extensionfilter, spamfilter, typefilter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST, ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
 
@@ -88,7 +88,9 @@ def check_url(url, with_redirects=False, with_language=False):
             raise ValueError
 
         # content filters
-        if typefilter(url) is False or spamfilter(url) is False:
+        if extensionfilter(url) is False or \
+           typefilter(url) is False or \
+           spamfilter(url) is False:
             raise ValueError
 
         # normalization
