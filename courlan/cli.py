@@ -23,13 +23,16 @@ def parse_args(args):
     argsparser.add_argument("-v", "--verbose",
                             help="increase output verbosity",
                             action="store_true")
+    argsparser.add_argument("--strict",
+                            help="perform more restrictive tests",
+                            action="store_true")
     argsparser.add_argument("-l", "--language",
                             help="use language filter",
                             action="store_true")
     argsparser.add_argument("-r", "--redirects",
                             help="check redirects",
                             action="store_true")
-    argsparser.add_argument('-s', '--sample',
+    argsparser.add_argument('--sample',
                             help='use sampling',
                             action="store_true")
     argsparser.add_argument('--samplesize',
@@ -52,7 +55,7 @@ def main():
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
             with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
                 for line in inputfh:
-                    result = check_url(line, with_redirects=args.redirects, with_language=args.language)
+                    result = check_url(line, strict=args.strict, with_redirects=args.redirects, with_language=args.language)
                     if result is not None:
                         outputfh.write(result[0] + '\n')
     else:
@@ -61,7 +64,7 @@ def main():
             for line in inputfh:
                 urllist.append(line.strip())
         with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
-            for url in sample_urls(urllist, args.samplesize, exclude_min=args.exclude_min, exclude_max=args.exclude_max, verbose=args.verbose):
+            for url in sample_urls(urllist, args.samplesize, exclude_min=args.exclude_min, exclude_max=args.exclude_max, strict=args.strict, verbose=args.verbose):
                 outputfh.write(url + '\n')
 
 if __name__ == '__main__':

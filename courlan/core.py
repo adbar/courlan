@@ -42,7 +42,7 @@ def extract_domain(url):
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
-def check_url(url, with_redirects=False, with_language=False):
+def check_url(url, strict=False, with_redirects=False, with_language=False):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -68,14 +68,15 @@ def check_url(url, with_redirects=False, with_language=False):
         # spam
         if spamfilter(url) is False:
             raise ValueError
+        if typefilter(url, strict) is False:
+            raise ValueError
 
         # split and validate
         validation_test, parsed_url = validate_url(url)
         if validation_test is False:
             raise ValueError
-        # content filters
-        if extensionfilter(parsed_url.path) is False or \
-           typefilter(parsed_url.path) is False:
+        # content filter based on extensions
+        if extensionfilter(parsed_url.path) is False:
             raise ValueError
         # strip unwanted query parts
         if len(parsed_url.query) > 0:
@@ -122,12 +123,12 @@ def check_url(url, with_redirects=False, with_language=False):
     return (url, domain)
 
 
-def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, verbose=False):
+def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
     '''Sample a list of URLs by domain name, optionally using constraints on their number'''
     lastseen, urlbuffer, sampled = None, set(), list()
     for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
         # first basic filter
-        if check_url(url) is None:
+        if check_url(url, strict=strict, with_redirects=False) is None:
             continue
         # initialize
         parsed_url = urlparse(url)

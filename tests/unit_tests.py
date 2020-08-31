@@ -38,10 +38,12 @@ def test_spamfilter():
 def test_typefilter():
     assert typefilter('http://www.example.org/feed') is False
     assert typefilter('http://www.example.org/category/123') is False
-    #assert typefilter('http://www.example.org/test.xml?param=test') is False
+    assert typefilter('http://www.example.org/test.xml?param=test', strict=True) is False
     assert typefilter('http://www.example.org/test.asp') is True
     assert typefilter('http://ads.example.org/') is False
     assert typefilter('http://my-videos.com/') is False
+    assert typefilter('http://www.example.org/index', strict=True) is False
+    assert typefilter('http://www.example.org/index.html', strict=True) is False
 
 
 def test_validate():
