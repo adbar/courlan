@@ -22,6 +22,8 @@ def test_clean():
     assert clean_url('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
     assert clean_url('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
     assert clean_url('https://www.dwds.de/garbledhttps://www.dwds.de/') == 'https://www.dwds.de'
+    # exception for archive URLs
+    assert clean_url('https://web.archive.org/web/20131021165347/https://www.imdb.com/') == 'https://web.archive.org/web/20131021165347/https://www.imdb.com'
 
 
 def test_spamfilter():

@@ -26,9 +26,9 @@ def clean_url(url):
         url = url.replace('&amp;', '&')
     # double/faulty URLs
     protocols = re.findall(r'https?://', url)
-    if len(protocols) > 1:
+    if len(protocols) > 1 and not 'web.archive.org' in url:
         logging.debug('double url: %s %s', len(protocols), url)
-        match = re.match(r'https?://.+?(https?://.+?)(http|$)', url)
+        match = re.match(r'https?://.+?(https?://.+?)(?:https?://|$)', url)
         if match:
             url = match.group(1)
             logging.debug('taking url: %s', url)
