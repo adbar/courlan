@@ -45,19 +45,20 @@ def clean_query(parsed_url, with_language=False):
     '''Strip unwanted query elements'''
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
-        del_elems = []
-        for qelem in qdict:
+        newqdict = dict()
+        for qelem in sorted(qdict.keys()):
             teststr = qelem.lower()
+            # control param
             if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
-                del_elems.append(qelem)
+                continue
             # control language
-            elif teststr in CONTROL_PARAMS and with_language is True:
-                if teststr.lower() not in TARGET_LANG:
-                    logging.debug('bad lang: %s %s', qelem, qdict[qelem])
-                    raise ValueError
-        for elem in del_elems:
-            del qdict[elem]
-        newstring = urlencode(qdict, doseq=True)
+            if with_language is True and teststr in CONTROL_PARAMS and \
+               teststr.lower() not in TARGET_LANG:
+                logging.debug('bad lang: %s %s', qelem, qdict[qelem])
+                raise ValueError
+            # insert
+            newqdict[qelem] = qdict[qelem]
+        newstring = urlencode(newqdict, doseq=True)
         parsed_url = parsed_url._replace(query=newstring)
     return parsed_url
 

@@ -62,8 +62,8 @@ def test_defrag():
 
 def test_qelems():
     assert normalize_url('http://test.net/foo.html?utm_source=twitter') == 'http://test.net/foo.html'
-    assert normalize_url('http://test.net/foo.html?utm_source=twitter&page=2') == 'http://test.net/foo.html?page=2'
-    assert normalize_url('http://test.net/foo.html?page=2&lang=en') == 'http://test.net/foo.html?page=2&lang=en'
+    assert normalize_url('http://test.net/foo.html?utm_source=twitter&post=abc&page=2') == 'http://test.net/foo.html?page=2&post=abc'
+    assert normalize_url('http://test.net/foo.html?page=2&itemid=10&lang=en') == 'http://test.net/foo.html?itemid=10&lang=en&page=2'
     with pytest.raises(ValueError):
         assert normalize_url('http://test.net/foo.html?page=2&lang=en', with_language=True)
 
