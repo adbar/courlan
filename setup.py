@@ -61,7 +61,6 @@ setup(
     install_requires=[
         'furl',
         'tldextract',
-        'url_normalize',
     ],
     #extras_require=extras,
     entry_points = {

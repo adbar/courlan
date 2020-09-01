@@ -38,6 +38,12 @@ def extract_domain(url):
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
+## def scrub_url
+# clean + validate
+# defrag
+# normalize
+
+
 def check_url(url, strict=False, with_redirects=False, with_language=False):
     """ Check links for appropriateness and sanity
     Args:
@@ -77,6 +83,18 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         if extensionfilter(parsed_url.path) is False:
             raise ValueError
 
+        # normalize
+        # port
+        if parsed_url.port is not None and parsed_url.port in (80, 443):
+            parsed_url = parsed_url._replace(port=None)
+        # lowercase
+        parsed_url = parsed_url._replace(
+                     scheme=parsed_url.scheme.lower(),
+                     netloc=parsed_url.netloc.lower()
+                     )
+        # rebuild
+        url = parsed_url.geturl()
+
         # strip fragments
         if len(parsed_url.fragment) > 0:
             url, _ = urldefrag(url)
@@ -95,9 +113,6 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
                         logging.debug('bad lang: %s %s', url, fobject.args[qelem])
                         raise ValueError
             url = fobject.url
-
-        # normalization
-        url = url_normalize(url)
 
     # handle exceptions
     except (AttributeError, UnicodeError, ValueError): # as err:
