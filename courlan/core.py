@@ -11,12 +11,9 @@ import re
 
 #from functools import cmp_to_key
 from random import sample
-from urllib.parse import urlparse, urldefrag # urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urldefrag # urlunparse
 
 import tldextract
-
-from furl import furl
-from url_normalize import url_normalize
 
 from .clean import clean_url
 from .filters import extensionfilter, spamfilter, typefilter, validate_url
@@ -92,6 +89,25 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
                      scheme=parsed_url.scheme.lower(),
                      netloc=parsed_url.netloc.lower()
                      )
+
+        # strip unwanted query parts
+        if len(parsed_url.query) > 0:
+            qdict = parse_qs(parsed_url.query)
+            del_elems = []
+            for qelem in qdict:
+                teststr = qelem.lower()
+                if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
+                    del_elems.append(qelem)
+                # control language
+                elif teststr in CONTROL_PARAMS and with_language is True:
+                    if qdict[qelem].lower() not in TARGET_LANG:
+                        logging.debug('bad lang: %s %s', url, qdict[qelem])
+                        raise ValueError
+            for elem in del_elems:
+               del qdict[elem]
+            newstring = urlencode(qdict, doseq=True)
+            parsed_url = parsed_url._replace(query=newstring)
+
         # rebuild
         url = parsed_url.geturl()
 
@@ -99,20 +115,6 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         if len(parsed_url.fragment) > 0:
             url, _ = urldefrag(url)
             # url = urlunsplit((parsed_url[0], parsed_url[1], parsed_url[2], parsed_url[3], ''))
-
-        # strip unwanted query parts
-        if len(parsed_url.query) > 0:
-            fobject = furl(url)
-            for qelem in list(fobject.args):
-                teststr = qelem.lower()
-                if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
-                    del fobject.args[qelem]
-                # control language
-                elif teststr in CONTROL_PARAMS and with_language is True:
-                    if fobject.args[qelem].lower() not in TARGET_LANG:
-                        logging.debug('bad lang: %s %s', url, fobject.args[qelem])
-                        raise ValueError
-            url = fobject.url
 
     # handle exceptions
     except (AttributeError, UnicodeError, ValueError): # as err:

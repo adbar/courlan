@@ -59,7 +59,6 @@ setup(
     include_package_data=True,
     python_requires='>=3.4',
     install_requires=[
-        'furl',
         'tldextract',
     ],
     #extras_require=extras,

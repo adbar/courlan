@@ -53,6 +53,18 @@ def test_validate():
     assert validate_url('http://test.org/test')[0] is True
 
 
+def test_defrag():
+    assert check_url('http://test.net/foo.html#bar')[0] == 'http://test.net/foo.html'
+    assert check_url('http://test.net/foo.html#:~:text=night-,vision')[0] == 'http://test.net/foo.html'
+
+
+def test_qelems():
+    assert check_url('http://test.net/foo.html?utm_source=twitter')[0] == 'http://test.net/foo.html'
+    assert check_url('http://test.net/foo.html?utm_source=twitter&page=2')[0] == 'http://test.net/foo.html?page=2'
+    assert check_url('http://test.net/foo.html?page=2&lang=en')[0] == 'http://test.net/foo.html?page=2&lang=en'
+    assert check_url('http://test.net/foo.html?page=2&lang=en', with_language=True) is None
+
+
 def test_urlcheck():
     assert check_url('AAA') is None
     assert check_url('http://ab') is None
