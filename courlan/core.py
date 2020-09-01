@@ -15,8 +15,8 @@ from random import sample
 
 import tldextract
 
-from .clean import clean_url, normalize_url
-from .filters import extensionfilter, spamfilter, typefilter, validate_url
+from .clean import normalize_url, scrub_url
+from .filters import basic_filter, extension_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 
@@ -54,17 +54,23 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
     # use standard parsing library, validate and strip fragments, then normalize
     try:
         # length test
-        if not url.startswith('http') or len(url) >= 500 or len(url) < 10:
+        if basic_filter(url) is False:
             raise ValueError
 
         # clean
-        url = clean_url(url)
+        url = scrub_url(url)
+
+        # get potential redirect
+        if with_redirects is True:
+            url = redirection_test(url)
+            if url is None:
+                raise ValueError
 
         # spam
-        if spamfilter(url) is False:
+        if spam_filter(url) is False:
             raise ValueError
         # structural elements
-        if typefilter(url, strict) is False:
+        if type_filter(url, strict) is False:
             raise ValueError
 
         # split and validate
@@ -73,14 +79,14 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
             raise ValueError
 
         # content filter based on extensions
-        if extensionfilter(parsed_url.path) is False:
+        if extension_filter(parsed_url.path) is False:
             raise ValueError
 
         # normalize
-        url = normalize_url(parsed_url, with_language)
+        url = normalize_url(parsed_url, strict, with_language)
 
     # handle exceptions
-    except (AttributeError, UnicodeError, ValueError):
+    except (AttributeError, ValueError, UnicodeError):
         # LOGGER.debug('discarded URL: %s', url)
         return None
 
@@ -88,17 +94,6 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
     domain = extract_domain(url)
     if domain is None:
         return None
-
-    ## URL probably OK
-    # get potential redirect
-    if with_redirects is True:
-        url2 = redirection_test(url)
-        if url2 is not None:
-            domain2 = extract_domain(url)
-            if domain2 is not None and domain2 != domain:
-                return (url2, domain2)
-        else:
-            return None
 
     return (url, domain)
 

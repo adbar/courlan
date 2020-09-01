@@ -17,8 +17,34 @@ PATH_FILTER = re.compile(r'(impressum|index)(\.html)?', re.IGNORECASE)
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b|\b(?:arsch|fick|porno?)|(?:cash|swinger)\b', re.IGNORECASE)
 
 
+def basic_filter(url):
+    '''Filter URLs based on basic formal characteristics'''
+    if not url.startswith('http') or len(url) >= 500 or len(url) < 10:
+        return False
+    return True
 
-def typefilter(url, strict=False):
+
+def extension_filter(component):
+    '''Filter based on file extension'''
+    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('.asp', '.cfm', '.cgi', '.htm', 'html', '.jsp', '.php', '.pl')):
+        return False
+    return True
+
+
+def spam_filter(url):
+    '''Try to filter out spam and adult websites'''
+    # TODO: to improve!
+    #for exp in (''):
+    #    if exp in url:
+    #        return False
+    if ADULT_FILTER.search(url):
+    #  or re.search(r'\b(?:sex)\b', url): # live|xxx|sex|ass|orgasm|cams|
+        return False
+    # default
+    return True
+
+
+def type_filter(url, strict=False):
     '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
     # directory
     #if url.endswith('/'):
@@ -45,26 +71,6 @@ def typefilter(url, strict=False):
         if strict is True and PATH_FILTER.search(url):
             raise ValueError
     except ValueError:
-        return False
-    # default
-    return True
-
-
-def extensionfilter(component):
-    '''Filter based on file extension'''
-    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('html', '.htm', '.asp', '.php', '.jsp', '.pl', '.cgi', '.cfm')):
-        return False
-    return True
-
-
-def spamfilter(url):
-    '''Try to filter out spam and adult websites'''
-    # TODO: to improve!
-    #for exp in (''):
-    #    if exp in url:
-    #        return False
-    if ADULT_FILTER.search(url):
-    #  or re.search(r'\b(?:sex)\b', url): # live|xxx|sex|ass|orgasm|cams|
         return False
     # default
     return True

@@ -23,8 +23,10 @@ coURLan: clean, filter and sample URLs
 Features
 --------
 
-- Cleaning and filtering targeting non-spam HTML pages with primarily text
-- URL validation
+Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text.
+
+- URL validation and (basic) normalization
+- Filters targeting spam and unsuitable content-types
 - Sampling by domain name
 - Command-line interface (CLI) and Python tool
 
@@ -57,7 +59,75 @@ This Python package is tested on Linux, macOS and Windows systems, it is compati
 Usage
 -----
 
-Current focus is on German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+``courlan`` is designed to work best on English, German and most frequent European languages.
+
+The current logic of detailed/strict URL filtering is on German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+
+
+Python
+~~~~~~
+
+All operations chained:
+
+.. code-block:: python
+
+    >>> from courlan.core import check_url
+    >>> check_url('https://github.com/adbar/courlan') # returns url and domain name
+    ('https://github.com/adbar/courlan', 'github.com')
+    # noisy query parameters are removed
+    >>> check_url('https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org', strict=True)
+    ('https://httpbin.org/redirect-to', 'httpbin.org')
+    # Check for redirects (HEAD request)
+    >>> url, domain_name = check_url(my_url, with_redirects=True)
+    # optional argument targeting webpages in German: with_language=False
+
+
+Helper function, scrub and normalize:
+
+.. code-block:: python
+
+    >>> from courlan.clean import clean_url
+    >>> clean_url('HTTPS://WWW.DWDS.DE:80/')
+    'https://www.dwds.de'
+
+
+Basic scrubbing only:
+
+.. code-block:: python
+
+    >>> from courlan.clean import scrub_url
+
+
+Basic normalization only:
+
+.. code-block:: python
+
+    >>> from urllib.parse import urlparse
+    >>> from courlan.clean import normalize_url
+    >>> my_url = normalize_url(urlparse(my_url))
+    # passing URL strings directly also works
+    >>> my_url = normalize_url(my_url)
+
+
+Basic URL validation only:
+
+.. code-block:: python
+
+    >>> from courlan.filters import validate_url
+    >>> validate_url('http://1234')
+    (False, None)
+    >>> validate_url('http://www.example.org/')
+    (True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
+
+
+Sampling by domain name:
+
+.. code-block:: python
+
+    >>> from courlan.core import sample_urls
+    >>> my_sample = sample_urls(my_urls, 100)
+    # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
+
 
 
 Command-line
@@ -69,20 +139,35 @@ Command-line
     $ courlan --help
 
 
-usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-v] [-l] [-r] [-s]
-               [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
-               [--exclude-min EXCLUDE_MIN]
+usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
+               [--strict] [-l] [-r] [--sample] [--samplesize SAMPLESIZE]
+               [--exclude-max EXCLUDE_MAX] [--exclude-min EXCLUDE_MIN]
 
 optional arguments:
   -h, --help            show this help message and exit
+
+I/O:
+  Manage input and output
+
   -i INPUTFILE, --inputfile INPUTFILE
-                        name of input file
+                        name of input file (required)
   -o OUTPUTFILE, --outputfile OUTPUTFILE
-                        name of input file
+                        name of output file (required)
+  -d DISCARDEDFILE, --discardedfile DISCARDEDFILE
+                        name of file to store discarded URLs (optional)
   -v, --verbose         increase output verbosity
+
+Filtering:
+  Configure URL filters
+
+  --strict              perform more restrictive tests
   -l, --language        use language filter
   -r, --redirects       check redirects
-  -s, --sample          use sampling
+
+Sampling:
+  Use sampling by host, configure sample size
+
+  --sample              use sampling
   --samplesize SAMPLESIZE
                         size of sample per domain
   --exclude-max EXCLUDE_MAX
@@ -90,44 +175,6 @@ optional arguments:
   --exclude-min EXCLUDE_MIN
                         exclude domains with less than n URLs
 
-
-
-Python
-~~~~~~
-
-All operations chained:
-
-.. code-block:: python
-
-    >>> from courlan.core import check_url
-    >>> url, domain_name = check_url(my_url)
-    # Check for redirects (HEAD request)
-    >>> url, domain_name = check_url(my_url, with_redirects=True)
-
-
-Cleaning only:
-
-.. code-block:: python
-
-    >>> from courlan.clean import clean_url
-    >>> my_url = clean_url(my_url)
-
-
-URL validation:
-
-.. code-block:: python
-
-    >>> from courlan.filters import validate_url
-    >>> result, parsed_url = validate_url(my_url)
-
-
-Sampling by domain name:
-
-.. code-block:: python
-
-    >>> from courlan.core import sample_urls
-    >>> my_sample = sample_urls(my_urls, 100)
-    # optional: exclude_min=None, exclude_max=None, verbose=False
 
 
 Additional scripts
