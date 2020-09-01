@@ -1,5 +1,5 @@
-coURLan: clean, filter and sample URLs
-======================================
+coURLan: Clean, filter, normalize, and sample URLs
+==================================================
 
 
 .. image:: https://img.shields.io/pypi/v/courlan.svg
@@ -72,9 +72,10 @@ All operations chained:
 .. code-block:: python
 
     >>> from courlan.core import check_url
-    >>> check_url('https://github.com/adbar/courlan') # returns url and domain name
+    # returns url and domain name
+    >>> check_url('https://github.com/adbar/courlan')
     ('https://github.com/adbar/courlan', 'github.com')
-    # noisy query parameters are removed
+    # noisy query parameters can be removed
     >>> check_url('https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org', strict=True)
     ('https://httpbin.org/redirect-to', 'httpbin.org')
     # Check for redirects (HEAD request)
@@ -107,6 +108,9 @@ Basic normalization only:
     >>> my_url = normalize_url(urlparse(my_url))
     # passing URL strings directly also works
     >>> my_url = normalize_url(my_url)
+    # remove unnecessary components and re-order query elements
+    >>> normalize_url('http://test.net/foo.html?utm_source=twitter&post=abc&page=2#fragment', strict=True)
+    'http://test.net/foo.html?page=2&post=abc'
 
 
 Basic URL validation only:

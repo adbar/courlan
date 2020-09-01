@@ -125,3 +125,4 @@ def test_examples():
     assert clean_url('HTTPS://WWW.DWDS.DE:80/') == 'https://www.dwds.de'
     assert validate_url('http://1234') == (False, None)
     assert validate_url('http://www.example.org/')[0] is True
+    assert normalize_url('http://test.net/foo.html?utm_source=twitter&post=abc&page=2#fragment', strict=True) == 'http://test.net/foo.html?page=2&post=abc'

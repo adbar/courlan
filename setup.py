@@ -1,5 +1,5 @@
 """
-URL manipulation tools
+URL filter and manipulation tools
 http://github.com/adbar/courlan
 """
 
@@ -20,13 +20,12 @@ def readme():
 
 setup(
     name='courlan',
-    version='0.1.0',
-    description='Clean, filter and sample URLs',
+    version='0.2.0',
+    description='Clean, filter, normalize, and sample URLs',
     long_description=readme(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 2 - Pre-Alpha',
-        #'Development Status :: 3 - Alpha',
+        'Development Status :: 3 - Alpha',
         #'Development Status :: 4 - Beta',
         #'Development Status :: 5 - Production/Stable',
         #'Development Status :: 6 - Mature',
@@ -48,9 +47,10 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Scientific/Engineering :: Information Analysis',
+        'Topic :: Text Processing :: Filters',
     ],
-    keywords=['urls', 'url-parsing', 'url-manipulation', 'preprocessing', 'validation'],
-    url='http://github.com/adbar/urltools',
+    keywords=['urls', 'url-parsing', 'url-manipulation', 'preprocessing', 'validation', 'webcrawling'],
+    url='http://github.com/adbar/courlan',
     author='Adrien Barbaresi',
     author_email='barbaresi@bbaw.de',
     license='GPLv3+',
