@@ -8,6 +8,7 @@ Functions performing URL trimming and cleaning
 import logging
 import re
 
+from collections import OrderedDict
 from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
@@ -45,7 +46,7 @@ def clean_query(parsed_url, with_language=False):
     '''Strip unwanted query elements'''
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
-        newqdict = dict()
+        newqdict = OrderedDict()
         for qelem in sorted(qdict.keys()):
             teststr = qelem.lower()
             # control param
