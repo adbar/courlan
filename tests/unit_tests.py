@@ -10,7 +10,9 @@ import sys
 
 from unittest.mock import patch
 
-from courlan.clean import clean_url
+import pytest
+
+from courlan.clean import clean_url, normalize_url
 from courlan.cli import parse_args
 from courlan.core import check_url, sample_urls, validate_url
 from courlan.filters import extensionfilter, spamfilter, typefilter
@@ -54,15 +56,16 @@ def test_validate():
 
 
 def test_defrag():
-    assert check_url('http://test.net/foo.html#bar')[0] == 'http://test.net/foo.html'
-    assert check_url('http://test.net/foo.html#:~:text=night-,vision')[0] == 'http://test.net/foo.html'
+    assert normalize_url('http://test.net/foo.html#bar') == 'http://test.net/foo.html'
+    assert normalize_url('http://test.net/foo.html#:~:text=night-,vision') == 'http://test.net/foo.html'
 
 
 def test_qelems():
-    assert check_url('http://test.net/foo.html?utm_source=twitter')[0] == 'http://test.net/foo.html'
-    assert check_url('http://test.net/foo.html?utm_source=twitter&page=2')[0] == 'http://test.net/foo.html?page=2'
-    assert check_url('http://test.net/foo.html?page=2&lang=en')[0] == 'http://test.net/foo.html?page=2&lang=en'
-    assert check_url('http://test.net/foo.html?page=2&lang=en', with_language=True) is None
+    assert normalize_url('http://test.net/foo.html?utm_source=twitter') == 'http://test.net/foo.html'
+    assert normalize_url('http://test.net/foo.html?utm_source=twitter&page=2') == 'http://test.net/foo.html?page=2'
+    assert normalize_url('http://test.net/foo.html?page=2&lang=en') == 'http://test.net/foo.html?page=2&lang=en'
+    with pytest.raises(ValueError):
+        assert normalize_url('http://test.net/foo.html?page=2&lang=en', with_language=True)
 
 
 def test_urlcheck():

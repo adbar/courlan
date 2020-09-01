@@ -8,7 +8,7 @@ Bundles functions needed to target text content and validate the input.
 
 import re
 
-from urllib.parse import urlsplit
+from urllib.parse import urlparse
 
 
 WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
@@ -72,7 +72,10 @@ def spamfilter(url):
 
 def validate_url(url):
     '''Parse and validate the input'''
-    parsed_url = urlsplit(url) # was urlparse(url)
+    try:
+        parsed_url = urlparse(url)
+    except ValueError:
+        return False, None
     if bool(parsed_url.scheme) is False or parsed_url.scheme not in ('http', 'https'):
         return False, None
     if len(parsed_url.netloc) < 5 or \

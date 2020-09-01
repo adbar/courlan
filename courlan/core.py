@@ -11,14 +11,14 @@ import re
 
 #from functools import cmp_to_key
 from random import sample
-from urllib.parse import parse_qs, urlencode, urlparse, urldefrag # urlunparse
+from urllib.parse import urlparse
 
 import tldextract
 
-from .clean import clean_url
+from .clean import clean_url, normalize_url
 from .filters import extensionfilter, spamfilter, typefilter, validate_url
 from .network import redirection_test
-from .settings import BLACKLIST, ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
+from .settings import BLACKLIST
 
 
 # extract callable that falls back to the included TLD snapshot, no live HTTP fetching
@@ -33,12 +33,6 @@ def extract_domain(url):
         return None
     # return domain
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
-
-
-## def scrub_url
-# clean + validate
-# defrag
-# normalize
 
 
 def check_url(url, strict=False, with_redirects=False, with_language=False):
@@ -58,7 +52,7 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
     # use standard parsing library, validate and strip fragments, then normalize
     try:
         # length test
-        if len(url) >= 500 or len(url) < 10 or not url.startswith('http'):
+        if not url.startswith('http') or len(url) >= 500 or len(url) < 10:
             raise ValueError
 
         # clean
@@ -81,43 +75,10 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
             raise ValueError
 
         # normalize
-        # port
-        if parsed_url.port is not None and parsed_url.port in (80, 443):
-            parsed_url = parsed_url._replace(port=None)
-        # lowercase
-        parsed_url = parsed_url._replace(
-                     scheme=parsed_url.scheme.lower(),
-                     netloc=parsed_url.netloc.lower()
-                     )
-
-        # strip unwanted query parts
-        if len(parsed_url.query) > 0:
-            qdict = parse_qs(parsed_url.query)
-            del_elems = []
-            for qelem in qdict:
-                teststr = qelem.lower()
-                if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
-                    del_elems.append(qelem)
-                # control language
-                elif teststr in CONTROL_PARAMS and with_language is True:
-                    if qdict[qelem].lower() not in TARGET_LANG:
-                        logging.debug('bad lang: %s %s', url, qdict[qelem])
-                        raise ValueError
-            for elem in del_elems:
-               del qdict[elem]
-            newstring = urlencode(qdict, doseq=True)
-            parsed_url = parsed_url._replace(query=newstring)
-
-        # rebuild
-        url = parsed_url.geturl()
-
-        # strip fragments
-        if len(parsed_url.fragment) > 0:
-            url, _ = urldefrag(url)
-            # url = urlunsplit((parsed_url[0], parsed_url[1], parsed_url[2], parsed_url[3], ''))
+        url = normalize_url(parsed_url, with_language)
 
     # handle exceptions
-    except (AttributeError, UnicodeError, ValueError): # as err:
+    except (AttributeError, UnicodeError, ValueError):
         logging.debug('url: %s', url)
         return None
 
