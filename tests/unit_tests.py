@@ -5,6 +5,7 @@ Unit tests for the courlan package.
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
+import logging
 import os
 import sys
 
@@ -16,6 +17,8 @@ from courlan.clean import clean_url, normalize_url
 from courlan.cli import parse_args
 from courlan.core import check_url, sample_urls, validate_url
 from courlan.filters import extensionfilter, spamfilter, typefilter
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 def test_clean():
@@ -98,12 +101,12 @@ def test_cli():
 
 
 def test_sample():
-    assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0)) == 0
+    assert len(list(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0))) == 0
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = ['http://t.o/t1', 'http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2']
-    assert len(sample_urls(mylist, 1, verbose=True)) == 1
-    assert len(sample_urls(mylist, 1, exclude_min=10, verbose=True)) == 0
-    assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 0
+    assert len(list(sample_urls(mylist, 1, verbose=True))) == 1
+    assert len(list(sample_urls(mylist, 1, exclude_min=10, verbose=True))) == 0
+    assert len(list(sample_urls(mylist, 1, exclude_max=1, verbose=True))) == 0
 
 
 def test_examples():

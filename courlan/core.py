@@ -8,10 +8,10 @@ Core functions needed to make the module work.
 #import locale
 import logging
 import re
+import sys
 
 #from functools import cmp_to_key
 from random import sample
-from urllib.parse import urlparse
 
 import tldextract
 
@@ -20,6 +20,8 @@ from .filters import extensionfilter, spamfilter, typefilter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 
+
+LOGGER = logging.getLogger(__name__)
 
 # extract callable that falls back to the included TLD snapshot, no live HTTP fetching
 TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
@@ -79,7 +81,7 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
 
     # handle exceptions
     except (AttributeError, UnicodeError, ValueError):
-        logging.debug('url: %s', url)
+        # LOGGER.debug('discarded URL: %s', url)
         return None
 
     # domain info
@@ -103,19 +105,19 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
 
 def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
     '''Sample a list of URLs by domain name, optionally using constraints on their number'''
-    lastseen, urlbuffer, sampled = None, set(), list()
+    lastseen, urlbuffer = None, set()
+    if verbose is True:
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    else:
+        logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
     for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
         # first basic filter
-        if check_url(url, strict=strict, with_redirects=False) is None:
+        checked = check_url(url, strict=strict, with_redirects=False)
+        if checked is None:
             continue
-        # initialize
-        parsed_url = urlparse(url)
-        if lastseen is None:
-            lastseen = parsed_url.netloc
-        # dump URL
-        # url = parsed_url.geturl()
+        url, domain = checked[0], checked[1]
         # continue collection
-        if parsed_url.netloc == lastseen:
+        if domain == lastseen:
             urlbuffer.add(url)
         # sample, drop, fresh start
         else:
@@ -123,23 +125,18 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
             if exclude_min is None or len(urlbuffer) >= exclude_min:
                 # write all the buffer
                 if len(urlbuffer) <= samplesize:
-                    sampled.extend(urlbuffer)
-                    if verbose is True:
-                        print(lastseen, '\t\turls:', len(urlbuffer))
+                    yield from sorted(urlbuffer)
+                    LOGGER.info('%s\t\turls: %s', lastseen, len(urlbuffer))
                 # or sample URLs
                 else:
                     # threshold for too large websites
                     if exclude_max is None or len(urlbuffer) <= exclude_max:
-                        sampled.extend(sample(urlbuffer, samplesize))
-                        if verbose is True:
-                            print(lastseen, '\t\turls:', len(urlbuffer), '\tprop.:', samplesize/len(urlbuffer))
+                        yield from sorted(sample(urlbuffer, samplesize))
+                        LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
                     else:
-                        if verbose is True:
-                            print('discarded (exclude size):', lastseen, '\t\turls:', len(urlbuffer))
+                        LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
             else:
-                if verbose is True:
-                    print('discarded (exclude size):', lastseen, '\t\turls:', len(urlbuffer))
+                LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
             urlbuffer = set()
             urlbuffer.add(url)
-        lastseen = parsed_url.netloc
-    return sampled
+        lastseen = domain
