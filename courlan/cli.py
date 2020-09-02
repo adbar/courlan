@@ -67,7 +67,7 @@ def main():
                 # proceed with discarded URLs. to be rewritten
                 elif args.discardedfile is not None:
                     with open(args.discardedfile, 'a', encoding='utf-8') as discardfh:
-                        discardfh.write(result[0] + '\n')
+                        discardfh.write(line)
     else:
         urllist = list()
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
