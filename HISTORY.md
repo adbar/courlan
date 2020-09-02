@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.2.1
+
+- Less aggressive strict filters
+- CLI bug fixed
+
+
 ### 0.2.0
 
 - Cleaner and more efficient filtering
