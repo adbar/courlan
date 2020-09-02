@@ -32,6 +32,8 @@ def test_scrub():
 
 def test_extension_filter():
     assert extension_filter('http://www.example.org/test.js') is False
+    assert extension_filter('http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett') is True
+    assert extension_filter('https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp') is True
 
 
 def test_spam_filter():
@@ -48,6 +50,9 @@ def test_type_filter():
     assert type_filter('http://my-videos.com/') is False
     assert type_filter('http://www.example.org/index', strict=True) is False
     assert type_filter('http://www.example.org/index.html', strict=True) is False
+    assert type_filter('http://concordia-hagen.de/impressum.html', strict=True) is False
+    assert type_filter('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is True
+    assert type_filter('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is True
 
 
 def test_validate():
@@ -74,6 +79,7 @@ def test_qelems():
     assert normalize_url('http://test.net/foo.html?page=2&itemid=10&lang=en') == 'http://test.net/foo.html?itemid=10&lang=en&page=2'
     with pytest.raises(ValueError):
         assert normalize_url('http://test.net/foo.html?page=2&lang=en', with_language=True)
+        assert normalize_url('http://www.evolanguage.de/index.php?page=deutschkurse_fuer_aerzte&amp;language=ES', with_language=True)
 
 
 def test_urlcheck():
@@ -96,6 +102,8 @@ def test_urlcheck():
     # recheck type and spam filters
     assert check_url('http://example.org/code/oembed/') is None
     assert check_url('http://cams.com/') is None
+    assert check_url('https://denkiterm.wordpress.com/impressum/', strict=True) is None
+    assert check_url('http://www.fischfutter-index.de/improvit-trocken-frostfutter-fur-fast-alle-fische/', strict=True) is not None
 
 
 def test_cli():

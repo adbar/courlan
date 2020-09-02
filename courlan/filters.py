@@ -11,9 +11,9 @@ import re
 from urllib.parse import urlparse
 
 
-WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gallerie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
+WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
 PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
-PATH_FILTER = re.compile(r'(impressum|index)(\.html)?', re.IGNORECASE)
+PATH_FILTER = re.compile(r'\.[a-z]{2,5}/(impressum|index)(\.html?|\.php)?$', re.IGNORECASE)
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|cams?|gangbang|incest|sexyeroti[ck]|sexcam|bild\-?kontakte)\b|\b(?:arsch|fick|porno?)|(?:cash|swinger)\b', re.IGNORECASE)
 
 
@@ -26,7 +26,7 @@ def basic_filter(url):
 
 def extension_filter(component):
     '''Filter based on file extension'''
-    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('.asp', '.cfm', '.cgi', '.htm', 'html', '.jsp', '.php', '.pl')):
+    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.htm', 'html', '.jsp', '.php', '.pl')):
         return False
     return True
 
