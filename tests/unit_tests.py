@@ -12,13 +12,16 @@ import sys
 from unittest.mock import patch
 
 import pytest
+import tldextract
 
 from courlan.clean import clean_url, normalize_url, scrub_url
 from courlan.cli import parse_args
-from courlan.core import check_url, sample_urls, validate_url
+from courlan.core import check_url, is_external, sample_urls, validate_url
 from courlan.filters import extension_filter, spam_filter, type_filter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
+TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 def test_scrub():
@@ -106,6 +109,20 @@ def test_urlcheck():
     assert check_url('http://www.fischfutter-index.de/improvit-trocken-frostfutter-fur-fast-alle-fische/', strict=True) is not None
 
 
+def test_external():
+    '''test domain comparison'''
+    assert is_external('https://github.com/', 'https://www.microsoft.com/') is True
+    assert is_external('https://microsoft.com/', 'https://www.microsoft.com/', ignore_suffix=True) is False
+    assert is_external('https://microsoft.com/', 'https://www.microsoft.com/', ignore_suffix=False) is False
+    assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True) is False
+    assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False) is True
+    # tldextract object
+    tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
+    assert is_external('https://127.0.0.1:80/', tldinfo) is False
+    # malformed URLs
+    assert is_external('h1234', 'https://www.google.co.uk/', ignore_suffix=True) is True
+
+
 def test_cli():
     '''test the command-line interface'''
     testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v']
@@ -118,6 +135,7 @@ def test_cli():
 
 
 def test_sample():
+    '''test URL sampling'''
     assert len(list(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0))) == 0
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = ['http://t.o/t1', 'http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2']
@@ -127,7 +145,7 @@ def test_sample():
 
 
 def test_examples():
-    '''Test README examples'''
+    '''test README examples'''
     assert check_url('https://github.com/adbar/courlan') == ('https://github.com/adbar/courlan', 'github.com')
     assert check_url('https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org', strict=True) == ('https://httpbin.org/redirect-to', 'httpbin.org')
     assert clean_url('HTTPS://WWW.DWDS.DE:80/') == 'https://www.dwds.de'

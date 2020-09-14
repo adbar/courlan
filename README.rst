@@ -133,6 +133,20 @@ Sampling by domain name:
     # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
 
 
+Determine if a link leads to another host:
+
+.. code-block:: python
+
+    >>> from courlan.core import is_external
+    >>> is_external('https://github.com/', 'https://www.microsoft.com/')
+    True
+    # default
+    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True)
+    False
+    # taking suffixes into account
+    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
+    True
+
 
 Command-line
 ~~~~~~~~~~~~

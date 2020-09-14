@@ -135,3 +135,26 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
             urlbuffer = set()
             urlbuffer.add(url)
         lastseen = domain
+
+
+def is_external(url, reference, ignore_suffix=True):
+    '''Determine if a link leads to another host, takes a reference URL or 
+       tldextract object as input, returns a boolean'''
+    # reference
+    if not isinstance(reference, tldextract.tldextract.ExtractResult):
+        reference = TLD_EXTRACTION(reference) 
+    if ignore_suffix is True:
+        ref_domain = reference.domain
+    else:  # '.'.join(ext[-2:]).strip('.')
+        ref_domain = reference.registered_domain
+    # url
+    tldinfo = TLD_EXTRACTION(url)
+    if ignore_suffix is True:
+        domain = tldinfo.domain
+    else:
+        domain = tldinfo.registered_domain
+    # comparison
+    if domain != ref_domain:
+        return True
+    return False
+
