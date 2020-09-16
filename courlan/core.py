@@ -16,7 +16,8 @@ from random import sample
 import tldextract
 
 from .clean import normalize_url, scrub_url
-from .filters import basic_filter, extension_filter, lang_filter, spam_filter, type_filter, validate_url
+from .filters import basic_filter, extension_filter, lang_filter, \
+                     PATH_FILTER, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 
@@ -80,6 +81,10 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
 
         # content filter based on extensions
         if extension_filter(parsed_url.path) is False:
+            raise ValueError
+
+        # strict content filtering
+        if strict is True and PATH_FILTER.match(parsed_url.path):
             raise ValueError
 
         # internationalization in URL

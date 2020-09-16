@@ -51,11 +51,6 @@ def test_type_filter():
     assert type_filter('http://www.example.org/test.asp') is True
     assert type_filter('http://ads.example.org/') is False
     assert type_filter('http://my-videos.com/') is False
-    assert type_filter('http://www.example.org/index', strict=True) is False
-    assert type_filter('http://www.example.org/index.html', strict=True) is False
-    assert type_filter('http://concordia-hagen.de/impressum.html', strict=True) is False
-    assert type_filter('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is True
-    assert type_filter('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is True
 
 
 def test_validate():
@@ -111,6 +106,13 @@ def test_urlcheck():
     assert check_url('http://example.com/de/test.html', with_language=True) is not None
     assert check_url('http://example.com/en/test.html', with_language=True) is None
     assert check_url('http://example.com/en/test.html', with_language=False) is not None
+    # impressum and index
+    assert check_url('http://www.example.org/index', strict=True) is None
+    assert check_url('http://www.example.org/index.html', strict=True) is None
+    assert check_url('http://concordia-hagen.de/impressum.html', strict=True) is None
+    assert check_url('http://concordia-hagen.de/de/impressum', strict=True) is None
+    assert check_url('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is not None
+    assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
 
 
 def test_external():
