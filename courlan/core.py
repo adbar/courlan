@@ -28,11 +28,11 @@ LOGGER = logging.getLogger(__name__)
 TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
 
-def extract_domain(url):
+def extract_domain(url, blacklist={}):
     '''Extract domain name information using top-level domain info'''
     tldinfo = TLD_EXTRACTION(url)
     # domain TLD blacklist
-    if tldinfo.domain in BLACKLIST:
+    if tldinfo.domain in blacklist:
         return None
     # return domain
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
@@ -101,7 +101,7 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         return None
 
     # domain info
-    domain = extract_domain(url)
+    domain = extract_domain(url, blacklist=BLACKLIST)
     if domain is None:
         return None
 
