@@ -16,7 +16,7 @@ from random import sample
 import tldextract
 
 from .clean import normalize_url, scrub_url
-from .filters import basic_filter, extension_filter, spam_filter, type_filter, validate_url
+from .filters import basic_filter, extension_filter, lang_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 
@@ -82,6 +82,11 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
         if extension_filter(parsed_url.path) is False:
             raise ValueError
 
+        # internationalization in URL
+        if with_language is True:
+            if lang_filter(parsed_url.path) is False:
+                raise ValueError
+
         # normalize
         url = normalize_url(parsed_url, strict, with_language)
 
@@ -142,7 +147,7 @@ def is_external(url, reference, ignore_suffix=True):
        tldextract object as input, returns a boolean'''
     # reference
     if not isinstance(reference, tldextract.tldextract.ExtractResult):
-        reference = TLD_EXTRACTION(reference) 
+        reference = TLD_EXTRACTION(reference)
     if ignore_suffix is True:
         ref_domain = reference.domain
     else:  # '.'.join(ext[-2:]).strip('.')

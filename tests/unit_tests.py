@@ -94,8 +94,6 @@ def test_urlcheck():
     assert check_url('https://www.dwds.de/test?param=test&amp;other=test', strict=True) == ('https://www.dwds.de/test', 'dwds.de')
     assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
     assert check_url('http://example.com/test.js') is None
-    assert check_url('http://example.com/test.html?lang=en', with_language=True) is None
-    assert check_url('http://example.com/test.html?lang=en', with_language=False) is not None
     assert check_url('http://twitter.com/') is None
     # assert urlcheck('http://example.invalid/', False) is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
@@ -107,6 +105,12 @@ def test_urlcheck():
     assert check_url('http://cams.com/') is None
     assert check_url('https://denkiterm.wordpress.com/impressum/', strict=True) is None
     assert check_url('http://www.fischfutter-index.de/improvit-trocken-frostfutter-fur-fast-alle-fische/', strict=True) is not None
+    # language and internationalization
+    assert check_url('http://example.com/test.html?lang=en', with_language=True) is None
+    assert check_url('http://example.com/test.html?lang=en', with_language=False) is not None
+    assert check_url('http://example.com/de/test.html', with_language=True) is not None
+    assert check_url('http://example.com/en/test.html', with_language=True) is None
+    assert check_url('http://example.com/en/test.html', with_language=False) is not None
 
 
 def test_external():
