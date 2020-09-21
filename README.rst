@@ -160,8 +160,9 @@ Command-line
 
 
 usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
-               [--strict] [-l] [-r] [--sample] [--samplesize SAMPLESIZE]
-               [--exclude-max EXCLUDE_MAX] [--exclude-min EXCLUDE_MIN]
+               [--strict] [-l {de,en}] [-r] [--sample]
+               [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
+               [--exclude-min EXCLUDE_MIN]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -181,7 +182,8 @@ Filtering:
   Configure URL filters
 
   --strict              perform more restrictive tests
-  -l, --language        use language filter
+  -l {de,en}, --language {de,en}
+                        use language filter (English or German)
   -r, --redirects       check redirects
 
 Sampling:

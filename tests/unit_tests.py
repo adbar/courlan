@@ -133,12 +133,13 @@ def test_external():
 
 def test_cli():
     '''test the command-line interface'''
-    testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v']
+    testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v', '--language', 'en']
     with patch.object(sys, 'argv', testargs):
         args = parse_args(testargs)
     assert args.inputfile == 'input.txt'
     assert args.outputfile == 'output.txt'
     assert args.verbose is True
+    assert args.language == 'en'
     assert os.system('courlan --help') == 0  # exit status
 
 

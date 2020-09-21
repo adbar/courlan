@@ -32,8 +32,8 @@ def parse_args(args):
                             help="perform more restrictive tests",
                             action="store_true")
     group2.add_argument("-l", "--language",
-                            help="use language filter",
-                            action="store_true")
+                            help="use language filter (English or German)",
+                            type=str, choices=['de', 'en'])
     group2.add_argument("-r", "--redirects",
                             help="check redirects",
                             action="store_true")
@@ -61,7 +61,7 @@ def main():
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh, \
              open(args.outputfile, 'w', encoding='utf-8') as outputfh:
             for line in inputfh:
-                result = check_url(line, strict=args.strict, with_redirects=args.redirects, with_language=args.language)
+                result = check_url(line, strict=args.strict, with_redirects=args.redirects, language=args.language)
                 if result is not None:
                     outputfh.write(result[0] + '\n')
                 # proceed with discarded URLs. to be rewritten
