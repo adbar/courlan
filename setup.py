@@ -20,7 +20,7 @@ def readme():
 
 setup(
     name='courlan',
-    version='0.2.1',
+    version='0.2.2',
     description='Clean, filter, normalize, and sample URLs',
     long_description=readme(),
     classifiers=[
@@ -59,6 +59,7 @@ setup(
     include_package_data=True,
     python_requires='>=3.4',
     install_requires=[
+        'requests',
         'tldextract',
     ],
     #extras_require=extras,

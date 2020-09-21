@@ -166,4 +166,3 @@ def is_external(url, reference, ignore_suffix=True):
     if domain != ref_domain:
         return True
     return False
-

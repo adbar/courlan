@@ -33,15 +33,15 @@ def extension_filter(component):
 
 
 def lang_filter(url, language):
-   '''Heuristic targeting internationalization'''
-   if language is not None and language in ('de', 'en'):
-       match = URL_LANG_FILTER.match(url)
-       if match:
-           if language == 'de' and match.group(1) not in ('de', 'deu'):
-               return False
-           elif language == 'en' and match.group(1) not in ('en', 'eng'):
-               return False
-   return True
+    '''Heuristic targeting internationalization'''
+    if language is not None and language in ('de', 'en'):
+        match = URL_LANG_FILTER.match(url)
+        if match:
+            if language == 'de' and match.group(1) not in ('de', 'deu'):
+                return False
+            if language == 'en' and match.group(1) not in ('en', 'eng'):
+                return False
+    return True
 
 
 def spam_filter(url):

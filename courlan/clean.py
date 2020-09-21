@@ -65,7 +65,7 @@ def clean_query(parsed_url, strict=False, language=None):
                 if language == 'de' and found_lang not in TARGET_LANG_DE:
                     logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
                     raise ValueError
-                elif language == 'en' and found_lang not in TARGET_LANG_EN:
+                if language == 'en' and found_lang not in TARGET_LANG_EN:
                     logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
                     raise ValueError
             # insert

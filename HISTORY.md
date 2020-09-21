@@ -1,6 +1,13 @@
 ## History / Changelog
 
 
+### 0.2.2
+
+- English and German language filters
+- Function to detect external links
+- Support for domain blacklisting 
+
+
 ### 0.2.1
 
 - Less aggressive strict filters
