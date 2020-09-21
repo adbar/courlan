@@ -76,8 +76,8 @@ def test_qelems():
     assert normalize_url('http://test.net/foo.html?utm_source=twitter&post=abc&page=2', strict=True) == 'http://test.net/foo.html?page=2&post=abc'
     assert normalize_url('http://test.net/foo.html?page=2&itemid=10&lang=en') == 'http://test.net/foo.html?itemid=10&lang=en&page=2'
     with pytest.raises(ValueError):
-        assert normalize_url('http://test.net/foo.html?page=2&lang=en', with_language=True)
-        assert normalize_url('http://www.evolanguage.de/index.php?page=deutschkurse_fuer_aerzte&amp;language=ES', with_language=True)
+        assert normalize_url('http://test.net/foo.html?page=2&lang=en', language='de')
+        assert normalize_url('http://www.evolanguage.de/index.php?page=deutschkurse_fuer_aerzte&amp;language=ES', language='de')
 
 
 def test_urlcheck():
@@ -101,11 +101,13 @@ def test_urlcheck():
     assert check_url('https://denkiterm.wordpress.com/impressum/', strict=True) is None
     assert check_url('http://www.fischfutter-index.de/improvit-trocken-frostfutter-fur-fast-alle-fische/', strict=True) is not None
     # language and internationalization
-    assert check_url('http://example.com/test.html?lang=en', with_language=True) is None
-    assert check_url('http://example.com/test.html?lang=en', with_language=False) is not None
-    assert check_url('http://example.com/de/test.html', with_language=True) is not None
-    assert check_url('http://example.com/en/test.html', with_language=True) is None
-    assert check_url('http://example.com/en/test.html', with_language=False) is not None
+    assert check_url('http://example.com/test.html?lang=en', language='de') is None
+    assert check_url('http://example.com/test.html?lang=en', language=None) is not None
+    assert check_url('http://example.com/test.html?lang=en', language='en') is not None
+    assert check_url('http://example.com/de/test.html', language='de') is not None
+    assert check_url('http://example.com/en/test.html', language='de') is None
+    assert check_url('http://example.com/en/test.html', language=None) is not None
+    assert check_url('http://example.com/en/test.html', language='en') is not None
     # impressum and index
     assert check_url('http://www.example.org/index', strict=True) is None
     assert check_url('http://www.example.org/index.html', strict=True) is None

@@ -38,7 +38,7 @@ def extract_domain(url, blacklist={}):
     return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
 
 
-def check_url(url, strict=False, with_redirects=False, with_language=False):
+def check_url(url, strict=False, with_redirects=False, language=None):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -88,12 +88,11 @@ def check_url(url, strict=False, with_redirects=False, with_language=False):
             raise ValueError
 
         # internationalization in URL
-        if with_language is True:
-            if lang_filter(parsed_url.path) is False:
-                raise ValueError
+        if lang_filter(parsed_url.path, language) is False:
+            raise ValueError
 
         # normalize
-        url = normalize_url(parsed_url, strict, with_language)
+        url = normalize_url(parsed_url, strict, language)
 
     # handle exceptions
     except (AttributeError, ValueError, UnicodeError):

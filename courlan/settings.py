@@ -12,5 +12,6 @@ BLACKLIST = ('akamai', 'amzn', 'amazon', 'baidu', 'bit', 'bongacams', 'cloudfron
 
 ALLOWED_PARAMS = ('aid', 'article_id', 'artnr', 'id', 'itemid', 'objectid', 'p', 'page', 'pagenum', 'page_id', 'pid', 'post', 'postid', 'product_id')
 CONTROL_PARAMS = ('lang', 'language')
-TARGET_LANG = ('de', 'deutsch', 'ger', 'german')
+TARGET_LANG_DE = ('de', 'deutsch', 'ger', 'german')
+TARGET_LANG_EN = ('en', 'english', 'eng') # 'en_US', ''
 # accepted_lang = ('en')

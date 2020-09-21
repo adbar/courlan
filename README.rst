@@ -61,7 +61,7 @@ Usage
 
 ``courlan`` is designed to work best on English, German and most frequent European languages.
 
-The current logic of detailed/strict URL filtering is on German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+The current logic of detailed/strict URL filtering is focused on English and German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
 
 
 Python
@@ -80,7 +80,9 @@ All operations chained:
     ('https://httpbin.org/redirect-to', 'httpbin.org')
     # Check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
-    # optional argument targeting webpages in German: with_language=False
+    # optional argument targeting webpages in English or German
+    >>> url, domain_name = check_url(my_url, with_redirects=True, language='en')
+    >>> url, domain_name = check_url(my_url, with_redirects=True, language='de')
 
 
 Helper function, scrub and normalize:

@@ -11,7 +11,8 @@ import re
 from collections import OrderedDict
 from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
-from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG
+from .settings import ALLOWED_PARAMS, CONTROL_PARAMS,\
+                      TARGET_LANG_DE, TARGET_LANG_EN
 
 
 def clean_url(url):
@@ -47,7 +48,7 @@ def scrub_url(url):
     return url
 
 
-def clean_query(parsed_url, strict=False, with_language=False):
+def clean_query(parsed_url, strict=False, language=None):
     '''Strip unwanted query elements'''
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
@@ -59,10 +60,14 @@ def clean_query(parsed_url, strict=False, with_language=False):
                teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
                 continue
             # control language
-            if with_language is True and \
-               teststr in CONTROL_PARAMS and teststr not in TARGET_LANG:
-                logging.debug('bad lang: %s %s', qelem, qdict[qelem])
-                raise ValueError
+            if language is not None and teststr in CONTROL_PARAMS:
+                found_lang = str(qdict[qelem][0])
+                if language == 'de' and found_lang not in TARGET_LANG_DE:
+                    logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
+                    raise ValueError
+                elif language == 'en' and found_lang not in TARGET_LANG_EN:
+                    logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
+                    raise ValueError
             # insert
             newqdict[qelem] = qdict[qelem]
         newstring = urlencode(newqdict, doseq=True)
@@ -70,7 +75,7 @@ def clean_query(parsed_url, strict=False, with_language=False):
     return parsed_url
 
 
-def normalize_url(parsed_url, strict=False, with_language=False):
+def normalize_url(parsed_url, strict=False, language=None):
     '''Takes a URL string or a parsed URL and returns a (basically) normalized URL string'''
     if not isinstance(parsed_url, ParseResult):
         parsed_url = urlparse(parsed_url)
@@ -84,6 +89,6 @@ def normalize_url(parsed_url, strict=False, with_language=False):
                  fragment=''
                  )
     # strip unwanted query elements
-    parsed_url = clean_query(parsed_url, strict, with_language)
+    parsed_url = clean_query(parsed_url, strict, language)
     # rebuild
     return parsed_url.geturl()

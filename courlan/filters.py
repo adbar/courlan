@@ -32,11 +32,15 @@ def extension_filter(component):
     return True
 
 
-def lang_filter(url):
+def lang_filter(url, language):
    '''Heuristic targeting internationalization'''
-   match = URL_LANG_FILTER.match(url)
-   if match and match.group(1) not in ('de', 'deu'):
-       return False
+   if language is not None and language in ('de', 'en'):
+       match = URL_LANG_FILTER.match(url)
+       if match:
+           if language == 'de' and match.group(1) not in ('de', 'deu'):
+               return False
+           elif language == 'en' and match.group(1) not in ('en', 'eng'):
+               return False
    return True
 
 
