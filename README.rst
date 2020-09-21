@@ -182,8 +182,7 @@ Filtering:
   Configure URL filters
 
   --strict              perform more restrictive tests
-  -l {de,en}, --language {de,en}
-                        use language filter (English or German)
+  -l, --language        use language filter {de,en}
   -r, --redirects       check redirects
 
 Sampling:
