@@ -86,6 +86,7 @@ def normalize_url(parsed_url, strict=False, language=None):
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),
                  netloc=parsed_url.netloc.lower(),
+                 path=re.sub(r'/+', '/', parsed_url.path),
                  fragment=''
                  )
     # strip unwanted query elements

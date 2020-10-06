@@ -67,6 +67,7 @@ def test_normalization():
     assert normalize_url('http://test.net/foo.html#bar') == 'http://test.net/foo.html'
     assert normalize_url('http://test.net/foo.html#:~:text=night-,vision') == 'http://test.net/foo.html'
     assert normalize_url('http://www.example.org:80/test.html') == 'http://www.example.org/test.html'
+    assert normalize_url('https://hanxiao.io//404.html') == 'https://hanxiao.io/404.html'
 
 
 def test_qelems():
