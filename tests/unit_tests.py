@@ -111,6 +111,7 @@ def test_urlcheck():
     assert check_url('http://example.com/en/test.html', language='en') is not None
     assert check_url('https://www.myswitzerland.com/de-ch/erlebnisse/veranstaltungen/wild-im-sternen/', language='de') is not None
     assert check_url('https://www.myswitzerland.com/en-id/accommodations/other-types-of-accommodations/on-the-farm/farm-experiences-search/', language='en') is not None
+    assert check_url('https://www.myswitzerland.com/EN-ID/accommodations/other-types-of-accommodations/on-the-farm/farm-experiences-search/', language='en') is not None
     # impressum and index
     assert check_url('http://www.example.org/index', strict=True) is None
     assert check_url('http://www.example.org/index.html', strict=True) is None
