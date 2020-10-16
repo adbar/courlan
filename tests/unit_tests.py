@@ -14,9 +14,8 @@ from unittest.mock import patch
 import pytest
 import tldextract
 
-from courlan.clean import clean_url, normalize_url, scrub_url
+from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url
 from courlan.cli import parse_args
-from courlan.core import check_url, is_external, sample_urls, validate_url
 from courlan.filters import extension_filter, spam_filter, type_filter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

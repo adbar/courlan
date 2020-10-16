@@ -71,7 +71,7 @@ All operations chained:
 
 .. code-block:: python
 
-    >>> from courlan.core import check_url
+    >>> from courlan import check_url
     # returns url and domain name
     >>> check_url('https://github.com/adbar/courlan')
     ('https://github.com/adbar/courlan', 'github.com')
@@ -89,7 +89,7 @@ Helper function, scrub and normalize:
 
 .. code-block:: python
 
-    >>> from courlan.clean import clean_url
+    >>> from courlan import clean_url
     >>> clean_url('HTTPS://WWW.DWDS.DE:80/')
     'https://www.dwds.de'
 
@@ -98,7 +98,7 @@ Basic scrubbing only:
 
 .. code-block:: python
 
-    >>> from courlan.clean import scrub_url
+    >>> from courlan import scrub_url
 
 
 Basic normalization only:
@@ -106,7 +106,7 @@ Basic normalization only:
 .. code-block:: python
 
     >>> from urllib.parse import urlparse
-    >>> from courlan.clean import normalize_url
+    >>> from courlan import normalize_url
     >>> my_url = normalize_url(urlparse(my_url))
     # passing URL strings directly also works
     >>> my_url = normalize_url(my_url)
@@ -119,7 +119,7 @@ Basic URL validation only:
 
 .. code-block:: python
 
-    >>> from courlan.filters import validate_url
+    >>> from courlan import validate_url
     >>> validate_url('http://1234')
     (False, None)
     >>> validate_url('http://www.example.org/')
@@ -130,7 +130,7 @@ Sampling by domain name:
 
 .. code-block:: python
 
-    >>> from courlan.core import sample_urls
+    >>> from courlan import sample_urls
     >>> my_sample = sample_urls(my_urls, 100)
     # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
 
@@ -139,7 +139,7 @@ Determine if a link leads to another host:
 
 .. code-block:: python
 
-    >>> from courlan.core import is_external
+    >>> from courlan import is_external
     >>> is_external('https://github.com/', 'https://www.microsoft.com/')
     True
     # default
