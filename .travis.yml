@@ -22,6 +22,10 @@ matrix:
       python: 3.8
       env: TOXENV=py38
       after_success: codecov  # use this version for the tests!
+    - name: "Python 3.9 on Linux"
+      dist: bionic
+      python: 3.9-dev
+      env: TOXENV=py39
     - name: "Python Nightly on Linux"
       dist: bionic
       python: nightly

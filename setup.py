@@ -20,7 +20,7 @@ def readme():
 
 setup(
     name='courlan',
-    version='0.2.2',
+    version='0.2.3',
     description='Clean, filter, normalize, and sample URLs',
     long_description=readme(),
     classifiers=[
@@ -45,6 +45,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Filters',
@@ -55,6 +56,11 @@ setup(
     author_email='barbaresi@bbaw.de',
     license='GPLv3+',
     packages=['courlan'],
+    project_urls={
+        "Source": "https://github.com/adbar/courlan",
+        "Coverage": "https://codecov.io/github/adbar/courlan",
+        "Tracker": "https://github.com/adbar/courlan/issues",
+    },
     #package_data={},
     include_package_data=True,
     python_requires='>=3.4',
