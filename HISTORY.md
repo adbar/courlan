@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+
+### 0.2.3
+
+- Python 3.9 compatibility
+- Simplified imports
+- Bug fixes
+
+
 ### 0.2.2
 
 - English and German language filters
