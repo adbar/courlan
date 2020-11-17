@@ -3,26 +3,34 @@ URL filter and manipulation tools
 http://github.com/adbar/courlan
 """
 
-# workaround for open() with encoding=''
-from codecs import open
+import re
 
-from os import path
+from pathlib import Path
 from setuptools import setup
 
 
-here = path.abspath(path.dirname(__file__))
+
+def get_version(package):
+    "Return package version as listed in `__version__` in `init.py`"
+    version = Path(package, '__init__.py').read_text()
+    return re.search('__version__ = [\'"]([^\'"]+)[\'"]', version).group(1)
 
 
-def readme():
-    with open(path.join(here, 'README.rst'), 'r', 'utf-8') as readmefile:
-        return readmefile.read()
+def get_long_description():
+    "Return the README"
+    with open('README.rst', 'r', encoding='utf-8') as filehandle:
+        long_description = filehandle.read()
+    #long_description += "\n\n"
+    #with open("CHANGELOG.md", encoding="utf8") as f:
+    #    long_description += f.read()
+    return long_description
 
 
 setup(
     name='courlan',
-    version='0.2.3',
+    version=get_version('courlan'),
     description='Clean, filter, normalize, and sample URLs',
-    long_description=readme(),
+    long_description=get_long_description(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 3 - Alpha',
