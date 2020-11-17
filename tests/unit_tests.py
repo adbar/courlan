@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 import tldextract
 
-from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url
+from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
 from courlan.filters import extension_filter, spam_filter, type_filter
 
@@ -132,6 +132,18 @@ def test_external():
     assert is_external('https://127.0.0.1:80/', tldinfo) is False
     # malformed URLs
     assert is_external('h1234', 'https://www.google.co.uk/', ignore_suffix=True) is True
+
+
+def test_extraction():
+    '''test link comparison in HTML'''
+    pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False)) == 1
+    assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 0
+    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language=None)) == 2
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 2
 
 
 def test_cli():

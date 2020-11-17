@@ -166,3 +166,56 @@ def is_external(url, reference, ignore_suffix=True):
     if domain != ref_domain:
         return True
     return False
+
+
+def extract_links(pagecontent, base_url, external_bool, language=None):
+    """ Filter links in a HTML document using regular expressions
+    Args:
+        pagecontent: whole page in binary format
+        base_url: needed to reconstruct absolute links
+        external_bool: shift from internal to external
+
+    Returns:
+        A set containing sanity-checked HTTP links.
+
+    Raises:
+        Nothing.
+    """
+    # extract links
+    candidates = set()
+    for link in re.findall(r'<a .+?>', pagecontent):
+        # https://en.wikipedia.org/wiki/Hreflang
+        if language in ('de', 'en') and 'hreflang' in link:
+            if language == 'de' and re.search(r'hreflang="(de|DE|x-default)', link):
+                mymatch = re.search(r'href="(.+?)"', link)
+                if mymatch:
+                    candidates.add(mymatch.group(1))
+            elif language == 'en' and re.search(r'hreflang="(en|EN|x-default)', link):
+                mymatch = re.search(r'href="(.+?)"', link)
+                if mymatch:
+                    candidates.add(mymatch.group(1))
+        # default
+        else:
+            mymatch = re.search(r'href="(.+?)"', link)
+            if mymatch:
+                candidates.add(mymatch.group(1))
+    # filter candidates
+    reference = TLD_EXTRACTION(base_url)
+    validlinks = set()
+    for link in candidates:
+        # repair using base
+        if not link.startswith('http'):
+            link = base_url + link
+        # check
+        checked = check_url(link, strict=True, with_redirects=False, language=language)
+        if checked is None:
+            continue
+        # external links
+        if external_bool is True and is_external(link, reference) is True:
+            validlinks.add(checked[0])
+        # internal links
+        elif external_bool is False and is_external(link, reference) is False:
+            validlinks.add(checked[0])
+    # return
+    LOGGER.info('%s links found – %s valid links', len(candidates), len(validlinks))
+    return validlinks
