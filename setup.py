@@ -13,7 +13,7 @@ from setuptools import setup
 def get_version(package):
     "Return package version as listed in `__version__` in `init.py`"
     # version = Path(package, '__init__.py').read_text() # Python >= 3.5
-    with open(Path(package, '__init__.py'), 'r', encoding='utf-8') as filehandle:
+    with open(str(Path(package, '__init__.py')), 'r', encoding='utf-8') as filehandle:
         initfile = filehandle.read()
     return re.search('__version__ = [\'"]([^\'"]+)[\'"]', initfile).group(1)
 
