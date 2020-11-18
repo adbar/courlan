@@ -27,6 +27,11 @@ LOGGER = logging.getLogger(__name__)
 # extract callable that falls back to the included TLD snapshot, no live HTTP fetching
 TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
+FIND_LINKS_REGEX = re.compile(r'<a .+?>')
+HREFLANG_DE_REGEX = re.compile(r'hreflang="(de|DE|x-default)')
+HREFLANG_EN_REGEX = re.compile(r'hreflang="(en|EN|x-default)')
+LINK_REGEX = re.compile(r'href="(.+?)"')
+
 
 def extract_domain(url, blacklist={}):
     '''Extract domain name information using top-level domain info'''
@@ -183,20 +188,20 @@ def extract_links(pagecontent, base_url, external_bool, language=None):
     """
     # extract links
     candidates = set()
-    for link in re.findall(r'<a .+?>', pagecontent):
+    for link in FIND_LINKS_REGEX.findall(pagecontent):
         # https://en.wikipedia.org/wiki/Hreflang
         if language in ('de', 'en') and 'hreflang' in link:
-            if language == 'de' and re.search(r'hreflang="(de|DE|x-default)', link):
-                mymatch = re.search(r'href="(.+?)"', link)
+            if language == 'de' and HREFLANG_DE_REGEX.search(link):
+                mymatch = LINK_REGEX.search(link)
                 if mymatch:
                     candidates.add(mymatch.group(1))
-            elif language == 'en' and re.search(r'hreflang="(en|EN|x-default)', link):
-                mymatch = re.search(r'href="(.+?)"', link)
+            elif language == 'en' and HREFLANG_EN_REGEX.search(link):
+                mymatch = LINK_REGEX.search(link)
                 if mymatch:
                     candidates.add(mymatch.group(1))
         # default
         else:
-            mymatch = re.search(r'href="(.+?)"', link)
+            mymatch = LINK_REGEX.search(link)
             if mymatch:
                 candidates.add(mymatch.group(1))
     # filter candidates
