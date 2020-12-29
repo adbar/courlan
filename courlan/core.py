@@ -13,7 +13,13 @@ import sys
 #from functools import cmp_to_key
 from random import sample
 
-import tldextract
+try:
+    from tld import get_fld, get_tld
+    TLD_EXTRACTION = None
+except ImportError:
+    import tldextract
+    # extract callable that falls back to the included TLD snapshot, no live HTTP fetching
+    TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
 from .clean import normalize_url, scrub_url
 from .filters import basic_filter, extension_filter, lang_filter, \
@@ -24,8 +30,7 @@ from .settings import BLACKLIST
 
 LOGGER = logging.getLogger(__name__)
 
-# extract callable that falls back to the included TLD snapshot, no live HTTP fetching
-TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
+
 
 FIND_LINKS_REGEX = re.compile(r'<a .+?>')
 HREFLANG_DE_REGEX = re.compile(r'hreflang="(de|DE|x-default)')
@@ -35,12 +40,21 @@ LINK_REGEX = re.compile(r'href="(.+?)"')
 
 def extract_domain(url, blacklist={}):
     '''Extract domain name information using top-level domain info'''
-    tldinfo = TLD_EXTRACTION(url)
-    # domain TLD blacklist
-    if tldinfo.domain in blacklist:
+    # legacy tldextract code
+    if TLD_EXTRACTION is not None:
+        tldinfo = TLD_EXTRACTION(url)
+        # domain TLD blacklist
+        if tldinfo.domain in blacklist:
+            return None
+        # return domain
+        return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
+    # new code
+    tldinfo = get_tld(url, as_object=True, fail_silently=True)
+    # invalid input OR domain TLD blacklist
+    if tldinfo is None or tldinfo.domain in blacklist:
         return None
     # return domain
-    return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
+    return tldinfo.fld
 
 
 def check_url(url, strict=False, with_redirects=False, language=None):
@@ -153,20 +167,28 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
 
 def is_external(url, reference, ignore_suffix=True):
     '''Determine if a link leads to another host, takes a reference URL or 
-       tldextract object as input, returns a boolean'''
-    # reference
-    if not isinstance(reference, tldextract.tldextract.ExtractResult):
-        reference = TLD_EXTRACTION(reference)
-    if ignore_suffix is True:
-        ref_domain = reference.domain
-    else:  # '.'.join(ext[-2:]).strip('.')
-        ref_domain = reference.registered_domain
-    # url
-    tldinfo = TLD_EXTRACTION(url)
-    if ignore_suffix is True:
-        domain = tldinfo.domain
+       tld/tldextract object as input, returns a boolean'''
+    # legacy tldextract code
+    if TLD_EXTRACTION is not None:
+        # reference
+        if not isinstance(reference, tldextract.tldextract.ExtractResult):
+            reference = TLD_EXTRACTION(reference)
+        tldinfo = TLD_EXTRACTION(url)
+        if ignore_suffix is True:
+            ref_domain, domain = reference.domain, tldinfo.domain
+        else:  # '.'.join(ext[-2:]).strip('.')
+            ref_domain, domain = reference.registered_domain, tldinfo.registered_domain
+    # new tld code
     else:
-        domain = tldinfo.registered_domain
+        if ignore_suffix is True:
+            try:
+                ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
+                                     get_tld(url, as_object=True, fail_silently=True).domain
+            # invalid input
+            except AttributeError:
+                return True
+        else:
+            ref_domain, domain = get_fld(reference, fail_silently=True), get_fld(url, fail_silently=True)
     # comparison
     if domain != ref_domain:
         return True
@@ -205,7 +227,10 @@ def extract_links(pagecontent, base_url, external_bool, language=None):
             if mymatch:
                 candidates.add(mymatch.group(1))
     # filter candidates
-    reference = TLD_EXTRACTION(base_url)
+    if TLD_EXTRACTION is not None:
+        reference = TLD_EXTRACTION(base_url)
+    else:
+        reference = base_url
     validlinks = set()
     for link in candidates:
         # repair using base

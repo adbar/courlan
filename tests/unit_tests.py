@@ -12,15 +12,18 @@ import sys
 from unittest.mock import patch
 
 import pytest
-import tldextract
+
+try:
+    import tldextract
+    TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
+except ImportError:
+    TLD_EXTRACTION = None
 
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
 from courlan.filters import extension_filter, spam_filter, type_filter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
-TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 def test_scrub():
@@ -94,7 +97,10 @@ def test_urlcheck():
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
     assert check_url('https://www.ht.or', with_redirects=True) is None
-    assert check_url('http://www.example') is not None
+    if TLD_EXTRACTION is not None:
+        assert check_url('http://www.example') is not None
+    else:
+        assert check_url('http://www.example') is None
     # recheck type and spam filters
     assert check_url('http://example.org/code/oembed/') is None
     assert check_url('http://cams.com/') is None
@@ -127,11 +133,12 @@ def test_external():
     assert is_external('https://microsoft.com/', 'https://www.microsoft.com/', ignore_suffix=False) is False
     assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True) is False
     assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False) is True
-    # tldextract object
-    tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
-    assert is_external('https://127.0.0.1:80/', tldinfo) is False
     # malformed URLs
     assert is_external('h1234', 'https://www.google.co.uk/', ignore_suffix=True) is True
+    if TLD_EXTRACTION is not None:
+        # tldextract object
+        tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
+        assert is_external('https://127.0.0.1:80/', tldinfo) is False
 
 
 def test_extraction():

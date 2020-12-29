@@ -76,7 +76,8 @@ setup(
     python_requires='>=3.4',
     install_requires=[
         'requests',
-        'tldextract',
+        'tldextract; python_version < "3.6"',
+        'tld; python_version >= "3.6"',
     ],
     #extras_require=extras,
     entry_points = {
