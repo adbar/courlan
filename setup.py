@@ -75,9 +75,9 @@ setup(
     include_package_data=True,
     python_requires='>=3.4',
     install_requires=[
-        'requests',
         'tldextract; python_version < "3.6"',
         'tld; python_version >= "3.6"',
+        'urllib3>=1.25,<2',
     ],
     #extras_require=extras,
     entry_points = {

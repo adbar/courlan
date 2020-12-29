@@ -6,10 +6,14 @@ Functions devoted to requests over the WWW.
 ## under GNU GPL v3 license
 
 import logging
-import requests
+import urllib3
 
-
-HEADERS = requests.utils.default_headers()
+RETRY_STRATEGY = urllib3.util.Retry(
+    total=5,
+    redirect=5,
+    raise_on_redirect=False,
+)
+HTTP_POOL = urllib3.PoolManager(retries=RETRY_STRATEGY)
 
 
 # Test redirects
@@ -25,18 +29,17 @@ def redirection_test(url):
         Nothing.
     """
     #headers.update({
-    #    "Connection" : "close",  # another way to cover tracks
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
     #})
     try:
-        rhead = requests.head(url, allow_redirects=True, headers=HEADERS)
+        rhead = HTTP_POOL.request('HEAD', url)
     except Exception as err:
         logging.error('unknown: %s %s', url, err) # sys.exc_info()[0]
     else:
         # response
-        if rhead.status_code == 200:
-            logging.info('redirection found: %s', rhead.url)
-            return rhead.url
+        if rhead.status in (200, 300, 301, 302, 303, 304, 305, 306, 307, 308):
+            logging.debug('result found: %s %s', rhead.geturl(), rhead.status)
+            return rhead.geturl()
     #else:
-    logging.info('no redirection found: %s', url)
+    logging.debug('no result found: %s', url)
     return None

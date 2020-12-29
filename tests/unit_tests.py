@@ -93,8 +93,9 @@ def test_urlcheck():
     assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
     assert check_url('http://example.com/test.js') is None
     assert check_url('http://twitter.com/') is None
-    # assert urlcheck('http://example.invalid/', False) is None
+    assert check_url('http://example.invalid/', False) is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
+    #assert check_url('https://www.httpbin.org/status/302', with_redirects=True) == ('https://www.httpbin.org/status/302', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
     assert check_url('https://www.ht.or', with_redirects=True) is None
     if TLD_EXTRACTION is not None:
