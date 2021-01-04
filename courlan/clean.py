@@ -82,13 +82,17 @@ def normalize_url(parsed_url, strict=False, language=None):
     # port
     if parsed_url.port is not None and parsed_url.port in (80, 443):
         parsed_url = parsed_url._replace(netloc=re.sub(r'(?<=\w):(?:80|443)', '', parsed_url.netloc))
+    # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
+    newpath = re.sub(r'/+', '/', parsed_url.path)
+    # Leading /../'s in the path are removed
+    newpath = re.sub(r'^(?:/\.\.(?![^/]))+', '', newpath)
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),
                  netloc=parsed_url.netloc.lower(),
-                 path=re.sub(r'/+', '/', parsed_url.path),
+                 path=newpath,
                  fragment=''
-                 )
+                 )    
     # strip unwanted query elements
     parsed_url = clean_query(parsed_url, strict, language)
     # rebuild
