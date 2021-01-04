@@ -1,6 +1,11 @@
 ## History / Changelog
 
 
+### 0.3.0
+
+- reduced dependencies: replace requests with bare urllib3, and tldextract with tld for Python 3.6 upwards
+- better path and fragment normalization
+
 
 ### 0.2.3
 
