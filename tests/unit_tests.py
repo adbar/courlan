@@ -66,8 +66,9 @@ def test_validate():
 
 def test_normalization():
     assert normalize_url('HTTPS://WWW.DWDS.DE/') == 'https://www.dwds.de/'
-    assert normalize_url('http://test.net/foo.html#bar') == 'http://test.net/foo.html'
-    assert normalize_url('http://test.net/foo.html#:~:text=night-,vision') == 'http://test.net/foo.html'
+    assert normalize_url('http://test.net/foo.html#bar', strict=True) == 'http://test.net/foo.html'
+    assert normalize_url('http://test.net/foo.html#bar', strict=False) == 'http://test.net/foo.html#bar'
+    assert normalize_url('http://test.net/foo.html#:~:text=night-,vision', strict=True) == 'http://test.net/foo.html'
     assert normalize_url('http://www.example.org:80/test.html') == 'http://www.example.org/test.html'
     assert normalize_url('https://hanxiao.io//404.html') == 'https://hanxiao.io/404.html'
 
@@ -90,7 +91,8 @@ def test_urlcheck():
     assert check_url('ftps://example.org/') is None
     assert check_url('http://t.g/test') is None
     assert check_url('https://www.dwds.de/test?param=test&amp;other=test', strict=True) == ('https://www.dwds.de/test', 'dwds.de')
-    assert check_url('http://example.com/index.html#term')[0] == 'http://example.com/index.html'
+    assert check_url('http://example.com/index.html#term', strict=True) is None
+    assert check_url('http://example.com/index.html#term', strict=False)[0] == 'http://example.com/index.html#term'
     assert check_url('http://example.com/test.js') is None
     assert check_url('http://twitter.com/') is None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')

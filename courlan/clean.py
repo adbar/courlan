@@ -86,12 +86,17 @@ def normalize_url(parsed_url, strict=False, language=None):
     newpath = re.sub(r'/+', '/', parsed_url.path)
     # Leading /../'s in the path are removed
     newpath = re.sub(r'^(?:/\.\.(?![^/]))+', '', newpath)
+    # fragment
+    if strict is True:
+        newfragment = ''
+    else:
+        newfragment = parsed_url.fragment
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),
                  netloc=parsed_url.netloc.lower(),
                  path=newpath,
-                 fragment=''
+                 fragment=newfragment
                  )    
     # strip unwanted query elements
     parsed_url = clean_query(parsed_url, strict, language)
