@@ -14,4 +14,4 @@ __version__ = '0.3.0'
 # imports
 from .clean import clean_url, normalize_url, scrub_url
 from .core import check_url, extract_domain, extract_links, is_external, sample_urls
-from .filters import validate_url
+from .filters import lang_filter, validate_url
