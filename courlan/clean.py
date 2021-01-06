@@ -15,9 +15,12 @@ from .settings import ALLOWED_PARAMS, CONTROL_PARAMS,\
                       TARGET_LANG_DE, TARGET_LANG_EN
 
 
-def clean_url(url):
+def clean_url(url, language=None):
     '''Helper function: chained scrubbing and normalization'''
-    return normalize_url(scrub_url(url))
+    try:
+        return normalize_url(scrub_url(url), language)
+    except ValueError:
+        return None
 
 
 def scrub_url(url):
