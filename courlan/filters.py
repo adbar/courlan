@@ -11,7 +11,8 @@ import re
 from urllib.parse import urlparse
 
 
-WORDPRESS_FILTER = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or|page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
+WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
+WORDPRESS_CONTENT_FILTER_2 = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+$', re.IGNORECASE)
 PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
 PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?$', re.IGNORECASE)
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
@@ -71,7 +72,7 @@ def type_filter(url, strict=False):
         if re.search(r'/oembed\b', url, re.IGNORECASE):
             raise ValueError
         # wordpress structure
-        if WORDPRESS_FILTER.search(url):
+        if WORDPRESS_CONTENT_FILTER.search(url) or WORDPRESS_CONTENT_FILTER_2.search(url):
             raise ValueError
         # hidden in parameters
         if strict is True and PARAM_FILTER.search(url):

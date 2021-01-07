@@ -48,7 +48,10 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter('http://www.example.org/feed') is False
+    # straight category
     assert type_filter('http://www.example.org/category/123') is False
+    # post simply filed under a category
+    assert type_filter('http://www.example.org/category/tropes/time-travel') is True
     assert type_filter('http://www.example.org/test.xml?param=test', strict=True) is False
     assert type_filter('http://www.example.org/test.asp') is True
     assert type_filter('http://ads.example.org/') is False
