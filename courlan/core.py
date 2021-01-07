@@ -87,7 +87,7 @@ def check_url(url, strict=False, with_redirects=False, language=None):
                 raise ValueError
 
         # spam
-        if spam_filter(url) is False:
+        if strict is True and spam_filter(url) is False:
             raise ValueError
         # structural elements
         if type_filter(url, strict) is False:

@@ -109,7 +109,8 @@ def test_urlcheck():
         assert check_url('http://example.invalid/', False) is None
     # recheck type and spam filters
     assert check_url('http://example.org/code/oembed/') is None
-    assert check_url('http://cams.com/') is None
+    assert check_url('http://cams.com/', strict=False) == ('http://cams.com', 'cams.com')
+    assert check_url('http://cams.com/', strict=True) is None
     assert check_url('https://denkiterm.wordpress.com/impressum/', strict=True) is None
     assert check_url('http://www.fischfutter-index.de/improvit-trocken-frostfutter-fur-fast-alle-fische/', strict=True) is not None
     # language and internationalization
