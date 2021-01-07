@@ -52,7 +52,12 @@ def test_type_filter():
     assert type_filter('http://www.example.org/test.xml?param=test', strict=True) is False
     assert type_filter('http://www.example.org/test.asp') is True
     assert type_filter('http://ads.example.org/') is False
-    assert type_filter('http://my-videos.com/') is False
+    # -video- vs. /video/
+    assert type_filter('http://my-videos.com/') is True
+    assert type_filter('http://my-videos.com/', strict=True) is False
+    assert type_filter('http://example.com/video/1') is False
+    assert type_filter('http://example.com/new-video-release') is True
+    assert type_filter('http://example.com/new-video-release', strict=True) is False
 
 
 def test_validate():

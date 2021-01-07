@@ -80,7 +80,9 @@ def type_filter(url, strict=False):
         # not suitable
         if re.match(r'https?://banner\.|https?://add?s?\.', url, re.IGNORECASE):
             raise ValueError
-        if re.search(r'\b(?:doubleclick|tradedoubler|livestream|live|videos?)\b', url, re.IGNORECASE):
+        if re.search(r'\b(?:doubleclick|tradedoubler|livestream)\b|/(?:live|videos?)/', url, re.IGNORECASE):
+            raise ValueError
+        if strict is True and re.search(r'\b(?:live|videos?)\b', url, re.IGNORECASE):
             raise ValueError
     except ValueError:
         return False
