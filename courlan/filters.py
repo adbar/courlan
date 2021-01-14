@@ -36,7 +36,7 @@ def extension_filter(component):
 def lang_filter(url, language):
     '''Heuristic targeting internationalization'''
     if language is not None:
-        match = URL_LANG_FILTER.match(url)
+        match = URL_LANG_FILTER.search(url)
         if match:
             if language == 'de' and match.group(1).lower() not in ('de', 'deu'):
                 return False

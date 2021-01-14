@@ -21,7 +21,7 @@ except ImportError:
 
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
-from courlan.filters import extension_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, lang_filter, spam_filter, type_filter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -61,6 +61,12 @@ def test_type_filter():
     assert type_filter('http://example.com/video/1') is False
     assert type_filter('http://example.com/new-video-release') is True
     assert type_filter('http://example.com/new-video-release', strict=True) is False
+
+
+def test_lang_filter():
+    assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', None) is True
+    assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'de') is False
+    assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'fr') is True
 
 
 def test_validate():
