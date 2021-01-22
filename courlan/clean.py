@@ -11,6 +11,7 @@ import re
 from collections import OrderedDict
 from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
+from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS,\
                       TARGET_LANG_DE, TARGET_LANG_EN
 
@@ -42,10 +43,15 @@ def scrub_url(url):
     protocols = re.findall(r'https?://', url)
     if len(protocols) > 1 and not 'web.archive.org' in url:
         logging.debug('double url: %s %s', len(protocols), url)
-        match = re.match(r'https?://.+?(https?://.+?)(?:https?://|$)', url)
-        if match:
-            url = match.group(1)
+        match = re.match(r'(https?://[^"> ]+?)(?:https?://)', url)
+        if match and validate_url(match.group(1))[0] is True:
             logging.debug('taking url: %s', url)
+            url = match.group(1)
+        else:
+            match = re.match(r'https?://.+?(https?://.+?)(?:https?://|$)', url)
+            if match and validate_url(match.group(1))[0] is True:
+                url = match.group(1)
+                logging.debug('taking url: %s', url)
     # lower
     # url = url.lower()
     return url
