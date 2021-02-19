@@ -229,3 +229,13 @@ This effort is part of methods to derive information from web documents in order
 -  Barbaresi, A. "`Efficient construction of metadata-enhanced web corpora <https://hal.archives-ouvertes.fr/hal-01371704v2/document>`_", Proceedings of the `10th Web as Corpus Workshop (WAC-X) <https://www.sigwac.org.uk/wiki/WAC-X>`_, 2016.
 
 Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.
+
+
+Similar work
+------------
+
+These Python libraries perform similar normalization tasks but don't entail language or content filters:
+
+- `ural <https://github.com/medialab/ural/>`_
+- `urlnorm <https://github.com/kurtmckee/urlnorm>`_
+- `yarl <https://github.com/aio-libs/yarl/>`_

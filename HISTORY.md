@@ -1,6 +1,11 @@
 ## History / Changelog
 
 
+### 0.3.1
+
+- improve filter precision
+
+
 ### 0.3.0
 
 - reduced dependencies: replace requests with bare urllib3, and tldextract with tld for Python 3.6 upwards
