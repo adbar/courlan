@@ -152,10 +152,10 @@ def test_external():
     assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False) is True
     # malformed URLs
     assert is_external('h1234', 'https://www.google.co.uk/', ignore_suffix=True) is True
-    if TLD_EXTRACTION is not None:
-        # tldextract object
-        tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
-        assert is_external('https://127.0.0.1:80/', tldinfo) is False
+    #if TLD_EXTRACTION is not None:
+    #    # tldextract object
+    #    tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
+    #    assert is_external('https://127.0.0.1:80/', tldinfo) is False
 
 
 def test_extraction():

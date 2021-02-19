@@ -39,6 +39,8 @@ def scrub_url(url):
     # &amp;
     if '&amp;' in url:
         url = url.replace('&amp;', '&')
+    #if '"' in link:
+    #    link = link.split('"')[0]
     # double/faulty URLs
     protocols = re.findall(r'https?://', url)
     if len(protocols) > 1 and not 'web.archive.org' in url:
@@ -71,10 +73,9 @@ def clean_query(parsed_url, strict=False, language=None):
             # control language
             if language is not None and teststr in CONTROL_PARAMS:
                 found_lang = str(qdict[qelem][0])
-                if language == 'de' and found_lang not in TARGET_LANG_DE:
-                    logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
-                    raise ValueError
-                if language == 'en' and found_lang not in TARGET_LANG_EN:
+                if (language == 'de' and found_lang not in TARGET_LANG_DE) or \
+                   (language == 'en' and found_lang not in TARGET_LANG_EN) or \
+                   found_lang != language:
                     logging.debug('bad lang: %s %s %s', language, qelem, found_lang)
                     raise ValueError
             # insert
