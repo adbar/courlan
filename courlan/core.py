@@ -32,14 +32,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 
-FIND_LINKS_REGEX = re.compile(r'<a .+?>')
+FIND_LINKS_REGEX = re.compile(r'<a [^<>]+?>')
 HREFLANG_DE_REGEX = re.compile(r'hreflang="(de|DE|x-default)')
 HREFLANG_EN_REGEX = re.compile(r'hreflang="(en|EN|x-default)')
 LINK_REGEX = re.compile(r'href="(.+?)"')
 
 
-def extract_domain(url, blacklist={}):
+def extract_domain(url, blacklist=None):
     '''Extract domain name information using top-level domain info'''
+    if blacklist is None:
+        blacklist = set()
     # legacy tldextract code
     if TLD_EXTRACTION is not None:
         tldinfo = TLD_EXTRACTION(url)
@@ -61,7 +63,9 @@ def check_url(url, strict=False, with_redirects=False, language=None):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
-        redbool: switch for redirection test
+        strict: set to True for stricter filtering
+        with_redirects: set to True for redirection test (per HTTP HEAD request)
+        language: set target language (ISO 639-1 codes)
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -123,7 +127,7 @@ def check_url(url, strict=False, with_redirects=False, language=None):
     if domain is None:
         return None
 
-    return (url, domain)
+    return url, domain
 
 
 def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
@@ -166,7 +170,7 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
 
 
 def is_external(url, reference, ignore_suffix=True):
-    '''Determine if a link leads to another host, takes a reference URL or 
+    '''Determine if a link leads to another host, takes a reference URL or
        tld/tldextract object as input, returns a boolean'''
     # legacy tldextract code
     if TLD_EXTRACTION is not None:
@@ -195,21 +199,33 @@ def is_external(url, reference, ignore_suffix=True):
     return False
 
 
-def extract_links(pagecontent, base_url, external_bool, language=None):
-    """ Filter links in a HTML document using regular expressions
+def extract_links(pagecontent, base_url, external_bool, language=None,
+                  strict=True, redirects=False, reference=None):
+    """ Filter links in a HTML document using a series of heuristics
     Args:
         pagecontent: whole page in binary format
-        base_url: needed to reconstruct absolute links
-        external_bool: shift from internal to external
+        base_url: beginning of the URL, without path, fragment and query
+        external: set to True for external links only, False for
+                  internal links only
+        language: set target language (ISO 639-1 codes)
+        strict: set to True for stricter filtering
+        with_redirects: set to True for redirection test (per HTTP HEAD request)
+        reference: provide a host reference for external/internal evaluation
 
     Returns:
-        A set containing sanity-checked HTTP links.
+        A set containing filtered HTTP links checked for sanity and consistency.
 
     Raises:
         Nothing.
     """
+    # define host reference
+    if reference is None:
+        if TLD_EXTRACTION is not None:
+            reference = TLD_EXTRACTION(base_url)
+        else:
+            reference = base_url
     # extract links
-    candidates = set()
+    candidates, validlinks = set(), set()
     for link in FIND_LINKS_REGEX.findall(pagecontent):
         # https://en.wikipedia.org/wiki/Hreflang
         if language in ('de', 'en') and 'hreflang' in link:
@@ -227,17 +243,12 @@ def extract_links(pagecontent, base_url, external_bool, language=None):
             if mymatch:
                 candidates.add(mymatch.group(1))
     # filter candidates
-    if TLD_EXTRACTION is not None:
-        reference = TLD_EXTRACTION(base_url)
-    else:
-        reference = base_url
-    validlinks = set()
     for link in candidates:
         # repair using base
         if not link.startswith('http'):
             link = base_url + link
         # check
-        checked = check_url(link, strict=True, with_redirects=False, language=language)
+        checked = check_url(link, strict=strict, with_redirects=redirects, language=language)
         if checked is None:
             continue
         # external links
