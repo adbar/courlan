@@ -46,7 +46,7 @@ Here is a `courlan <https://en.wiktionary.org/wiki/courlan>`_ (source: `Limpkin 
 Installation
 ------------
 
-This Python package is tested on Linux, macOS and Windows systems, it is compatible with Python 3.4 upwards. It is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package managers ``pip`` and ``pipenv``:
+This Python package is tested on Linux, macOS and Windows systems, it is compatible with Python 3.5 upwards. It is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package managers ``pip`` and ``pipenv``:
 
 .. code-block:: bash
 

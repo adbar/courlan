@@ -35,8 +35,7 @@ setup(
     long_description=get_long_description(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 3 - Alpha',
-        #'Development Status :: 4 - Beta',
+        'Development Status :: 4 - Beta',
         #'Development Status :: 5 - Production/Stable',
         #'Development Status :: 6 - Mature',
         'Environment :: Console',
@@ -50,7 +49,6 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -73,7 +71,7 @@ setup(
     },
     #package_data={},
     include_package_data=True,
-    python_requires='>=3.4',
+    python_requires='>=3.5',
     install_requires=[
         'tldextract; python_version < "3.6"',
         'tld; python_version >= "3.6"',
