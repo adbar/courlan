@@ -22,8 +22,24 @@ except ImportError:
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
 from courlan.filters import extension_filter, lang_filter, spam_filter, type_filter
+from courlan.urlutils import fix_relative_urls, get_base_url
+
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
+
+
+def test_baseurls():
+    assert get_base_url('https://example.org/') == 'https://example.org'
+    assert get_base_url('https://example.org/test.html?q=test#frag') == 'https://example.org'
+    assert get_base_url('example.org') == ''
+
+
+def test_fix_relative():
+    assert fix_relative_urls('https://example.org', 'page.html') == 'https://example.org/page.html'
+    assert fix_relative_urls('http://example.org', '//example.org/page.html') == 'http://example.org/page.html'
+    assert fix_relative_urls('https://example.org', './page.html') == 'https://example.org/page.html'
+    assert fix_relative_urls('https://example.org', '/page.html') == 'https://example.org/page.html'
 
 
 def test_scrub():

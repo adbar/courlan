@@ -26,6 +26,7 @@ from .filters import basic_filter, extension_filter, lang_filter, \
                      PATH_FILTER, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
+from .urlutils import fix_relative_urls
 
 
 LOGGER = logging.getLogger(__name__)
@@ -246,7 +247,7 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
     for link in candidates:
         # repair using base
         if not link.startswith('http'):
-            link = base_url + link
+            link = fix_relative_urls(base_url, link)
         # check
         checked = check_url(link, strict=strict, with_redirects=redirects, language=language)
         if checked is None:
