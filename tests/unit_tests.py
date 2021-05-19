@@ -192,6 +192,9 @@ def test_extraction():
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False, with_nav=False)) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', False, with_nav=True)) == 2
+    pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
+    links = extract_links(pagecontent, 'https://httpbin.org', False, with_nav=True)
+    assert sorted(links) == ['https://httpbin.org/links/2/0', 'https://httpbin.org/links/2/1']
 
 
 def test_cli():

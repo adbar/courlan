@@ -31,12 +31,10 @@ from .urlutils import fix_relative_urls
 
 LOGGER = logging.getLogger(__name__)
 
-
-
-FIND_LINKS_REGEX = re.compile(r'<a [^<>]+?>')
-HREFLANG_DE_REGEX = re.compile(r'hreflang="(de|DE|x-default)')
-HREFLANG_EN_REGEX = re.compile(r'hreflang="(en|EN|x-default)')
-LINK_REGEX = re.compile(r'href="(.+?)"')
+FIND_LINKS_REGEX = re.compile(r'<a [^<>]+?>', re.I)
+HREFLANG_DE_REGEX = re.compile(r'hreflang=["\'](de|x-default)', re.I)
+HREFLANG_EN_REGEX = re.compile(r'hreflang=["\'](en|x-default)', re.I)
+LINK_REGEX = re.compile(r'href=["\'](.+?)["\']', re.I)
 
 
 def extract_domain(url, blacklist=None):
