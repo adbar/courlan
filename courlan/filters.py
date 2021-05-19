@@ -60,7 +60,7 @@ def spam_filter(url):
     return True
 
 
-def type_filter(url, strict=False):
+def type_filter(url, strict=False, with_nav=False):
     '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
     # directory
     #if url.endswith('/'):
@@ -74,7 +74,8 @@ def type_filter(url, strict=False):
             raise ValueError
         # wordpress structure
         if WORDPRESS_CONTENT_FILTER.search(url) or WORDPRESS_CONTENT_FILTER_2.search(url):
-            raise ValueError
+            if not with_nav is True or not is_navigation_page(url):
+                raise ValueError
         # hidden in parameters
         if strict is True and PARAM_FILTER.search(url):
             raise ValueError

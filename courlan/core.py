@@ -60,13 +60,14 @@ def extract_domain(url, blacklist=None):
     return tldinfo.fld
 
 
-def check_url(url, strict=False, with_redirects=False, language=None):
+def check_url(url, strict=False, with_redirects=False, language=None, with_nav=False):
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
         strict: set to True for stricter filtering
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
+        with_nav: set to True to include navigation pages instead of discarding them
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -95,7 +96,7 @@ def check_url(url, strict=False, with_redirects=False, language=None):
         if strict is True and spam_filter(url) is False:
             raise ValueError
         # structural elements
-        if type_filter(url, strict) is False:
+        if type_filter(url, strict=strict, with_nav=with_nav) is False:
             raise ValueError
 
         # split and validate
@@ -201,7 +202,7 @@ def is_external(url, reference, ignore_suffix=True):
 
 
 def extract_links(pagecontent, base_url, external_bool, language=None,
-                  strict=True, redirects=False, reference=None):
+                  strict=True, with_nav=False, redirects=False, reference=None):
     """ Filter links in a HTML document using a series of heuristics
     Args:
         pagecontent: whole page in binary format
@@ -210,6 +211,7 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
                   internal links only
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
+        with_nav: set to True to include navigation pages instead of discarding them
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation
 
@@ -249,7 +251,8 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
         if not link.startswith('http'):
             link = fix_relative_urls(base_url, link)
         # check
-        checked = check_url(link, strict=strict, with_redirects=redirects, language=language)
+        checked = check_url(link, strict=strict, with_nav=with_nav,
+                            with_redirects=redirects, language=language)
         if checked is None:
             continue
         # external links

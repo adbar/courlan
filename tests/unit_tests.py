@@ -187,8 +187,11 @@ def test_extraction():
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 0
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/></html>'
-    assert len(extract_links(pagecontent, 'https://test.com/', False, language=None)) == 2
+    assert len(extract_links(pagecontent, 'https://test.com/', False)) == 2
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 2
+    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False, with_nav=False)) == 1
+    assert len(extract_links(pagecontent, 'https://test.com/', False, with_nav=True)) == 2
 
 
 def test_cli():
