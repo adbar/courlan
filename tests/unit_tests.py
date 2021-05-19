@@ -21,7 +21,7 @@ except ImportError:
 
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
-from courlan.filters import extension_filter, lang_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, is_navigation_page, lang_filter, spam_filter, type_filter
 from courlan.urlutils import fix_relative_urls, get_base_url
 
 
@@ -84,6 +84,11 @@ def test_lang_filter():
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', None) is True
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'de') is False
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'fr') is True
+
+
+def test_navigation():
+    assert is_navigation_page('https://test.org/') is False
+    assert is_navigation_page('https://test.org/page/1') is True
 
 
 def test_validate():
