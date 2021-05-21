@@ -21,7 +21,7 @@ except ImportError:
 
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
 from courlan.cli import parse_args
-from courlan.filters import extension_filter, is_navigation_page, lang_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, is_navigation_page, is_not_crawlable, lang_filter, spam_filter, type_filter
 from courlan.urlutils import fix_relative_urls, get_base_url
 
 
@@ -89,6 +89,9 @@ def test_lang_filter():
 def test_navigation():
     assert is_navigation_page('https://test.org/') is False
     assert is_navigation_page('https://test.org/page/1') is True
+    assert is_not_crawlable('https://test.org/login') is True
+    assert is_not_crawlable('https://test.org/login/') is True
+    assert is_not_crawlable('https://test.org/page') is False
 
 
 def test_validate():
@@ -186,8 +189,9 @@ def test_extraction():
     assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 0
-    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/></html>'
-    assert len(extract_links(pagecontent, 'https://test.com/', False)) == 2
+    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
+    links = extract_links(pagecontent, 'https://test.com/', False)
+    assert sorted(links) == ['https://test.com/example', 'https://test.com/example2']
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 2
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False, with_nav=False)) == 1
