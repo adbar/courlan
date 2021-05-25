@@ -107,7 +107,7 @@ def normalize_url(parsed_url, strict=False, language=None):
                  netloc=parsed_url.netloc.lower(),
                  path=newpath,
                  fragment=newfragment
-                 )    
+                 )
     # strip unwanted query elements
     parsed_url = clean_query(parsed_url, strict, language)
     # rebuild

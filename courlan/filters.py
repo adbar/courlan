@@ -75,7 +75,7 @@ def type_filter(url, strict=False, with_nav=False):
             raise ValueError
         # wordpress structure
         if WORDPRESS_CONTENT_FILTER.search(url) or WORDPRESS_CONTENT_FILTER_2.search(url):
-            if not with_nav is True or not is_navigation_page(url):
+            if with_nav is not True or not is_navigation_page(url):
                 raise ValueError
         # hidden in parameters
         if strict is True and PARAM_FILTER.search(url):

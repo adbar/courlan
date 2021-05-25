@@ -19,10 +19,9 @@ try:
 except ImportError:
     TLD_EXTRACTION = None
 
-from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links
+from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo
 from courlan.cli import parse_args
 from courlan.filters import extension_filter, is_navigation_page, is_not_crawlable, lang_filter, spam_filter, type_filter
-from courlan.urlutils import fix_relative_urls, get_base_url
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -40,6 +39,13 @@ def test_fix_relative():
     assert fix_relative_urls('http://example.org', '//example.org/page.html') == 'http://example.org/page.html'
     assert fix_relative_urls('https://example.org', './page.html') == 'https://example.org/page.html'
     assert fix_relative_urls('https://example.org', '/page.html') == 'https://example.org/page.html'
+    # fixing partial URLs
+    assert fix_relative_urls('https://example.org', 'https://example.org/test.html') == 'https://example.org/test.html'
+    assert fix_relative_urls('https://example.org', '/test.html') == 'https://example.org/test.html'
+    assert fix_relative_urls('https://example.org', '//example.org/test.html') == 'https://example.org/test.html'
+    assert fix_relative_urls('http://example.org', '//example.org/test.html') == 'http://example.org/test.html'
+    assert fix_relative_urls('https://example.org', 'test.html') == 'https://example.org/test.html'
+    assert fix_relative_urls('https://example.org', '../../test.html') == 'https://example.org/test.html'
 
 
 def test_scrub():
@@ -165,6 +171,15 @@ def test_urlcheck():
     assert check_url('http://concordia-hagen.de/de/impressum', strict=True) is None
     assert check_url('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is not None
     assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
+
+
+def test_urlutils():
+    '''Test URL manipulation tools'''
+    assert extract_domain('https://httpbin.org/') == 'httpbin.org'
+    assert get_base_url('https://example.org/path') == 'https://example.org'
+    assert get_host_and_path('https://example.org/path') == ('https://example.org', '/path')
+    assert get_hostinfo('https://example.org/path') == ('example.org', 'https://example.org')
+    assert get_hostinfo('https://httpbin.org/') == ('httpbin.org', 'https://httpbin.org')
 
 
 def test_external():

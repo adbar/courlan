@@ -149,9 +149,19 @@ Determine if a link leads to another host:
     >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
     True
 
+Other useful functions:
+
+- ``lang_filter(url, language)``: heuristics concerning internationalization in URLs
+- ``fix_relative_urls()``: prepend necessary information to relative links
+- ``get_base_url()``: strip the URL of some of its parts
+- ``get_host_and_path()``: decompose URLs in two parts: protocol + host/domain and path
+- ``get_hostinfo()``: extract domain and host info (protocol + host/domain)
+
 
 Command-line
 ~~~~~~~~~~~~
+
+The main fonctions are also available through a command-line utility.
 
 .. code-block:: bash
 
@@ -234,7 +244,7 @@ Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://gith
 Similar work
 ------------
 
-These Python libraries perform similar normalization tasks but don't entail language or content filters:
+These Python libraries perform similar normalization tasks but don't entail language or content filters. They also don't necessarily focus on crawl optimization:
 
 - `ural <https://github.com/medialab/ural/>`_
 - `urlnorm <https://github.com/kurtmckee/urlnorm>`_
