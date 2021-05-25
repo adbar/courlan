@@ -16,6 +16,15 @@ from .settings import ALLOWED_PARAMS, CONTROL_PARAMS,\
                       TARGET_LANG_DE, TARGET_LANG_EN
 
 
+PROTOCOLS = re.compile(r'https?://')
+SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)|(?:https?://[^/]+?/[^/]+?[&?]u(rl)?=)(https?://[^"> ]+)')
+MIDDLE_URL = re.compile(r'https?://.+?(https?://.+?)(?:https?://|$)')
+
+NETLOC_RE = re.compile(r'(?<=\w):(?:80|443)')
+PATH1 = re.compile(r'/+')
+PATH2 = re.compile(r'^(?:/\.\.(?![^/]))+')
+
+
 def clean_url(url, language=None):
     '''Helper function: chained scrubbing and normalization'''
     try:
@@ -42,15 +51,15 @@ def scrub_url(url):
     #if '"' in link:
     #    link = link.split('"')[0]
     # double/faulty URLs
-    protocols = re.findall(r'https?://', url)
+    protocols = PROTOCOLS.findall(url)
     if len(protocols) > 1 and not 'web.archive.org' in url:
         logging.debug('double url: %s %s', len(protocols), url)
-        match = re.match(r'(https?://[^"> ]+?)(?:https?://)', url)
+        match = SELECTION.match(url)
         if match and validate_url(match.group(1))[0] is True:
-            logging.debug('taking url: %s', url)
             url = match.group(1)
+            logging.debug('taking url: %s', url)
         else:
-            match = re.match(r'https?://.+?(https?://.+?)(?:https?://|$)', url)
+            match = MIDDLE_URL.match(url)
             if match and validate_url(match.group(1))[0] is True:
                 url = match.group(1)
                 logging.debug('taking url: %s', url)
@@ -91,11 +100,11 @@ def normalize_url(parsed_url, strict=False, language=None):
         parsed_url = urlparse(parsed_url)
     # port
     if parsed_url.port is not None and parsed_url.port in (80, 443):
-        parsed_url = parsed_url._replace(netloc=re.sub(r'(?<=\w):(?:80|443)', '', parsed_url.netloc))
+        parsed_url = parsed_url._replace(netloc=NETLOC_RE.sub('', parsed_url.netloc))
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
-    newpath = re.sub(r'/+', '/', parsed_url.path)
+    newpath = PATH1.sub('/', parsed_url.path)
     # Leading /../'s in the path are removed
-    newpath = re.sub(r'^(?:/\.\.(?![^/]))+', '', newpath)
+    newpath = PATH2.sub('', newpath)
     # fragment
     if strict is True:
         newfragment = ''

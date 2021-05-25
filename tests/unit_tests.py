@@ -56,6 +56,9 @@ def test_scrub():
     assert scrub_url('https://g__https://www.dwds.de/') == 'https://www.dwds.de'
     # exception for archive URLs
     assert scrub_url('https://web.archive.org/web/20131021165347/https://www.imdb.com/') == 'https://web.archive.org/web/20131021165347/https://www.imdb.com'
+    # social sharing
+    assert scrub_url('https://twitter.com/share?&text=Le%20sabre%20de%20bambou%20%232&via=NouvellesJapon&url=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
+    assert scrub_url('https://www.facebook.com/sharer.php?u=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
 
 
 def test_extension_filter():
