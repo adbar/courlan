@@ -149,13 +149,20 @@ Determine if a link leads to another host:
     >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
     True
 
+
 Other useful functions:
 
-- ``lang_filter(url, language)``: heuristics concerning internationalization in URLs
 - ``fix_relative_urls()``: prepend necessary information to relative links
 - ``get_base_url()``: strip the URL of some of its parts
 - ``get_host_and_path()``: decompose URLs in two parts: protocol + host/domain and path
 - ``get_hostinfo()``: extract domain and host info (protocol + host/domain)
+
+
+Other filters:
+
+- ``is_not_crawlable(url)``: check for deep web or pages generally not usable in a crawling context
+- ``is_navigation_page(url)``: check for navigation and overview pages
+- ``lang_filter(url, language)``: heuristics concerning internationalization in URLs
 
 
 Command-line

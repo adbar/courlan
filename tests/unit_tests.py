@@ -19,9 +19,9 @@ try:
 except ImportError:
     TLD_EXTRACTION = None
 
-from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo
+from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
 from courlan.cli import parse_args
-from courlan.filters import extension_filter, is_navigation_page, is_not_crawlable, lang_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, spam_filter, type_filter
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

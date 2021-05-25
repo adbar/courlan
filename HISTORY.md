@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 0.4.0
+
+- URL manipulation tools added: extract parts, fix relative URLs
+- filters added: language, navigation and crawls
+- more robust link handling and extraction
+- removed support for Python 3.4
+
+
 ### 0.3.1
 
 - improve filter precision
