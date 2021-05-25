@@ -65,6 +65,10 @@ def fix_relative_urls(baseurl, url):
     # imperfect path handling
     elif url.startswith('.'):
         urlfix = baseurl + '/' + re.sub(r'(.+/)+', '', url)
+    # don't try to correct these URLs
+    elif url.startswith('{'):
+        urlfix = url
+    # catchall
     elif not url.startswith('http'):
         urlfix = baseurl + '/' + url
     else:

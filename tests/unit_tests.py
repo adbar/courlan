@@ -171,6 +171,7 @@ def test_urlcheck():
     assert check_url('http://concordia-hagen.de/de/impressum', strict=True) is None
     assert check_url('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is not None
     assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
+    assert check_url('{mylink}') is None
 
 
 def test_urlutils():
@@ -214,6 +215,10 @@ def test_extraction():
     pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
     links = extract_links(pagecontent, 'https://httpbin.org', False, with_nav=True)
     assert sorted(links) == ['https://httpbin.org/links/2/0', 'https://httpbin.org/links/2/1']
+    # links undeveloped by CMS
+    pagecontent = '<html><a href="{privacy}" target="_privacy">{privacy-link}</a></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False)) == 0
+    assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
 
 
 def test_cli():
