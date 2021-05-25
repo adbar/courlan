@@ -26,8 +26,7 @@ from .urlutils import extract_domain, fix_relative_urls, is_external
 LOGGER = logging.getLogger(__name__)
 
 FIND_LINKS_REGEX = re.compile(r'<a [^<>]+?>', re.I)
-HREFLANG_DE_REGEX = re.compile(r'hreflang=["\'](de|x-default)', re.I)
-HREFLANG_EN_REGEX = re.compile(r'hreflang=["\'](en|x-default)', re.I)
+HREFLANG_REGEX = re.compile(r'hreflang=["\']([a-z-]+)', re.I)
 LINK_REGEX = re.compile(r'href=["\']([^ ]+?)["\']', re.I)
 
 
@@ -174,12 +173,12 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
     # extract links
     for link in FIND_LINKS_REGEX.findall(pagecontent):
         # https://en.wikipedia.org/wiki/Hreflang
-        if language in ('de', 'en') and 'hreflang' in link:
-            if language == 'de' and HREFLANG_DE_REGEX.search(link):
-                mymatch = LINK_REGEX.search(link)
-                if mymatch:
-                    candidates.add(mymatch.group(1))
-            elif language == 'en' and HREFLANG_EN_REGEX.search(link):
+        if language is not None and 'hreflang' in link:
+            langmatch = HREFLANG_REGEX.search(link)
+            if langmatch and (
+                langmatch.group(1).startswith(language) or
+                langmatch.group(1) == 'x-default'
+                ):
                 mymatch = LINK_REGEX.search(link)
                 if mymatch:
                     candidates.add(mymatch.group(1))
@@ -198,11 +197,8 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
                             with_redirects=redirects, language=language)
         if checked is None:
             continue
-        # external links
-        if external_bool is True and is_external(link, reference) is True:
-            validlinks.add(checked[0])
-        # internal links
-        elif external_bool is False and is_external(link, reference) is False:
+        # external/internal links
+        if external_bool == is_external(link, reference):
             validlinks.add(checked[0])
     # return
     LOGGER.info('%s links found – %s valid links', len(candidates), len(validlinks))

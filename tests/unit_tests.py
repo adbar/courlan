@@ -49,6 +49,9 @@ def test_fix_relative():
 
 
 def test_scrub():
+    # clean: scrub + normalize
+    assert clean_url('ø\xaa') == 'øª'
+    # scrub
     assert scrub_url('  https://www.dwds.de') == 'https://www.dwds.de'
     assert scrub_url('<![CDATA[https://www.dwds.de]]>') == 'https://www.dwds.de'
     assert scrub_url('https://www.dwds.de/test?param=test&amp;other=test') == 'https://www.dwds.de/test?param=test&other=test'
@@ -93,6 +96,8 @@ def test_lang_filter():
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', None) is True
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'de') is False
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'fr') is True
+    assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'en') is False
+    assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'es') is False
 
 
 def test_navigation():
@@ -205,11 +210,17 @@ def test_extraction():
     '''test link comparison in HTML'''
     assert len(extract_links(None, 'https://test.com/', False)) == 0
     assert len(extract_links('', 'https://test.com/', False)) == 0
+    # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False)) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 0
+    # x-default
+    pagecontent = '<html><a href="https://test.com/example" hreflang="x-default"/></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 1
+    # language + content
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
     links = extract_links(pagecontent, 'https://test.com/', False)
     assert sorted(links) == ['https://test.com/example', 'https://test.com/example2']
