@@ -162,6 +162,9 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
     Raises:
         Nothing.
     """
+    candidates, validlinks = set(), set()
+    if pagecontent is None or pagecontent == '':
+        return validlinks
     # define host reference
     if reference is None:
         if TLD_EXTRACTION is not None:
@@ -169,7 +172,6 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
         else:
             reference = base_url
     # extract links
-    candidates, validlinks = set(), set()
     for link in FIND_LINKS_REGEX.findall(pagecontent):
         # https://en.wikipedia.org/wiki/Hreflang
         if language in ('de', 'en') and 'hreflang' in link:
