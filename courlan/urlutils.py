@@ -21,14 +21,17 @@ def extract_domain(url, blacklist=None):
         if tldinfo.domain in blacklist:
             return None
         # return domain
-        return re.sub(r'^www[0-9]*\.', '', '.'.join(part for part in tldinfo if part))
+        returnval = '.'.join(part for part in tldinfo if part)
     # new code
-    tldinfo = get_tld(url, as_object=True, fail_silently=True)
-    # invalid input OR domain TLD blacklist
-    if tldinfo is None or tldinfo.domain in blacklist:
-        return None
-    # return domain
-    return tldinfo.fld
+    else:
+        tldinfo = get_tld(url, as_object=True, fail_silently=True)
+        # invalid input OR domain TLD blacklist
+        if tldinfo is None or tldinfo.domain in blacklist:
+            return None
+        # return domain
+        returnval = tldinfo.fld
+    # this step seems necessary to standardize output
+    return re.sub(r'^www[0-9]*\.', '', returnval)
 
 
 def get_base_url(url):
