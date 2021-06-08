@@ -39,8 +39,6 @@ def scrub_url(url):
     url = url.strip()
     # clean the input string
     url = url.replace('[ \t]+', '')
-    # trailing slashes
-    url = url.rstrip('/')
     # <![CDATA[http://www.urbanlife.de/item/260-bmw-i8-hybrid-revolution-unter-den-sportwagen.html]]>
     if url.startswith('<![CDATA['): # re.match(r'<!\[CDATA\[', url):
         url = url.replace('<![CDATA[', '') # url = re.sub(r'^<!\[CDATA\[', '', url)
@@ -63,6 +61,9 @@ def scrub_url(url):
             if match and validate_url(match.group(1))[0] is True:
                 url = match.group(1)
                 logging.debug('taking url: %s', url)
+    # trailing slashes in URLs without path or in embedded URLs
+    if url.count('/') == 3 or url.count('://') > 1:
+        url = url.rstrip('/')
     # lower
     # url = url.lower()
     return url
