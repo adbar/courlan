@@ -197,9 +197,11 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
                             with_redirects=redirects, language=language)
         if checked is None:
             continue
+        # additional cleaning step?
+        newlink = re.sub(r'/\&$', '', checked[0])
         # external/internal links
-        if external_bool == is_external(link, reference):
-            validlinks.add(checked[0])
+        if external_bool == is_external(newlink, reference):
+            validlinks.add(newlink)
     # return
     LOGGER.info('%s links found – %s valid links', len(candidates), len(validlinks))
     return validlinks

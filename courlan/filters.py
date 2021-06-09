@@ -18,7 +18,7 @@ PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNOR
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 URL_LANG_FILTER = re.compile(r'/([a-z]{2,3})(-[a-z]{2,3})?/', re.IGNORECASE)
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
-NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
+NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
 
 

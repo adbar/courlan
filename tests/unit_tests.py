@@ -62,6 +62,8 @@ def test_scrub():
     # social sharing
     assert scrub_url('https://twitter.com/share?&text=Le%20sabre%20de%20bambou%20%232&via=NouvellesJapon&url=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
     assert scrub_url('https://www.facebook.com/sharer.php?u=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
+    # end of URL
+    #assert scrub_url('https://www.test.com/&') == 'https://www.test.com'
 
 
 def test_extension_filter():
