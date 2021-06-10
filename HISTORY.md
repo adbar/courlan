@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.4.1
+
+- keep trailing slashes to avoid redirection
+- fixes: normalization and crawlable URLs
+
+
 ### 0.4.0
 
 - URL manipulation tools added: extract parts, fix relative URLs
