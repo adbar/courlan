@@ -29,7 +29,7 @@ def clean_url(url, language=None):
     '''Helper function: chained scrubbing and normalization'''
     try:
         return normalize_url(scrub_url(url), language)
-    except ValueError:
+    except (AttributeError, ValueError):
         return None
 
 
@@ -73,9 +73,8 @@ def scrub_url(url):
         if match:
             url = match.group(1)
         if len(url) > 500:
-            logstr = url[:50] + '...'
             logging.debug('invalid-looking link %s of length %d',
-                           logstr, len(url))
+                           url[:50] + '...', len(url))
     # trailing ampersand
     url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs

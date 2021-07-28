@@ -50,6 +50,7 @@ def test_fix_relative():
 
 def test_scrub():
     # clean: scrub + normalize
+    assert clean_url(5) is None
     assert clean_url('ø\xaa') == 'øª'
     # scrub
     assert scrub_url('  https://www.dwds.de') == 'https://www.dwds.de'
@@ -70,6 +71,7 @@ def test_scrub():
     assert scrub_url('https://www.test.com/</a>') == 'https://www.test.com'
     # garbled URLs e.g. due to quotes
     assert scrub_url('https://www.test.com/"' + '<p></p>'*100) == 'https://www.test.com'
+    assert scrub_url('https://www.test.com/"' * 50) != 'https://www.test.com'
 
 
 def test_extension_filter():
