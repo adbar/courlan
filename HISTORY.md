@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.4.2
+
+- enhanced cleaning
+- fixed language filter
+
+
 ### 0.4.1
 
 - keep trailing slashes to avoid redirection
