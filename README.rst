@@ -10,10 +10,6 @@ coURLan: Clean, filter, normalize, and sample URLs
     :target: https://pypi.python.org/pypi/courlan
     :alt: Python versions
 
-.. image:: https://img.shields.io/travis/adbar/courlan.svg
-    :target: https://travis-ci.org/adbar/courlan
-    :alt: Travis build status
-
 .. image:: https://img.shields.io/codecov/c/github/adbar/courlan.svg
     :target: https://codecov.io/gh/adbar/courlan
     :alt: Code Coverage
