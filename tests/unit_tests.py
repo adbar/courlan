@@ -76,6 +76,7 @@ def test_extension_filter():
     assert extension_filter('http://www.example.org/test.js') is False
     assert extension_filter('http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett') is True
     assert extension_filter('https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp') is True
+    assert extension_filter('http://www.example.org/test.shtml') is True
 
 
 def test_spam_filter():

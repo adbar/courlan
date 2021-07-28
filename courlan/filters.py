@@ -11,15 +11,23 @@ import re
 from urllib.parse import urlparse
 
 
+# content filters
 WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/', re.IGNORECASE)
 WORDPRESS_CONTENT_FILTER_2 = re.compile(r'/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+$', re.IGNORECASE)
 PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
 PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNORECASE)
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
+
+# language filter
 URL_LANG_FILTER = re.compile(r'/([a-z]{2,3})([_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+
+# navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
 NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
+
+# document types
+WHITELISTED_EXTENSIONS = ('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.htm', 'html', '.shtml', '.jsp', '.php', '.pl', '.txt')
 
 
 def basic_filter(url):
@@ -29,9 +37,9 @@ def basic_filter(url):
     return True
 
 
-def extension_filter(component):
+def extension_filter(urlpath):
     '''Filter based on file extension'''
-    if re.search(r'\.[a-z]{2,5}$', component) and not component.endswith(('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.htm', 'html', '.jsp', '.php', '.pl')):
+    if re.search(r'\.[a-z]{2,5}$', urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
         return False
     return True
 
