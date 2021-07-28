@@ -63,7 +63,13 @@ def test_scrub():
     assert scrub_url('https://twitter.com/share?&text=Le%20sabre%20de%20bambou%20%232&via=NouvellesJapon&url=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
     assert scrub_url('https://www.facebook.com/sharer.php?u=https://nouvellesdujapon.com/le-sabre-de-bambou-2') == 'https://nouvellesdujapon.com/le-sabre-de-bambou-2'
     # end of URL
-    #assert scrub_url('https://www.test.com/&') == 'https://www.test.com'
+    assert scrub_url('https://www.test.com/&') == 'https://www.test.com'
+    # white space
+    assert scrub_url('\x19https://www.test.com/\x06') == 'https://www.test.com'
+    # markup
+    assert scrub_url('https://www.test.com/</a>') == 'https://www.test.com'
+    # garbled URLs e.g. due to quotes
+    assert scrub_url('https://www.test.com/"' + '<p></p>'*100) == 'https://www.test.com'
 
 
 def test_extension_filter():

@@ -36,13 +36,18 @@ def clean_url(url, language=None):
 def scrub_url(url):
     '''Strip unnecessary parts and make sure only one URL is considered'''
     # trim
-    url = url.strip()
+    # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
+    # remove leading and trailing white space and unescaped control chars
+    url = url.strip('\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
+                    '\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f \r\n')
     # clean the input string
     url = url.replace('[ \t]+', '')
     # <![CDATA[http://www.urbanlife.de/item/260-bmw-i8-hybrid-revolution-unter-den-sportwagen.html]]>
     if url.startswith('<![CDATA['): # re.match(r'<!\[CDATA\[', url):
         url = url.replace('<![CDATA[', '') # url = re.sub(r'^<!\[CDATA\[', '', url)
         url = url.replace(']]>', '') # url = re.sub(r'\]\]>$', '', url)
+    # markup rests
+    url = re.sub(r'</?a>', '', url)
     # &amp;
     if '&amp;' in url:
         url = url.replace('&amp;', '&')
@@ -61,6 +66,18 @@ def scrub_url(url):
             if match and validate_url(match.group(1))[0] is True:
                 url = match.group(1)
                 logging.debug('taking url: %s', url)
+    # too long and garbled URLs e.g. due to quotes URLs
+    # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
+    if len(url) > 500:  # arbitrary choice
+        match = re.match(r'(.*?)[<>"\'\r\n ]', url)
+        if match:
+            url = match.group(1)
+        if len(url) > 500:
+            logstr = url[:50] + '...'
+            logging.debug('invalid-looking link %s of length %d',
+                           logstr, len(url))
+    # trailing ampersand
+    url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs
     if url.count('/') == 3 or url.count('://') > 1:
         url = url.rstrip('/')
