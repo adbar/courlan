@@ -111,6 +111,8 @@ def test_lang_filter():
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'es') is False
     assert lang_filter('https://www.sitemaps.org/en_GB/protocol.html', 'en') is True
     assert lang_filter('https://www.sitemaps.org/en_GB/protocol.html', 'de') is False
+    assert lang_filter('https://en.wikipedia.org/', 'de') is False
+    assert lang_filter('https://de.wikipedia.org/', 'de') is True
 
 
 def test_navigation():

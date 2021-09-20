@@ -19,7 +19,8 @@ PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNOR
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 
 # language filter
-URL_LANG_FILTER = re.compile(r'/([a-z]{2,3})([_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+PATH_LANG_FILTER = re.compile(r'/([a-z]{2,3})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+HOST_LANG_FILTER = re.compile(r'^https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
@@ -47,7 +48,7 @@ def extension_filter(urlpath):
 def lang_filter(url, language):
     '''Heuristic targeting internationalization'''
     if language is not None:
-        match = URL_LANG_FILTER.search(url)
+        match = PATH_LANG_FILTER.search(url)
         if match:
             if language == 'de' and match.group(1).lower() not in ('de', 'deu'):
                 return False
@@ -55,6 +56,13 @@ def lang_filter(url, language):
                 return False
             elif language != match.group(1).lower()[:2]:
                 return False
+        else:
+            match = HOST_LANG_FILTER.search(url)
+            if match:
+                if language == 'de' and match.group(1).lower() not in ('at', 'ch', 'de', 'li'):
+                    return False
+                if language == 'en' and match.group(1).lower() not in ('en', 'uk', 'us'):
+                    return False
     return True
 
 
