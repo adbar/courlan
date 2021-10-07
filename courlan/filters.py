@@ -28,6 +28,7 @@ NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
 
 # document types
+EXTENSION_REGEX = re.compile(r'\.[a-z]{2,5}$')
 WHITELISTED_EXTENSIONS = ('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.htm', 'html', '.shtml', '.jsp', '.php', '.pl', '.txt')
 
 
@@ -40,7 +41,7 @@ def basic_filter(url):
 
 def extension_filter(urlpath):
     '''Filter based on file extension'''
-    if re.search(r'\.[a-z]{2,5}$', urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
+    if EXTENSION_REGEX.search(urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
         return False
     return True
 

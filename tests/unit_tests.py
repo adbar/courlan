@@ -75,10 +75,18 @@ def test_scrub():
 
 
 def test_extension_filter():
-    assert extension_filter('http://www.example.org/test.js') is False
-    assert extension_filter('http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett') is True
-    assert extension_filter('https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp') is True
-    assert extension_filter('http://www.example.org/test.shtml') is True
+    validation_test, parsed_url = validate_url('http://www.example.org/test.js')
+    assert extension_filter(parsed_url.path) is False
+    validation_test, parsed_url = validate_url('http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('http://www.example.org/test.shtml')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('http://de.artsdot.com/ADC/Art.nsf/O/8EWETN')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('http://de.artsdot.com/ADC/Art.nsf?param1=test')
+    assert extension_filter(parsed_url.path) is False
 
 
 def test_spam_filter():
