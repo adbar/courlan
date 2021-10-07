@@ -32,8 +32,8 @@ def parse_args(args):
                             help="perform more restrictive tests",
                             action="store_true")
     group2.add_argument("-l", "--language",
-                            help="use language filter (English or German)",
-                            type=str, choices=['de', 'en'])
+                            help="use language filter (ISO 639-1 code)",
+                            type=str)
     group2.add_argument("-r", "--redirects",
                             help="check redirects",
                             action="store_true")

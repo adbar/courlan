@@ -121,6 +121,8 @@ def test_lang_filter():
     assert lang_filter('https://www.sitemaps.org/en_GB/protocol.html', 'de') is False
     assert lang_filter('https://en.wikipedia.org/', 'de') is False
     assert lang_filter('https://de.wikipedia.org/', 'de') is True
+    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'de') is True
+    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'fr') is False
 
 
 def test_navigation():

@@ -8,6 +8,7 @@ Bundles functions needed to target text content and validate the input.
 
 import re
 
+from langcodes import Language
 from urllib.parse import urlparse
 
 
@@ -20,7 +21,7 @@ ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|in
 
 # language filter
 PATH_LANG_FILTER = re.compile(r'/([a-z]{2,3})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
-HOST_LANG_FILTER = re.compile(r'^https?://([a-z]{2})\.', re.IGNORECASE)
+HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
@@ -46,24 +47,30 @@ def extension_filter(urlpath):
     return True
 
 
-def lang_filter(url, language):
-    '''Heuristic targeting internationalization'''
+def langcodes_score(language, segment, score):
+    '''Use langcodes on selected URL segments and integrate
+       them into a score.'''
+    identified = Language.get(segment).language
+    if identified is not None:
+        if identified != language:
+            score -= 1
+        else:
+            score += 1
+    return score
+
+
+def lang_filter(url, language=None):
+    '''Heuristic targeting internationalization and based on a score.'''
+    score = 0
     if language is not None:
         match = PATH_LANG_FILTER.search(url)
         if match:
-            if language == 'de' and match.group(1).lower() not in ('de', 'deu'):
-                return False
-            elif language == 'en' and match.group(1).lower() not in ('en', 'eng'):
-                return False
-            elif language != match.group(1).lower()[:2]:
-                return False
-        else:
-            match = HOST_LANG_FILTER.search(url)
-            if match:
-                if language == 'de' and match.group(1).lower() not in ('at', 'ch', 'de', 'li'):
-                    return False
-                if language == 'en' and match.group(1).lower() not in ('en', 'uk', 'us'):
-                    return False
+            score = langcodes_score(language, match.group(1), score)
+        match = HOST_LANG_FILTER.match(url)
+        if match:
+            score = langcodes_score(language, match.group(1), score)
+    if score < 0:
+        return False
     return True
 
 
