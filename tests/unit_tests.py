@@ -162,7 +162,8 @@ def test_urlcheck():
     assert check_url('http://example.com/index.html#term', strict=True) is None
     assert check_url('http://example.com/index.html#term', strict=False)[0] == 'http://example.com/index.html#term'
     assert check_url('http://example.com/test.js') is None
-    assert check_url('http://twitter.com/') is None
+    assert check_url('http://twitter.com/', strict=True) is None
+    assert check_url('http://twitter.com/', strict=False) is not None
     assert check_url('https://www.httpbin.org/status/200', with_redirects=True) == ('https://www.httpbin.org/status/200', 'httpbin.org')
     #assert check_url('https://www.httpbin.org/status/302', with_redirects=True) == ('https://www.httpbin.org/status/302', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
@@ -195,6 +196,9 @@ def test_urlcheck():
     assert check_url('http://parkkralle.de/detail/index/sArticle/2704', strict=True) is not None
     assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
     assert check_url('{mylink}') is None
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de') is not None
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None   
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
 
 
 def test_urlutils():

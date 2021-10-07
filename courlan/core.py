@@ -51,6 +51,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
     try:
         # length test
         if basic_filter(url) is False:
+            LOGGER.debug('rejected, basic filter: %s', url)
             raise ValueError
 
         # clean
@@ -60,43 +61,54 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
         if with_redirects is True:
             url = redirection_test(url)
             if url is None:
+                LOGGER.debug('rejected, redirection: %s', url)
                 raise ValueError
 
         # spam
         if strict is True and spam_filter(url) is False:
+            LOGGER.debug('rejected, spam filter: %s', url)
             raise ValueError
         # structural elements
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
+            LOGGER.debug('rejected, type filter: %s', url)
+            raise ValueError
+
+        # internationalization in URL
+        if lang_filter(url, language) is False:
+            LOGGER.debug('rejected, lang filter: %s', url)
             raise ValueError
 
         # split and validate
         validation_test, parsed_url = validate_url(url)
         if validation_test is False:
+            LOGGER.debug('rejected, validation test: %s', url)
             raise ValueError
 
         # content filter based on extensions
         if extension_filter(parsed_url.path) is False:
+            LOGGER.debug('rejected, extension filter: %s', url)
             raise ValueError
 
         # strict content filtering
         if strict is True and PATH_FILTER.match(parsed_url.path):
-            raise ValueError
-
-        # internationalization in URL
-        if lang_filter(parsed_url.path, language) is False:
+            LOGGER.debug('rejected, path filter: %s', url)
             raise ValueError
 
         # normalize
         url = normalize_url(parsed_url, strict, language)
 
+        # domain info: use blacklist in strict mode only
+        if strict is True:
+            domain = extract_domain(url, blacklist=BLACKLIST)
+        else:
+            domain = extract_domain(url)
+        if domain is None:
+            LOGGER.debug('rejected, domain name: %s', url)
+            return None
+
     # handle exceptions
     except (AttributeError, ValueError, UnicodeError):
-        # LOGGER.debug('discarded URL: %s', url)
-        return None
-
-    # domain info
-    domain = extract_domain(url, blacklist=BLACKLIST)
-    if domain is None:
+        LOGGER.debug('discarded URL: %s', url)
         return None
 
     return url, domain
