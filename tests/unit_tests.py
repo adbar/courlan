@@ -123,6 +123,10 @@ def test_lang_filter():
     assert lang_filter('https://de.wikipedia.org/', 'de') is True
     assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'de') is True
     assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'fr') is False
+    assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'fr') is True
+    assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'de') is True
+    # to complete when language mappings are more extensive
+    # assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'es') is False
 
 
 def test_navigation():

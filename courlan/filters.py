@@ -32,6 +32,15 @@ NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:
 EXTENSION_REGEX = re.compile(r'\.[a-z]{2,5}$')
 WHITELISTED_EXTENSIONS = ('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.htm', 'html', '.shtml', '.jsp', '.php', '.pl', '.txt')
 
+# territories whitelist
+# see also: https://babel.pocoo.org/en/latest/api/languages.html
+# get_official_languages('ch')
+LANGUAGE_MAPPINGS = {
+    'de': {'at', 'ch', 'de', 'li'},  # 'be', 'it'
+    'en': {'au', 'ca', 'en', 'gb', 'ie', 'nz', 'us'},
+    'fr': {'be', 'ca', 'ch', 'fr', 'tn'},  # , 'lu', ...
+}
+
 
 def basic_filter(url):
     '''Filter URLs based on basic formal characteristics'''
@@ -50,6 +59,7 @@ def extension_filter(urlpath):
 def langcodes_score(language, segment, score):
     '''Use langcodes on selected URL segments and integrate
        them into a score.'''
+    # see also: https://babel.pocoo.org/en/latest/locale.html
     identified = Language.get(segment).language
     if identified is not None:
         if identified != language:
@@ -59,16 +69,23 @@ def langcodes_score(language, segment, score):
     return score
 
 
-def lang_filter(url, language=None):
+def lang_filter(url, language):
     '''Heuristic targeting internationalization and based on a score.'''
     score = 0
     if language is not None:
+        # first test: internationalization in URL path
         match = PATH_LANG_FILTER.search(url)
         if match:
             score = langcodes_score(language, match.group(1), score)
-        match = HOST_LANG_FILTER.match(url)
-        if match:
-            score = langcodes_score(language, match.group(1), score)
+        # second test: prepended language cues
+        if language in LANGUAGE_MAPPINGS:
+            match = HOST_LANG_FILTER.match(url)
+            if match:
+                candidate = match.group(1).lower()
+                if candidate in LANGUAGE_MAPPINGS[language]:
+                    score += 1
+                else:
+                    score -= 1
     if score < 0:
         return False
     return True
