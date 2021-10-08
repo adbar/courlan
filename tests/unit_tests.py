@@ -109,6 +109,13 @@ def test_type_filter():
     assert type_filter('http://example.com/video/1') is False
     assert type_filter('http://example.com/new-video-release') is True
     assert type_filter('http://example.com/new-video-release', strict=True) is False
+    # tags
+    assert type_filter('https://de.thecitizen.de/tag/anonymity/') is False
+    assert type_filter('https://de.thecitizen.de/tags/anonymity/') is False
+    # author
+    assert type_filter('http://www.example.org/author/abcde') is False
+    assert type_filter('http://www.example.org/autor/abcde/') is False
+
 
 
 def test_lang_filter():
