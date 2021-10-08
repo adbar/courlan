@@ -16,13 +16,22 @@ coURLan: Clean, filter, normalize, and sample URLs
 
 
 
+Why coURLan?
+------------
+
+This library provides an additional brain for web crawling, scraping and management of Internet archives. Thanks to the included heuristics for triage of links, avoid loosing bandwidth capacity and processing time for webpages which most probably are not worth the effort. Specific fonctionality for crawlers: stay away from pages with little text content or target synoptic pages explicitly to gather links.
+
+This navigation help targets text-based documents (i.e. currently web pages expected to be in HTML format) and tries to guess the language of pages to allow for language-focused collection. Additional functions include straightforward domain name extraction and URL sampling.
+
+
 Features
 --------
 
-Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text.
+Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text. Most helpers revolve around the ``strict`` and ``language`` arguments:
 
+- Targeting spam and unsuitable content-types
+- Language-aware filtering
 - URL validation and (basic) normalization
-- Filters targeting spam and unsuitable content-types
 - Sampling by domain name
 - Command-line interface (CLI) and Python tool
 
@@ -63,7 +72,7 @@ The current logic of detailed/strict URL filtering is focused on English and Ger
 Python
 ~~~~~~
 
-All operations chained:
+All useful operations chained in ``check_url(url)``:
 
 .. code-block:: python
 
@@ -76,10 +85,68 @@ All operations chained:
     ('https://httpbin.org/redirect-to', 'httpbin.org')
     # Check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
-    # optional argument targeting webpages in English or German
-    >>> url, domain_name = check_url(my_url, with_redirects=True, language='en')
-    >>> url, domain_name = check_url(my_url, with_redirects=True, language='de')
 
+
+Language-aware heuristics, notably internationalization in URLs, are available in ``lang_filter(url, language)``:
+
+.. code-block:: python
+
+    # optional argument targeting webpages in English or German
+    >>> url = 'https://www.un.org/en/about-us'
+    >>> url, domain_name = check_url(my_url, language='en')
+    >>> url, domain_name = check_url(my_url, language='de')
+
+
+Define stricter restrictions on the expected content type with ``strict=True``. Also blocks certain platforms and pages types crawlers should stay away from if they don't target them explicitly and other black holes where machines get lost.
+
+.. code-block:: python
+
+    # strict filtering
+    >>> check_url('https://www.twitch.com/', strict=True)
+    # blocked as it is a major platform
+
+
+Sampling by domain name:
+
+.. code-block:: python
+
+    >>> from courlan import sample_urls
+    >>> my_sample = sample_urls(my_urls, 100)
+    # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
+
+
+Determine if a link leads to another host:
+
+.. code-block:: python
+
+    >>> from courlan import is_external
+    >>> is_external('https://github.com/', 'https://www.microsoft.com/')
+    True
+    # default
+    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True)
+    False
+    # taking suffixes into account
+    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
+    True
+
+
+Other useful functions dedicated to URL handling:
+
+- ``fix_relative_urls()``: prepend necessary information to relative links
+- ``get_base_url()``: strip the URL of some of its parts
+- ``get_host_and_path()``: decompose URLs in two parts: protocol + host/domain and path
+- ``get_hostinfo()``: extract domain and host info (protocol + host/domain)
+
+
+Other filters dedicated to crawl frontier management:
+
+- ``is_not_crawlable(url)``: check for deep web or pages generally not usable in a crawling context
+- ``is_navigation_page(url)``: check for navigation and overview pages
+
+
+
+Python helpers
+~~~~~~~~~~~~~~
 
 Helper function, scrub and normalize:
 
@@ -122,44 +189,6 @@ Basic URL validation only:
     (True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
 
 
-Sampling by domain name:
-
-.. code-block:: python
-
-    >>> from courlan import sample_urls
-    >>> my_sample = sample_urls(my_urls, 100)
-    # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
-
-
-Determine if a link leads to another host:
-
-.. code-block:: python
-
-    >>> from courlan import is_external
-    >>> is_external('https://github.com/', 'https://www.microsoft.com/')
-    True
-    # default
-    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True)
-    False
-    # taking suffixes into account
-    >>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
-    True
-
-
-Other useful functions:
-
-- ``fix_relative_urls()``: prepend necessary information to relative links
-- ``get_base_url()``: strip the URL of some of its parts
-- ``get_host_and_path()``: decompose URLs in two parts: protocol + host/domain and path
-- ``get_hostinfo()``: extract domain and host info (protocol + host/domain)
-
-
-Other filters:
-
-- ``is_not_crawlable(url)``: check for deep web or pages generally not usable in a crawling context
-- ``is_navigation_page(url)``: check for navigation and overview pages
-- ``lang_filter(url, language)``: heuristics concerning internationalization in URLs
-
 
 Command-line
 ~~~~~~~~~~~~
@@ -173,7 +202,7 @@ The main fonctions are also available through a command-line utility.
 
 
 usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
-               [--strict] [-l {de,en}] [-r] [--sample]
+               [--strict] [-l LANGUAGE] [-r] [--sample]
                [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
                [--exclude-min EXCLUDE_MIN]
 
@@ -195,7 +224,8 @@ Filtering:
   Configure URL filters
 
   --strict              perform more restrictive tests
-  -l, --language        use language filter {de,en}
+  -l LANGUAGE, --language LANGUAGE
+                        use language filter (ISO 639-1 code)
   -r, --redirects       check redirects
 
 Sampling:
@@ -236,12 +266,13 @@ Feel free to file issues on the `dedicated page <https://github.com/adbar/courla
 Author
 ------
 
-This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). A significant challenge resides in the ability to extract and pre-process web texts to meet scientific expectations: Web corpus construction involves numerous design decisions, and this software package can help facilitate collection and enhance corpus quality.
+This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). A significant challenge resides in the ability to extract and pre-process web texts to meet scientific expectations: Web corpus construction involves numerous design decisions, and this software package can help facilitate collection and enhance corpus quality. Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png>`_.
 
 -  Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_", Proceedings of KONVENS 2019, Kaleidoscope Abstracts, 2019.
 -  Barbaresi, A. "`Efficient construction of metadata-enhanced web corpora <https://hal.archives-ouvertes.fr/hal-01371704v2/document>`_", Proceedings of the `10th Web as Corpus Workshop (WAC-X) <https://www.sigwac.org.uk/wiki/WAC-X>`_, 2016.
 
 Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.
+
 
 
 Similar work
@@ -250,5 +281,5 @@ Similar work
 These Python libraries perform similar normalization tasks but don't entail language or content filters. They also don't necessarily focus on crawl optimization:
 
 - `ural <https://github.com/medialab/ural/>`_
-- `urlnorm <https://github.com/kurtmckee/urlnorm>`_
+- `urlnorm <https://github.com/kurtmckee/urlnorm>`_ (outdated)
 - `yarl <https://github.com/aio-libs/yarl/>`_
