@@ -87,6 +87,12 @@ def test_extension_filter():
     assert extension_filter(parsed_url.path) is True
     validation_test, parsed_url = validate_url('http://de.artsdot.com/ADC/Art.nsf?param1=test')
     assert extension_filter(parsed_url.path) is False
+    validation_test, parsed_url = validate_url('http://www.example.org/test.xhtml?param1=this')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('http://www.example.org/test.php5')
+    assert extension_filter(parsed_url.path) is True
+    validation_test, parsed_url = validate_url('http://www.example.org/test.php6')
+    assert extension_filter(parsed_url.path) is True
 
 
 def test_spam_filter():

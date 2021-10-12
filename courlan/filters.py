@@ -29,7 +29,8 @@ NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:
 
 # document types
 EXTENSION_REGEX = re.compile(r'\.[a-z]{2,5}$')
-WHITELISTED_EXTENSIONS = ('.amp', '.asp', '.aspx', '.cfm', '.cgi', '.do', '.htm', 'html', '.shtml', '.jsp', '.php', '.pl', '.txt')
+# https://en.wikipedia.org/wiki/List_of_file_formats#Web_page
+WHITELISTED_EXTENSIONS = ('.adp', '.amp', '.asp', '.aspx', '.cfm', '.cgi', '.do', '.htm', 'html', '.jsp', '.mht', '.mhtml', '.php', '.php3', '.php4', '.php5', '.phtml', '.pl', '.shtml', '.stm', '.txt', '.xhtml', '.xml')
 
 # territories whitelist
 # see also: https://babel.pocoo.org/en/latest/api/languages.html
