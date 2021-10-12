@@ -19,7 +19,7 @@ coURLan: Clean, filter, normalize, and sample URLs
 Why coURLan?
 ------------
 
-This library provides an additional brain for web crawling, scraping and management of Internet archives. Thanks to the included heuristics for triage of links, avoid loosing bandwidth capacity and processing time for webpages which most probably are not worth the effort. Specific fonctionality for crawlers: stay away from pages with little text content or target synoptic pages explicitly to gather links.
+Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort. This library provides an additional brain for web crawling, scraping and management of Internet archives. Specific fonctionality for crawlers: stay away from pages with little text content or target synoptic pages explicitly to gather links.
 
 This navigation help targets text-based documents (i.e. currently web pages expected to be in HTML format) and tries to guess the language of pages to allow for language-focused collection. Additional functions include straightforward domain name extraction and URL sampling.
 
@@ -29,10 +29,14 @@ Features
 
 Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text. Most helpers revolve around the ``strict`` and ``language`` arguments:
 
-- Targeting spam and unsuitable content-types
-- Language-aware filtering
-- URL validation and (basic) normalization
-- Sampling by domain name
+- Heuristics for triage of links
+   - Targeting spam and unsuitable content-types
+   - Language-aware filtering
+   - Crawl management
+- URL handling
+   - Validation
+   - Canonicalization/Normalization
+   - Sampling
 - Command-line interface (CLI) and Python tool
 
 
@@ -60,17 +64,11 @@ This Python package is tested on Linux, macOS and Windows systems, it is compati
     $ pip install git+https://github.com/adbar/courlan.git # latest available code (see build status above)
 
 
-
-Usage
------
-
-``courlan`` is designed to work best on English, German and most frequent European languages.
-
-The current logic of detailed/strict URL filtering is focused on English and German, for more see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
-
-
 Python
-~~~~~~
+------
+
+check_url()
+~~~~~~~~~~~
 
 All useful operations chained in ``check_url(url)``:
 
@@ -93,8 +91,12 @@ Language-aware heuristics, notably internationalization in URLs, are available i
 
     # optional argument targeting webpages in English or German
     >>> url = 'https://www.un.org/en/about-us'
-    >>> url, domain_name = check_url(my_url, language='en')
-    >>> url, domain_name = check_url(my_url, language='de')
+    # success: returns clean URL and domain name
+    >>> check_url(url, language='en')
+    ('https://www.un.org/en/about-us', 'un.org')
+    # failure: doesn't return anything
+    >>> url, domain_name = check_url(url, language='de')
+    >>>
 
 
 Define stricter restrictions on the expected content type with ``strict=True``. Also blocks certain platforms and pages types crawlers should stay away from if they don't target them explicitly and other black holes where machines get lost.
@@ -106,13 +108,20 @@ Define stricter restrictions on the expected content type with ``strict=True``. 
     # blocked as it is a major platform
 
 
-Sampling by domain name:
+
+Sampling by domain name
+~~~~~~~~~~~~~~~~~~~~~~~
+
 
 .. code-block:: python
 
     >>> from courlan import sample_urls
     >>> my_sample = sample_urls(my_urls, 100)
     # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
+
+
+Web crawling and URL handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 Determine if a link leads to another host:
@@ -132,10 +141,24 @@ Determine if a link leads to another host:
 
 Other useful functions dedicated to URL handling:
 
-- ``fix_relative_urls()``: prepend necessary information to relative links
-- ``get_base_url()``: strip the URL of some of its parts
-- ``get_host_and_path()``: decompose URLs in two parts: protocol + host/domain and path
-- ``get_hostinfo()``: extract domain and host info (protocol + host/domain)
+- ``get_base_url(url)``: strip the URL of some of its parts
+- ``get_host_and_path(url)``: decompose URLs in two parts: protocol + host/domain and path
+- ``get_hostinfo(url)``: extract domain and host info (protocol + host/domain)
+- ``fix_relative_urls(baseurl, url)``: prepend necessary information to relative links
+
+
+.. code-block:: python
+
+    >>> from courlan import *
+    >>> url = 'https://www.un.org/en/about-us'
+    >>> get_base_url(url)
+    'https://www.un.org'
+    >>> get_host_and_path(url)
+    ('https://www.un.org', '/en/about-us')
+    >>> get_hostinfo(url)
+    ('un.org', 'https://www.un.org')
+    >>> fix_relative_urls('https://www.un.org', 'en/about-us')
+    'https://www.un.org/en/about-us'
 
 
 Other filters dedicated to crawl frontier management:
@@ -143,6 +166,14 @@ Other filters dedicated to crawl frontier management:
 - ``is_not_crawlable(url)``: check for deep web or pages generally not usable in a crawling context
 - ``is_navigation_page(url)``: check for navigation and overview pages
 
+
+.. code-block:: python
+
+    >>> from courlan import is_navigation_page, is_not_crawlable
+    >>> is_navigation_page('https://www.randomblog.net/category/myposts')
+    True
+    >>> is_not_crawlable('https://www.randomblog.net/login')
+    True
 
 
 Python helpers
@@ -164,7 +195,7 @@ Basic scrubbing only:
     >>> from courlan import scrub_url
 
 
-Basic normalization only:
+Basic canonicalization/normalization only:
 
 .. code-block:: python
 
@@ -191,7 +222,7 @@ Basic URL validation only:
 
 
 Command-line
-~~~~~~~~~~~~
+------------
 
 The main fonctions are also available through a command-line utility.
 
@@ -199,12 +230,11 @@ The main fonctions are also available through a command-line utility.
 
     $ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
     $ courlan --help
+    usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
+                   [--strict] [-l LANGUAGE] [-r] [--sample]
+                   [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
+                   [--exclude-min EXCLUDE_MIN]
 
-
-usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
-               [--strict] [-l LANGUAGE] [-r] [--sample]
-               [--samplesize SAMPLESIZE] [--exclude-max EXCLUDE_MAX]
-               [--exclude-min EXCLUDE_MIN]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -240,19 +270,22 @@ Sampling:
                         exclude domains with less than n URLs
 
 
-
-Additional scripts
-~~~~~~~~~~~~~~~~~~
-
-Scripts designed to handle URL lists are found under ``helpers``.
-
-
 License
 -------
 
 *coURLan* is distributed under the `GNU General Public License v3.0 <https://github.com/adbar/courlan/blob/master/LICENSE>`_. If you wish to redistribute this library but feel bounded by the license conditions please try interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_, `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or `contacting me <https://github.com/adbar/courlan#author>`_.
 
 See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
+
+
+
+Settings
+--------
+
+``courlan`` is optimized for English and German but its generic approach is also usable in other contexts.
+
+To review details of strict URL filtering see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+
 
 
 Contributing
@@ -266,12 +299,14 @@ Feel free to file issues on the `dedicated page <https://github.com/adbar/courla
 Author
 ------
 
-This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). A significant challenge resides in the ability to extract and pre-process web texts to meet scientific expectations: Web corpus construction involves numerous design decisions, and this software package can help facilitate collection and enhance corpus quality. Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png>`_.
+This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). Extracting and pre-processing web texts to the exacting standards of scientific research presents a substantial challenge for those who conduct such research. Web corpus construction involves numerous design decisions, and this software package can help facilitate text data collection and enhance corpus quality.
 
--  Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_", Proceedings of KONVENS 2019, Kaleidoscope Abstracts, 2019.
--  Barbaresi, A. "`Efficient construction of metadata-enhanced web corpora <https://hal.archives-ouvertes.fr/hal-01371704v2/document>`_", Proceedings of the `10th Web as Corpus Workshop (WAC-X) <https://www.sigwac.org.uk/wiki/WAC-X>`_, 2016.
+- Barbaresi, A. `Trafilatura: A Web Scraping Library and Command-Line Tool for Text Discovery and Extraction <https://aclanthology.org/2021.acl-demo.15/>`_, Proceedings of ACL/IJCNLP 2021: System Demonstrations, 2021, p. 122-131.
+- Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_", Proceedings of KONVENS 2019, Kaleidoscope Abstracts, 2019.
 
 Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.
+
+Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png>`_.
 
 
 
@@ -280,6 +315,7 @@ Similar work
 
 These Python libraries perform similar normalization tasks but don't entail language or content filters. They also don't necessarily focus on crawl optimization:
 
-- `ural <https://github.com/medialab/ural/>`_
+- `furl <https://github.com/gruns/furl>`_
+- `ural <https://github.com/medialab/ural>`_
 - `urlnorm <https://github.com/kurtmckee/urlnorm>`_ (outdated)
-- `yarl <https://github.com/aio-libs/yarl/>`_
+- `yarl <https://github.com/aio-libs/yarl>`_
