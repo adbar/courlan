@@ -6,11 +6,14 @@ Bundles functions needed to target text content and validate the input.
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
+import logging
 import re
 
-from langcodes import Language
+from langcodes import Language, tag_is_valid
 from urllib.parse import urlparse
 
+
+LOGGER = logging.getLogger(__name__)
 
 # content filters
 WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
@@ -19,7 +22,7 @@ PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNOR
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 
 # language filter
-PATH_LANG_FILTER = re.compile(r'/([a-z]{2,3})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+PATH_LANG_FILTER = re.compile(r'^https?://[^/]+/([a-z]{2,3})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
 HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
@@ -60,12 +63,17 @@ def langcodes_score(language, segment, score):
     '''Use langcodes on selected URL segments and integrate
        them into a score.'''
     # see also: https://babel.pocoo.org/en/latest/locale.html
-    identified = Language.get(segment).language
-    if identified is not None:
-        if identified != language:
-            score -= 1
-        else:
-            score += 1
+    # try if tag is valid (caution: private codes are)
+    if tag_is_valid(segment):
+        # try to identify language code
+        identified = Language.get(segment).language
+        # see if it matches
+        if identified is not None:
+            LOGGER.debug('langcode %s found in URL segment %s', identified, segment)
+            if identified != language:
+                score -= 1
+            else:
+                score += 1
     return score
 
 
@@ -82,6 +90,7 @@ def lang_filter(url, language):
             match = HOST_LANG_FILTER.match(url)
             if match:
                 candidate = match.group(1).lower()
+                LOGGER.debug('candidate lang %s found in URL', candidate)
                 if candidate in LANGUAGE_MAPPINGS[language]:
                     score += 1
                 else:

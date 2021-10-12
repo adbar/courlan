@@ -140,6 +140,9 @@ def test_lang_filter():
     assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'de') is True
     # to complete when language mappings are more extensive
     # assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'es') is False
+    # disturbing path sub-elements
+    assert lang_filter('http://www.uni-rostock.de/fakult/philfak/fkw/iph/thies/mythos.html', 'de') is True
+    assert lang_filter('http://stifter.literature.at/witiko/htm/h15-22b.html', 'de') is True
 
 
 def test_navigation():
