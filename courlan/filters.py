@@ -12,6 +12,7 @@ import re
 from langcodes import Language, tag_is_valid
 from urllib.parse import urlparse
 
+from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNOR
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 
 # language filter
-PATH_LANG_FILTER = re.compile(r'^https?://[^/]+/([a-z]{2,3})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+PATH_LANG_FILTER = re.compile(r'^https?://[^/]+/([a-z]{2})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
 HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
@@ -63,7 +64,10 @@ def langcodes_score(language, segment, score):
     '''Use langcodes on selected URL segments and integrate
        them into a score.'''
     # see also: https://babel.pocoo.org/en/latest/locale.html
-    # try if tag is valid (caution: private codes are)
+    # test if the code looks like a country or a language
+    if segment[:2] not in COUNTRY_CODES and segment[:2] not in LANGUAGE_CODES:
+        return score
+    # test if tag is valid (caution: private codes are)
     if tag_is_valid(segment):
         # try to identify language code
         identified = Language.get(segment).language

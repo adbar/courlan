@@ -143,6 +143,10 @@ def test_lang_filter():
     # disturbing path sub-elements
     assert lang_filter('http://www.uni-rostock.de/fakult/philfak/fkw/iph/thies/mythos.html', 'de') is True
     assert lang_filter('http://stifter.literature.at/witiko/htm/h15-22b.html', 'de') is True
+    assert lang_filter('http://stifter.literature.at/doc/witiko/h15-22b.html', 'de') is True
+    assert lang_filter('http://stifter.literature.at/nl/witiko/h15-22b.html', 'de') is False
+    assert lang_filter('http://stifter.literature.at/de_DE/witiko/h15-22b.html', 'de') is True
+    assert lang_filter('http://stifter.literature.at/en_US/witiko/h15-22b.html', 'de') is False
 
 
 def test_navigation():
