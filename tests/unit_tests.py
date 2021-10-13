@@ -21,7 +21,7 @@ except ImportError:
 
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
 from courlan.cli import parse_args
-from courlan.filters import extension_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, path_filter, spam_filter, type_filter
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -121,7 +121,14 @@ def test_type_filter():
     # author
     assert type_filter('http://www.example.org/author/abcde') is False
     assert type_filter('http://www.example.org/autor/abcde/') is False
+    # misc
+    # assert type_filter('http://www.bmbwk.gv.at/forschung/fps/gsk/befragung.xml?style=text') is True
+    # assert type_filter('http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118') is True
 
+
+def test_path_filter():
+    assert check_url('http://www.case-modder.de/index.php?sec=artikel&id=68&page=1', strict=True) is not None
+    assert check_url('http://www.case-modder.de/index.php', strict=True) is None
 
 
 def test_lang_filter():
@@ -147,6 +154,11 @@ def test_lang_filter():
     assert lang_filter('http://stifter.literature.at/nl/witiko/h15-22b.html', 'de') is False
     assert lang_filter('http://stifter.literature.at/de_DE/witiko/h15-22b.html', 'de') is True
     assert lang_filter('http://stifter.literature.at/en_US/witiko/h15-22b.html', 'de') is False
+    # assert lang_filter('http://www.stiftung.koerber.de/bg/recherche/de/beitrag.php?id=15132&refer=', 'de') is True
+    # assert lang_filter('http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html', 'de') is True
+    # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
+    # assert lang_filter('http://bz.berlin1.de/kino/050513/fans.html', 'de') is True
+    # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
 
 
 def test_navigation():
@@ -233,6 +245,7 @@ def test_urlcheck():
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de') is not None
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None   
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
+    # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
 
 def test_urlutils():

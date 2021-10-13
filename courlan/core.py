@@ -17,7 +17,7 @@ from random import sample
 from .clean import normalize_url, scrub_url
 from .compatibility import TLD_EXTRACTION
 from .filters import basic_filter, extension_filter, lang_filter, \
-                     PATH_FILTER, spam_filter, type_filter, validate_url
+                     path_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import extract_domain, fix_relative_urls, is_external
@@ -90,7 +90,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             raise ValueError
 
         # strict content filtering
-        if strict is True and PATH_FILTER.match(parsed_url.path):
+        if strict is True and path_filter(parsed_url.path, parsed_url.query) is False:
             LOGGER.debug('rejected, path filter: %s', url)
             raise ValueError
 

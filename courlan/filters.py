@@ -19,7 +19,6 @@ LOGGER = logging.getLogger(__name__)
 # content filters
 WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
 PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
-PATH_FILTER = re.compile(r'.{0,5}/(impressum|index)(\.[a-z]{3,4})?/?$', re.IGNORECASE)
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 
 # language filter
@@ -28,8 +27,9 @@ HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
-NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
+NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
+INDEX_PAGE_FILTER = re.compile(r'.{0,5}/index(\.[a-z]{3,4})?/?$', re.IGNORECASE)
 
 # document types
 EXTENSION_REGEX = re.compile(r'\.[a-z]{2,5}$')
@@ -100,6 +100,16 @@ def lang_filter(url, language):
                 else:
                     score -= 1
     if score < 0:
+        return False
+    return True
+
+
+def path_filter(urlpath, query):
+    '''Filters based on URL path: index page, imprint, etc.'''
+    if NOTCRAWLABLE.search(urlpath):
+        return False
+    if INDEX_PAGE_FILTER.match(urlpath) and len(query) == 0:
+        #print('#', urlpath, INDEX_PAGE_FILTER.match(urlpath), query)
         return False
     return True
 
