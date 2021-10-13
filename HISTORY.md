@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 0.5.0
+
+- more complex language heuristics, use langcodes
+- extended blacklists and whitelists
+- more precise filters and more efficient code
+- support for Python 3.10
+
+
 ### 0.4.2
 
 - enhanced cleaning
