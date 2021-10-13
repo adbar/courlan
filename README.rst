@@ -95,7 +95,13 @@ Language-aware heuristics, notably internationalization in URLs, are available i
     >>> check_url(url, language='en')
     ('https://www.un.org/en/about-us', 'un.org')
     # failure: doesn't return anything
-    >>> url, domain_name = check_url(url, language='de')
+    >>> check_url(url, language='de')
+    >>>
+    # optional argument: strict
+    >>> url = 'https://en.wikipedia.org/'
+    >>> check_url(url, language='de', strict=False)
+    ('https://en.wikipedia.org', 'wikipedia.org')
+    >>> check_url(url, language='de', strict=True)
     >>>
 
 

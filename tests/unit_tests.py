@@ -139,10 +139,11 @@ def test_lang_filter():
     assert lang_filter('https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377', 'es') is False
     assert lang_filter('https://www.sitemaps.org/en_GB/protocol.html', 'en') is True
     assert lang_filter('https://www.sitemaps.org/en_GB/protocol.html', 'de') is False
-    assert lang_filter('https://en.wikipedia.org/', 'de') is False
-    assert lang_filter('https://de.wikipedia.org/', 'de') is True
-    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'de') is True
-    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'fr') is False
+    assert lang_filter('https://en.wikipedia.org/', 'de', strict=True) is False
+    assert lang_filter('https://en.wikipedia.org/', 'de', strict=False) is True
+    assert lang_filter('https://de.wikipedia.org/', 'de', strict=True) is True
+    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'de', strict=True) is True
+    assert lang_filter('http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html', 'fr', strict=True) is False
     assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'fr') is True
     assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'de') is True
     # to complete when language mappings are more extensive
@@ -156,9 +157,11 @@ def test_lang_filter():
     assert lang_filter('http://stifter.literature.at/en_US/witiko/h15-22b.html', 'de') is False
     assert lang_filter('http://www.stiftung.koerber.de/bg/recherche/de/beitrag.php?id=15132&refer=', 'de') is True
     assert lang_filter('http://www.solingen-internet.de/si-hgw/eiferer.htm', 'de') is True
-    # assert lang_filter('http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html', 'de') is True
+    assert lang_filter('http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html', 'de', strict=True) is True
+    assert lang_filter('http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html', 'de', strict=False) is True
+    assert lang_filter('http://bz.berlin1.de/kino/050513/fans.html', 'de', strict=False) is True
+    assert lang_filter('http://bz.berlin1.de/kino/050513/fans.html', 'de', strict=True) is False
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
-    # assert lang_filter('http://bz.berlin1.de/kino/050513/fans.html', 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
 
@@ -246,7 +249,7 @@ def test_urlcheck():
     assert check_url('{mylink}') is None
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de') is not None
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None   
-    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
+    # assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
     # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
 

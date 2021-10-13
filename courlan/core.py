@@ -75,7 +75,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
 
         # internationalization and language heuristics in URL
         if language is not None:
-            if lang_filter(url, language) is False:
+            if lang_filter(url, language, strict) is False:
                 LOGGER.debug('rejected, lang filter: %s', url)
                 raise ValueError
 

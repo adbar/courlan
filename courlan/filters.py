@@ -30,7 +30,7 @@ ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|in
 # language filter
 PATH_LANG_FILTER = re.compile(r'^(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
 ALL_PATH_LANGS = re.compile(r'(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)', re.IGNORECASE)
-HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
+HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.(?:[^.]+)\.(?:[^.]+)/', re.IGNORECASE)
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
@@ -88,7 +88,7 @@ def langcodes_score(language, segment, score):
     return score
 
 
-def lang_filter(url, language=None):
+def lang_filter(url, language=None, strict=False):
     '''Heuristics targeting internationalization and linguistic elements.
        Based on a score.'''
     # sanity check
@@ -108,7 +108,7 @@ def lang_filter(url, language=None):
                 score = langcodes_score(language, occurrence, score)
         # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
-    if language in LANGUAGE_MAPPINGS:
+    if strict is True and language in LANGUAGE_MAPPINGS:
         match = HOST_LANG_FILTER.match(url)
         if match:
             candidate = match.group(1).lower()
