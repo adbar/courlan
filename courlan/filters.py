@@ -9,10 +9,16 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
-from langcodes import Language, tag_is_valid
 from urllib.parse import urlparse
 
+from langcodes import Language
+try:
+    from langcodes import tag_is_valid
+except ImportError:  # Python 3.5
+    tag_is_valid = None
+
 from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +75,7 @@ def langcodes_score(language, segment, score):
     if segment[:2] not in COUNTRY_CODES and segment[:2] not in LANGUAGE_CODES:
         return score
     # test if tag is valid (caution: private codes are)
-    if tag_is_valid(segment):
+    if tag_is_valid is None or tag_is_valid(segment):
         # try to identify language code
         identified = Language.get(segment).language
         # see if it matches
