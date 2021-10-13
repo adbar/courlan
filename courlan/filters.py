@@ -22,7 +22,8 @@ PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|og
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
 
 # language filter
-PATH_LANG_FILTER = re.compile(r'^https?://[^/]+/([a-z]{2})(?:[_-][A-Za-z]{2,3})?/', re.IGNORECASE)
+PATH_LANG_FILTER = re.compile(r'^(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
+ALL_PATH_LANGS = re.compile(r'(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)', re.IGNORECASE)
 HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.', re.IGNORECASE)
 
 # navigation/crawls
@@ -81,24 +82,36 @@ def langcodes_score(language, segment, score):
     return score
 
 
-def lang_filter(url, language):
-    '''Heuristic targeting internationalization and based on a score.'''
+def lang_filter(url, language=None):
+    '''Heuristics targeting internationalization and linguistic elements.
+       Based on a score.'''
+    # sanity check
+    if language is None:
+        return True
+    # init score
     score = 0
-    if language is not None:
-        # first test: internationalization in URL path
-        match = PATH_LANG_FILTER.search(url)
-        if match:
+    # first test: internationalization in URL path
+    match = PATH_LANG_FILTER.search(url)
+    if match:
+        # look for other occurrences
+        occurrences = ALL_PATH_LANGS.findall(url)
+        if len(occurrences) == 1:
             score = langcodes_score(language, match.group(1), score)
-        # second test: prepended language cues
-        if language in LANGUAGE_MAPPINGS:
-            match = HOST_LANG_FILTER.match(url)
-            if match:
-                candidate = match.group(1).lower()
-                LOGGER.debug('candidate lang %s found in URL', candidate)
-                if candidate in LANGUAGE_MAPPINGS[language]:
-                    score += 1
-                else:
-                    score -= 1
+        elif len(occurrences) == 2:
+            for occurrence in occurrences:
+                score = langcodes_score(language, occurrence, score)
+        # don't perform the test if there are too many candidates: > 2
+    # second test: prepended language cues
+    if language in LANGUAGE_MAPPINGS:
+        match = HOST_LANG_FILTER.match(url)
+        if match:
+            candidate = match.group(1).lower()
+            LOGGER.debug('candidate lang %s found in URL', candidate)
+            if candidate in LANGUAGE_MAPPINGS[language]:
+                score += 1
+            else:
+                score -= 1
+    # determine test result
     if score < 0:
         return False
     return True

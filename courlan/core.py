@@ -73,10 +73,11 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             LOGGER.debug('rejected, type filter: %s', url)
             raise ValueError
 
-        # internationalization in URL
-        if lang_filter(url, language) is False:
-            LOGGER.debug('rejected, lang filter: %s', url)
-            raise ValueError
+        # internationalization and language heuristics in URL
+        if language is not None:
+            if lang_filter(url, language) is False:
+                LOGGER.debug('rejected, lang filter: %s', url)
+                raise ValueError
 
         # split and validate
         validation_test, parsed_url = validate_url(url)

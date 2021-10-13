@@ -154,11 +154,13 @@ def test_lang_filter():
     assert lang_filter('http://stifter.literature.at/nl/witiko/h15-22b.html', 'de') is False
     assert lang_filter('http://stifter.literature.at/de_DE/witiko/h15-22b.html', 'de') is True
     assert lang_filter('http://stifter.literature.at/en_US/witiko/h15-22b.html', 'de') is False
-    # assert lang_filter('http://www.stiftung.koerber.de/bg/recherche/de/beitrag.php?id=15132&refer=', 'de') is True
+    assert lang_filter('http://www.stiftung.koerber.de/bg/recherche/de/beitrag.php?id=15132&refer=', 'de') is True
+    assert lang_filter('http://www.solingen-internet.de/si-hgw/eiferer.htm', 'de') is True
     # assert lang_filter('http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html', 'de') is True
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://bz.berlin1.de/kino/050513/fans.html', 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
+    # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
 
 
 def test_navigation():
