@@ -55,7 +55,7 @@ LANGUAGE_MAPPINGS = {
 
 def basic_filter(url):
     '''Filter URLs based on basic formal characteristics'''
-    return bool(url.startswith('http') and len(url) < 500 and len(url) >= 10)
+    return bool(url.startswith('http') and 10 <= len(url) < 500)
 
 
 def extension_filter(urlpath):
