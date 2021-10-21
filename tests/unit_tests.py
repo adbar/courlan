@@ -322,12 +322,15 @@ def test_cli():
 
 def test_sample():
     '''test URL sampling'''
-    assert len(list(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0))) == 0
+    assert not list(
+        sample_urls(['http://test.org/test1', 'http://test.org/test2'], 0)
+    )
+
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = ['http://t.o/t1', 'http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2']
     assert len(list(sample_urls(mylist, 1, verbose=True))) == 1
-    assert len(list(sample_urls(mylist, 1, exclude_min=10, verbose=True))) == 0
-    assert len(list(sample_urls(mylist, 1, exclude_max=1, verbose=True))) == 0
+    assert not list(sample_urls(mylist, 1, exclude_min=10, verbose=True))
+    assert not list(sample_urls(mylist, 1, exclude_max=1, verbose=True))
 
 
 def test_examples():

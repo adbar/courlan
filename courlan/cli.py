@@ -69,7 +69,7 @@ def main():
                     with open(args.discardedfile, 'a', encoding='utf-8') as discardfh:
                         discardfh.write(line)
     else:
-        urllist = list()
+        urllist = []
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
             for line in inputfh:
                 urllist.append(line.strip())

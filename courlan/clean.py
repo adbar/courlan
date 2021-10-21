@@ -55,7 +55,7 @@ def scrub_url(url):
     #    link = link.split('"')[0]
     # double/faulty URLs
     protocols = PROTOCOLS.findall(url)
-    if len(protocols) > 1 and not 'web.archive.org' in url:
+    if len(protocols) > 1 and 'web.archive.org' not in url:
         logging.debug('double url: %s %s', len(protocols), url)
         match = SELECTION.match(url)
         if match and validate_url(match.group(1))[0] is True:
@@ -72,9 +72,9 @@ def scrub_url(url):
         match = re.match(r'(.*?)[<>"\'\r\n ]', url)
         if match:
             url = match.group(1)
-        if len(url) > 500:
-            logging.debug('invalid-looking link %s of length %d',
-                           url[:50] + '...', len(url))
+    if len(url) > 500:
+        logging.debug('invalid-looking link %s of length %d',
+                       url[:50] + '...', len(url))
     # trailing ampersand
     url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs
@@ -123,10 +123,7 @@ def normalize_url(parsed_url, strict=False, language=None):
     # Leading /../'s in the path are removed
     newpath = PATH2.sub('', newpath)
     # fragment
-    if strict is True:
-        newfragment = ''
-    else:
-        newfragment = parsed_url.fragment
+    newfragment = '' if strict is True else parsed_url.fragment
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),

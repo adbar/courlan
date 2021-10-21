@@ -57,9 +57,7 @@ with open(args.outputfile, 'w') as outputfh:
                         continue
 
                     # print the result of the substitution
-                    core = ''
-                    for item in reversed(elements):
-                        core += item
+                    core = ''.join(reversed(elements))
                     core = re.sub(r'\.$', '', core)
                     line = re.sub(r'^.+?/', '/', line)
                     line = 'http://' + lastone + '.' + core + line

@@ -55,16 +55,15 @@ LANGUAGE_MAPPINGS = {
 
 def basic_filter(url):
     '''Filter URLs based on basic formal characteristics'''
-    if not url.startswith('http') or len(url) >= 500 or len(url) < 10:
-        return False
-    return True
+    return bool(url.startswith('http') and len(url) < 500 and len(url) >= 10)
 
 
 def extension_filter(urlpath):
     '''Filter based on file extension'''
-    if EXTENSION_REGEX.search(urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
-        return False
-    return True
+    return bool(
+        not EXTENSION_REGEX.search(urlpath)
+        or urlpath.endswith(WHITELISTED_EXTENSIONS)
+    )
 
 
 def langcodes_score(language, segment, score):
@@ -118,9 +117,7 @@ def lang_filter(url, language=None, strict=False):
             else:
                 score -= 1
     # determine test result
-    if score < 0:
-        return False
-    return True
+    return score >= 0
 
 
 def path_filter(urlpath, query):
@@ -139,10 +136,7 @@ def spam_filter(url):
     #for exp in (''):
     #    if exp in url:
     #        return False
-    if ADULT_FILTER.search(url):
-        return False
-    # default
-    return True
+    return not ADULT_FILTER.search(url)
 
 
 def type_filter(url, strict=False, with_nav=False):
@@ -158,9 +152,10 @@ def type_filter(url, strict=False, with_nav=False):
         if re.search(r'/oembed\b', url, re.IGNORECASE):
             raise ValueError
         # wordpress structure
-        if WORDPRESS_CONTENT_FILTER.search(url):
-            if with_nav is not True or not is_navigation_page(url):
-                raise ValueError
+        if WORDPRESS_CONTENT_FILTER.search(url) and (
+            with_nav is not True or not is_navigation_page(url)
+        ):
+            raise ValueError
         # hidden in parameters
         if strict is True and PARAM_FILTER.search(url):
             raise ValueError
