@@ -60,10 +60,14 @@ def basic_filter(url):
 
 def extension_filter(urlpath):
     '''Filter based on file extension'''
-    return bool(
-        not EXTENSION_REGEX.search(urlpath)
-        or urlpath.endswith(WHITELISTED_EXTENSIONS)
-    )
+    if EXTENSION_REGEX.search(urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
+        return False
+    return True
+    # suggestion:
+    #return bool(
+    #    not EXTENSION_REGEX.search(urlpath)
+    #    or urlpath.endswith(WHITELISTED_EXTENSIONS)
+    #)
 
 
 def langcodes_score(language, segment, score):
