@@ -123,7 +123,10 @@ def normalize_url(parsed_url, strict=False, language=None):
     # Leading /../'s in the path are removed
     newpath = PATH2.sub('', newpath)
     # fragment
-    newfragment = '' if strict is True else parsed_url.fragment
+    if strict is True:
+        newfragment = ''
+    else:
+        newfragment = parsed_url.fragment
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),
