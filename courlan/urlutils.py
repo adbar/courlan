@@ -60,9 +60,9 @@ def fix_relative_urls(baseurl, url):
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
         if baseurl.startswith('https'):
-            urlfix = 'https:' + url
+            return 'https:' + url
         else:
-            urlfix = 'http:' + url
+            return 'http:' + url
     elif url.startswith('/'):
         # imperfect path handling
         return baseurl + url
