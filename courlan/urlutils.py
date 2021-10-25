@@ -59,12 +59,18 @@ def get_hostinfo(url):
 def fix_relative_urls(baseurl, url):
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
-        return 'https:' + url if baseurl.startswith('https') else 'http:' + url
+        if baseurl.startswith('https'):
+            urlfix = 'https:' + url
+        else:
+            urlfix = 'http:' + url
     elif url.startswith('/'):
+        # imperfect path handling
         return baseurl + url
     elif url.startswith('.'):
+        # don't try to correct these URLs
         return baseurl + '/' + re.sub(r'(.+/)+', '', url)
     elif url.startswith('{'):
+        # catchall
         return url
     elif not url.startswith('http'):
         return baseurl + '/' + url
@@ -85,6 +91,7 @@ def is_external(url, reference, ignore_suffix=True):
             ref_domain, domain = reference.domain, tldinfo.domain
         else:  # '.'.join(ext[-2:]).strip('.')
             ref_domain, domain = reference.registered_domain, tldinfo.registered_domain
+    # new tld code
     elif ignore_suffix is True:
         try:
             ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
