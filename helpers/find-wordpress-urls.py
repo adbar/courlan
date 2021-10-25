@@ -75,6 +75,12 @@ def find_target(url):
                 return url_types.group(1).rstrip('/') + '/'
 
     # lax
+    # path correction
+    # mpath = re.match(r'(/blog/|/weblog/)', url) #uparse.path
+    # if mpath:
+    #    path = mpath.group(1)
+    #else:
+    #    path = '' 
     if args.lax is True and re.search(
         r'/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/', url
     ):
