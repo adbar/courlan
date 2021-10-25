@@ -109,7 +109,8 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             LOGGER.debug('rejected, domain name: %s', url)
             return None
 
-    except (AttributeError, ValueError):
+    # handle exceptions
+    except (AttributeError, ValueError, UnicodeError):
         LOGGER.debug('discarded URL: %s', url)
         return None
 
@@ -137,6 +138,7 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
                 if len(urlbuffer) <= samplesize:
                     yield from sorted(urlbuffer)
                     LOGGER.info('%s\t\turls: %s', lastseen, len(urlbuffer))
+                # print all or sample URLs
                 elif exclude_max is None or len(urlbuffer) <= exclude_max:
                     yield from sorted(sample(urlbuffer, samplesize))
                     LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
