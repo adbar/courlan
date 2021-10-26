@@ -74,10 +74,12 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             raise ValueError
 
         # internationalization and language heuristics in URL
-        if language is not None:
-            if lang_filter(url, language, strict) is False:
-                LOGGER.debug('rejected, lang filter: %s', url)
-                raise ValueError
+        if (
+            language is not None
+            and lang_filter(url, language, strict) is False
+        ):
+            LOGGER.debug('rejected, lang filter: %s', url)
+            raise ValueError
 
         # split and validate
         validation_test, parsed_url = validate_url(url)
@@ -129,28 +131,23 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
             continue
         url, domain = checked[0], checked[1]
         # continue collection
-        if domain == lastseen:
-            urlbuffer.add(url)
-        # sample, drop, fresh start
-        else:
+        if domain != lastseen:
             # threshold for too small websites
             if exclude_min is None or len(urlbuffer) >= exclude_min:
                 # write all the buffer
                 if len(urlbuffer) <= samplesize:
                     yield from sorted(urlbuffer)
                     LOGGER.info('%s\t\turls: %s', lastseen, len(urlbuffer))
-                # or sample URLs
+                # print all or sample URLs
+                elif exclude_max is None or len(urlbuffer) <= exclude_max:
+                    yield from sorted(sample(urlbuffer, samplesize))
+                    LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
                 else:
-                    # threshold for too large websites
-                    if exclude_max is None or len(urlbuffer) <= exclude_max:
-                        yield from sorted(sample(urlbuffer, samplesize))
-                        LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
-                    else:
-                        LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
+                    LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
             else:
                 LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
             urlbuffer = set()
-            urlbuffer.add(url)
+        urlbuffer.add(url)
         lastseen = domain
 
 

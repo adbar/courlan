@@ -75,20 +75,21 @@ def find_target(url):
                 return url_types.group(1).rstrip('/') + '/'
 
     # lax
-    if args.lax is True:
     # path correction
     # mpath = re.match(r'(/blog/|/weblog/)', url) #uparse.path
     # if mpath:
     #    path = mpath.group(1)
     #else:
     #    path = '' 
-        if re.search(r'/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/', url):
-            url_lax = re.search(r'(https?://.+?/)(blog/|weblog/)?(/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/)', url)
-            if url_lax:
-                if url_lax.group(2) and url_lax.group(3):
-                    return url_lax.group(1) + url_lax.group(2)
-                else:
-                    return url_lax.group(1).rstrip('/') + '/'
+    if args.lax is True and re.search(
+        r'/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/', url
+    ):
+        url_lax = re.search(r'(https?://.+?/)(blog/|weblog/)?(/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/)', url)
+        if url_lax:
+            if url_lax.group(2) and url_lax.group(3):
+                return url_lax.group(1) + url_lax.group(2)
+            else:
+                return url_lax.group(1).rstrip('/') + '/'
 
     return None
 
@@ -103,11 +104,16 @@ with open(args.inputfile, 'r', encoding='utf-8') as inputfh:
                 url = url.lower().rstrip('\n')
 
                 # filters
-                if re.match('http', url) and len(url) > 11:
-                    # akamai/fbcdn, etc.
-                    if not re.search(r'\.blogspot\.|\.google\.|\.tumblr\.|\.typepad\.com|\.wp\.com|\.archive\.|akamai|fbcdn|baidu\.com|\.gravatar\.', url):
-                        # test if part of the URL is interesting
-                        target = find_target(url)
+                if (
+                    re.match('http', url)
+                    and len(url) > 11
+                    and not re.search(
+                        r'\.blogspot\.|\.google\.|\.tumblr\.|\.typepad\.com|\.wp\.com|\.archive\.|akamai|fbcdn|baidu\.com|\.gravatar\.',
+                        url,
+                    )
+                ):
+                    # test if part of the URL is interesting
+                    target = find_target(url)
 
                 # limit path depth and filter out queries
                 if target and not re.search(r'=|\.php', target) and len(re.findall(r'/', target)) <= 4:

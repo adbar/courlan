@@ -55,7 +55,7 @@ def scrub_url(url):
     #    link = link.split('"')[0]
     # double/faulty URLs
     protocols = PROTOCOLS.findall(url)
-    if len(protocols) > 1 and not 'web.archive.org' in url:
+    if len(protocols) > 1 and 'web.archive.org' not in url:
         logging.debug('double url: %s %s', len(protocols), url)
         match = SELECTION.match(url)
         if match and validate_url(match.group(1))[0] is True:
@@ -72,9 +72,9 @@ def scrub_url(url):
         match = re.match(r'(.*?)[<>"\'\r\n ]', url)
         if match:
             url = match.group(1)
-        if len(url) > 500:
-            logging.debug('invalid-looking link %s of length %d',
-                           url[:50] + '...', len(url))
+    if len(url) > 500:
+        logging.debug('invalid-looking link %s of length %d',
+                       url[:50] + '...', len(url))
     # trailing ampersand
     url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs

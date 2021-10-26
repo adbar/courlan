@@ -60,23 +60,22 @@ def fix_relative_urls(baseurl, url):
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
         if baseurl.startswith('https'):
-            urlfix = 'https:' + url
+            return 'https:' + url
         else:
-            urlfix = 'http:' + url
+            return 'http:' + url
     elif url.startswith('/'):
-        urlfix = baseurl + url
-    # imperfect path handling
+        # imperfect path handling
+        return baseurl + url
     elif url.startswith('.'):
-        urlfix = baseurl + '/' + re.sub(r'(.+/)+', '', url)
-    # don't try to correct these URLs
+        # don't try to correct these URLs
+        return baseurl + '/' + re.sub(r'(.+/)+', '', url)
     elif url.startswith('{'):
-        urlfix = url
-    # catchall
+        # catchall
+        return url
     elif not url.startswith('http'):
-        urlfix = baseurl + '/' + url
+        return baseurl + '/' + url
     else:
-        urlfix = url
-    return urlfix
+        return url
 
 
 def is_external(url, reference, ignore_suffix=True):
@@ -93,17 +92,14 @@ def is_external(url, reference, ignore_suffix=True):
         else:  # '.'.join(ext[-2:]).strip('.')
             ref_domain, domain = reference.registered_domain, tldinfo.registered_domain
     # new tld code
+    elif ignore_suffix is True:
+        try:
+            ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
+                                 get_tld(url, as_object=True, fail_silently=True).domain
+        # invalid input
+        except AttributeError:
+            return True
     else:
-        if ignore_suffix is True:
-            try:
-                ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
-                                     get_tld(url, as_object=True, fail_silently=True).domain
-            # invalid input
-            except AttributeError:
-                return True
-        else:
-            ref_domain, domain = get_fld(reference, fail_silently=True), get_fld(url, fail_silently=True)
+        ref_domain, domain = get_fld(reference, fail_silently=True), get_fld(url, fail_silently=True)
     # comparison
-    if domain != ref_domain:
-        return True
-    return False
+    return domain != ref_domain
