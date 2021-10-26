@@ -19,12 +19,13 @@ try:
 except ImportError:
     TLD_EXTRACTION = None
 
+from courlan import cli
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
-from courlan.cli import parse_args
 from courlan.filters import extension_filter, path_filter, spam_filter, type_filter
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+RESOURCES_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 
 
 
@@ -72,6 +73,9 @@ def test_scrub():
     # garbled URLs e.g. due to quotes
     assert scrub_url('https://www.test.com/"' + '<p></p>'*100) == 'https://www.test.com'
     assert scrub_url('https://www.test.com/"' * 50) != 'https://www.test.com'
+    # simply too long, left untouched
+    my_url = 'https://www.test.com/' + 'abcdefg' * 100
+    assert scrub_url(my_url) == my_url
 
 
 def test_extension_filter():
@@ -312,12 +316,20 @@ def test_cli():
     '''test the command-line interface'''
     testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v', '--language', 'en']
     with patch.object(sys, 'argv', testargs):
-        args = parse_args(testargs)
+        args = cli.parse_args(testargs)
     assert args.inputfile == 'input.txt'
     assert args.outputfile == 'output.txt'
     assert args.verbose is True
     assert args.language == 'en'
     assert os.system('courlan --help') == 0  # exit status
+    # dry runs (writes to /tmp/)
+    inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
+    testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt']
+    with patch.object(sys, 'argv', testargs):
+        cli.main()
+    testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt', '--sample']
+    with patch.object(sys, 'argv', testargs):
+        cli.main()
 
 
 def test_sample():
