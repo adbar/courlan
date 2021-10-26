@@ -322,14 +322,16 @@ def test_cli():
     assert args.verbose is True
     assert args.language == 'en'
     assert os.system('courlan --help') == 0  # exit status
-    # dry runs (writes to /tmp/)
-    inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
-    testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt']
-    with patch.object(sys, 'argv', testargs):
-        cli.main()
-    testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt', '--sample']
-    with patch.object(sys, 'argv', testargs):
-        cli.main()
+    # doesn't work the same on Windows
+    if os.name != 'nt':
+        # dry runs (writes to /tmp/)
+        inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
+        testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt']
+        with patch.object(sys, 'argv', testargs):
+            cli.main()
+        testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt', '--sample']
+        with patch.object(sys, 'argv', testargs):
+            cli.main()
 
 
 def test_sample():
