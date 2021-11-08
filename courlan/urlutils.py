@@ -4,9 +4,16 @@ Functions related to URL manipulation and extraction of URL parts.
 
 import re
 
+from functools import lru_cache
 from urllib.parse import urlparse
 
 from tld import get_fld, get_tld
+
+
+@lru_cache(maxsize=1024)
+def get_tldinfo(url):
+    '''Cached function to extract top-level domain info'''
+    return get_tld(url, as_object=True, fail_silently=True)
 
 
 def extract_domain(url, blacklist=None):
@@ -14,7 +21,7 @@ def extract_domain(url, blacklist=None):
     if blacklist is None:
         blacklist = set()
     # new code: Python >= 3.6 with tld module
-    tldinfo = get_tld(url, as_object=True, fail_silently=True)
+    tldinfo = get_tldinfo(url)
     # invalid input OR domain TLD blacklist
     if tldinfo is None or tldinfo.domain in blacklist:
         return None
@@ -71,8 +78,8 @@ def is_external(url, reference, ignore_suffix=True):
     # new code: Python >= 3.6 with tld module
     if ignore_suffix is True:
         try:
-            ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
-                                 get_tld(url, as_object=True, fail_silently=True).domain
+            ref_domain, domain = get_tldinfo(reference).domain, \
+                                 get_tldinfo(url).domain
         # invalid input
         except AttributeError:
             return True
