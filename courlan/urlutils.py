@@ -50,21 +50,19 @@ def fix_relative_urls(baseurl, url):
     if url.startswith('//'):
         if baseurl.startswith('https'):
             return 'https:' + url
-        else:
-            return 'http:' + url
-    elif url.startswith('/'):
+        return 'http:' + url
+    if url.startswith('/'):
         # imperfect path handling
         return baseurl + url
-    elif url.startswith('.'):
+    if url.startswith('.'):
         # don't try to correct these URLs
         return baseurl + '/' + re.sub(r'(.+/)+', '', url)
-    elif url.startswith('{'):
+    if url.startswith('{'):
         # catchall
         return url
-    elif not url.startswith('http'):
+    if not url.startswith('http'):
         return baseurl + '/' + url
-    else:
-        return url
+    return url
 
 
 def is_external(url, reference, ignore_suffix=True):
