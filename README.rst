@@ -19,6 +19,9 @@ coURLan: Clean, filter, normalize, and sample URLs
 Why coURLan?
 ------------
 
+
+    “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
+
 Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort. This library provides an additional brain for web crawling, scraping and management of Internet archives. Specific fonctionality for crawlers: stay away from pages with little text content or target synoptic pages explicitly to gather links.
 
 This navigation help targets text-based documents (i.e. currently web pages expected to be in HTML format) and tries to guess the language of pages to allow for language-focused collection. Additional functions include straightforward domain name extraction and URL sampling.
@@ -201,7 +204,7 @@ Basic scrubbing only:
     >>> from courlan import scrub_url
 
 
-Basic canonicalization/normalization only:
+Basic canonicalization/normalization only, i.e. modifying and standardizing URLs in a consistent manner:
 
 .. code-block:: python
 
@@ -325,3 +328,10 @@ These Python libraries perform similar normalization tasks but don't entail lang
 - `ural <https://github.com/medialab/ural>`_
 - `urlnorm <https://github.com/kurtmckee/urlnorm>`_ (outdated)
 - `yarl <https://github.com/aio-libs/yarl>`_
+
+
+References
+----------
+
+- Cho, J., Garcia-Molina, H., & Page, L. (1998). Efficient crawling through URL ordering. Computer networks and ISDN systems, 30(1-7), 161–172.
+- Edwards, J., McCurley, K. S., and Tomlin, J. A. (2001). "An adaptive model for optimizing performance of an incremental web crawler". In Proceedings of the 10th international conference on World Wide Web - WWW '01. pp. 106–113.
