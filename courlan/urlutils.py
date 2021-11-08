@@ -6,32 +6,21 @@ import re
 
 from urllib.parse import urlparse
 
-
-from .compatibility import TLD_EXTRACTION, get_fld, get_tld, tldextract
+from tld import get_fld, get_tld
 
 
 def extract_domain(url, blacklist=None):
     '''Extract domain name information using top-level domain info'''
     if blacklist is None:
         blacklist = set()
-    # legacy tldextract code
-    if TLD_EXTRACTION is not None:
-        tldinfo = TLD_EXTRACTION(url)
-        # domain TLD blacklist
-        if tldinfo.domain in blacklist:
-            return None
-        # return domain
-        returnval = '.'.join(part for part in tldinfo if part)
-    # new code
-    else:
-        tldinfo = get_tld(url, as_object=True, fail_silently=True)
-        # invalid input OR domain TLD blacklist
-        if tldinfo is None or tldinfo.domain in blacklist:
-            return None
-        # return domain
-        returnval = tldinfo.fld
+    # new code: Python >= 3.6 with tld module
+    tldinfo = get_tld(url, as_object=True, fail_silently=True)
+    # invalid input OR domain TLD blacklist
+    if tldinfo is None or tldinfo.domain in blacklist:
+        return None
+    # return domain
     # this step seems necessary to standardize output
-    return re.sub(r'^www[0-9]*\.', '', returnval)
+    return re.sub(r'^www[0-9]*\.', '', tldinfo.fld)
 
 
 def get_base_url(url):
@@ -81,18 +70,8 @@ def fix_relative_urls(baseurl, url):
 def is_external(url, reference, ignore_suffix=True):
     '''Determine if a link leads to another host, takes a reference URL or
        tld/tldextract object as input, returns a boolean'''
-    # legacy tldextract code
-    if TLD_EXTRACTION is not None:
-        # reference
-        if not isinstance(reference, tldextract.tldextract.ExtractResult):
-            reference = TLD_EXTRACTION(reference)
-        tldinfo = TLD_EXTRACTION(url)
-        if ignore_suffix is True:
-            ref_domain, domain = reference.domain, tldinfo.domain
-        else:  # '.'.join(ext[-2:]).strip('.')
-            ref_domain, domain = reference.registered_domain, tldinfo.registered_domain
-    # new tld code
-    elif ignore_suffix is True:
+    # new code: Python >= 3.6 with tld module
+    if ignore_suffix is True:
         try:
             ref_domain, domain = get_tld(reference, as_object=True, fail_silently=True).domain, \
                                  get_tld(url, as_object=True, fail_silently=True).domain

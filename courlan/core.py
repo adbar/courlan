@@ -15,7 +15,6 @@ from random import sample
 
 
 from .clean import normalize_url, scrub_url
-from .compatibility import TLD_EXTRACTION
 from .filters import basic_filter, extension_filter, lang_filter, \
                      path_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
@@ -176,10 +175,7 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
         return validlinks
     # define host reference
     if reference is None:
-        if TLD_EXTRACTION is not None:
-            reference = TLD_EXTRACTION(base_url)
-        else:
-            reference = base_url
+        reference = base_url
     # extract links
     for link in FIND_LINKS_REGEX.findall(pagecontent):
         # https://en.wikipedia.org/wiki/Hreflang

@@ -31,7 +31,7 @@ def get_long_description():
 setup(
     name='courlan',
     version=get_version('courlan'),
-    description='Clean, filter, normalize, and sample URLs',
+    description='Clean, filter and sample URLs to optimize data collection. Includes spam, content type and language filters.',
     long_description=get_long_description(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -49,7 +49,6 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
@@ -66,18 +65,15 @@ setup(
     license='GPLv3+',
     packages=['courlan'],
     project_urls={
-        "Source": "https://github.com/adbar/courlan",
-        "Coverage": "https://codecov.io/github/adbar/courlan",
         "Tracker": "https://github.com/adbar/courlan/issues",
+        "Blog": "https://adrien.barbaresi.eu/blog/",  # /tag/courlan.html
     },
     #package_data={},
     include_package_data=True,
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
-        'langcodes==2.2.0; python_version < "3.6"',
-        'langcodes>=3.2.1; python_version >= "3.6"',
-        'tldextract; python_version < "3.6"',
-        'tld; python_version >= "3.6"',
+        'langcodes>=3.2.1;
+        'tld;
         'urllib3>=1.25,<2',
     ],
     #extras_require=extras,
