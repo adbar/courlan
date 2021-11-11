@@ -314,10 +314,11 @@ def test_extraction():
 
 def test_cli():
     '''test the command-line interface'''
-    testargs = ['', '-i', 'input.txt', '--outputfile', 'output.txt', '-v', '--language', 'en']
+    testargs = ['', '-i', 'input.txt', '-d', 'discardedfile.txt', '--outputfile', 'output.txt', '-v', '--language', 'en']
     with patch.object(sys, 'argv', testargs):
         args = cli.parse_args(testargs)
     assert args.inputfile == 'input.txt'
+    assert args.discardedfile == 'discardedfile.txt'
     assert args.outputfile == 'output.txt'
     assert args.verbose is True
     assert args.language == 'en'
@@ -326,7 +327,7 @@ def test_cli():
     if os.name != 'nt':
         # dry runs (writes to /tmp/)
         inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
-        testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt']
+        testargs = ['', '-i', inputfile, '-d', '/tmp/tralala1.txt', '-o', '/tmp/tralala2.txt']
         with patch.object(sys, 'argv', testargs):
             cli.main()
         testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt', '--sample']

@@ -1,2 +1,4 @@
 http://www.example.org/index
 https://example.org/path
+https://www.test.org/a-longer-path.html
+https://www.test.org/a-longer-path2.html
