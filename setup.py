@@ -73,14 +73,14 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'langcodes>=3.2.1',
-        'tld',
-        'urllib3>=1.25,<2',
+        'tld>=0.12',
+        'urllib3>=1.26,<2',
     ],
     #extras_require=extras,
     entry_points = {
         'console_scripts': ['courlan=courlan.cli:main'],
     },
     # platforms='any',
-    tests_require=['pytest', 'tox'],
+    tests_require=['pytest'],
     zip_safe=False,
 )

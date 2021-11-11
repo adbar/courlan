@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.6.0
+
+- reviewed code base: simplicity and execution speed
+- dropped support for Python 3.5
+
+
 ### 0.5.0
 
 - more complex language heuristics, use langcodes
