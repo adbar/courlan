@@ -88,7 +88,7 @@ def clean_query(parsed_url, strict=False, language=None):
     '''Strip unwanted query elements'''
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
-        newqdict = dict()
+        newqdict = {}
         for qelem in sorted(qdict.keys()):
             teststr = qelem.lower()
             # control param

@@ -64,11 +64,10 @@ def fix_relative_urls(baseurl, url):
     if url.startswith('.'):
         # don't try to correct these URLs
         return baseurl + '/' + re.sub(r'(.+/)+', '', url)
-    if url.startswith('{'):
-        # catchall
-        return url
-    if not url.startswith('http'):
+    if not url.startswith('http') and not url.startswith('{'):
         return baseurl + '/' + url
+    # todo: handle here
+    #if url.startswith('{'):
     return url
 
 
