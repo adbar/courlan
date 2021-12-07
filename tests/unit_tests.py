@@ -5,10 +5,14 @@ Unit tests for the courlan package.
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
+import io
 import logging
 import os
+import subprocess
 import sys
+import tempfile
 
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 import pytest
@@ -323,16 +327,41 @@ def test_cli():
     assert args.verbose is True
     assert args.language == 'en'
     assert os.system('courlan --help') == 0  # exit status
-    # doesn't work the same on Windows
+
+    # testfile
+    inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
+    os_handle, temp_outputfile = tempfile.mkstemp(suffix='.txt', text=True)
+    env = os.environ.copy()
+    # Force encoding to utf-8 for Windows (seem to be a problem only in GitHub Actions)
+    if os.name == 'nt':
+        env['PYTHONIOENCODING'] = 'utf-8'
+        courlan_bin = os.path.join(sys.prefix, "Scripts", "courlan")
+    else:
+        courlan_bin = 'courlan'
+    # test for Windows and the rest
+    assert subprocess.run([courlan_bin, '-i', inputfile, '-o', temp_outputfile], env=env).returncode == 0
+
+    # tests without Windows
     if os.name != 'nt':
         # dry runs (writes to /tmp/)
-        inputfile = os.path.join(RESOURCES_DIR, 'input.txt')
-        testargs = ['', '-i', inputfile, '-d', '/tmp/tralala1.txt', '-o', '/tmp/tralala2.txt']
+        testargs = ['', '-i', inputfile, '-d', '/tmp/tralala1.txt', '-o', temp_outputfile, '--language', 'en', '--strict']
+        f = io.StringIO()
         with patch.object(sys, 'argv', testargs):
-            cli.main()
+            args = cli.parse_args(testargs)
+        with redirect_stdout(f):
+            cli.process_args(args)
+        assert len(f.getvalue()) == 0
         testargs = ['', '-i', inputfile, '-o', '/tmp/tralala.txt', '--sample']
         with patch.object(sys, 'argv', testargs):
-            cli.main()
+            args = cli.parse_args(testargs)
+        with redirect_stdout(f):
+            cli.process_args(args)
+        assert len(f.getvalue()) == 0
+    # delete temporary output file
+    try:
+        os.remove(temp_outputfile)
+    except PermissionError:
+        print("couldn't delete temp file")
 
 
 def test_sample():

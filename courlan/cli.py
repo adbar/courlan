@@ -13,7 +13,7 @@ from .core import check_url, sample_urls
 
 def parse_args(args):
     """Define parser for command-line arguments"""
-    argsparser = argparse.ArgumentParser()
+    argsparser = argparse.ArgumentParser(description='Command-line interface for Courlan')
     group1 = argsparser.add_argument_group('I/O', 'Manage input and output')
     group1.add_argument("-i", "--inputfile",
                             help='name of input file (required)',
@@ -53,10 +53,8 @@ def parse_args(args):
     return argsparser.parse_args()
 
 
-def main():
-    """Run as a command-line utility."""
-    # arguments
-    args = parse_args(sys.argv[1:])
+def process_args(args):
+    """Start processing according to the arguments"""
     if args.sample is False:
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh, \
              open(args.outputfile, 'w', encoding='utf-8') as outputfh:
@@ -76,6 +74,12 @@ def main():
         with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
             for url in sample_urls(urllist, args.samplesize, exclude_min=args.exclude_min, exclude_max=args.exclude_max, strict=args.strict, verbose=args.verbose):
                 outputfh.write(url + '\n')
+
+
+def main():
+    """Run as a command-line utility."""
+    args = parse_args(sys.argv[1:])
+    process_args(args)
 
 
 if __name__ == '__main__':
