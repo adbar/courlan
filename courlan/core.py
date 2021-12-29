@@ -118,12 +118,12 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
 
 def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
     '''Sample a list of URLs by domain name, optionally using constraints on their number'''
-    lastseen, urlbuffer = None, set()
+    lastseen, urlbuffer = None, []
     if verbose is True:
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
-    for url in sorted(urllist): # key=cmp_to_key(locale.strcoll)
+    for url in sorted(urllist):  # key=cmp_to_key(locale.strcoll)
         # first basic filter
         checked = check_url(url, strict=strict, with_redirects=False)
         if checked is None:
@@ -131,6 +131,8 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
         url, domain = checked[0], checked[1]
         # continue collection
         if domain != lastseen:
+            # deduplicate URL list
+            urlbuffer = list(dict.fromkeys(urlbuffer))
             # threshold for too small websites
             if exclude_min is None or len(urlbuffer) >= exclude_min:
                 # write all the buffer
@@ -139,14 +141,15 @@ def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=
                     LOGGER.info('%s\t\turls: %s', lastseen, len(urlbuffer))
                 # print all or sample URLs
                 elif exclude_max is None or len(urlbuffer) <= exclude_max:
-                    yield from sorted(sample(urlbuffer, samplesize))
+                    yield from sorted(sample(urlbuffer, k=samplesize))
                     LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
                 else:
                     LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
             else:
                 LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
-            urlbuffer = set()
-        urlbuffer.add(url)
+            urlbuffer = []
+        # register new info
+        urlbuffer.append(url)
         lastseen = domain
 
 
