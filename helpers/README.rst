@@ -1,6 +1,8 @@
 Helpers
 =======
 
+The scripts in this directory perform specific operations. They are provided for legacy only and are not kept up-to-date or tested.
+
 
 Normalize URLs in CommonCrawl reverted prefix format
 ----------------------------------------------------
@@ -18,6 +20,6 @@ Information about usage: ``python3 common-crawl-normalize.py -h``
 Find URLs pointing to WordPress sites
 -------------------------------------
 
-Extract URLs which match common WordPress structural patterns for URLs, according to the notion of `permalink structure <https://codex.wordpress.org/Using_Permalinks#Choosing_your_permalink_structure>`_ in the WordPress manual. See `guessing if a URL points to a WordPress blog <http://adrien.barbaresi.eu/blog/guessing-url-points-wordpress-blog.html>`_ for more information.
+Extract URLs which match common WordPress structural patterns for URLs, according to the notion of `permalink structure <https://codex.wordpress.org/Using_Permalinks#Choosing_your_permalink_structure>`_ in the WordPress manual. See `guessing if a URL points to a WordPress blog <https://adrien.barbaresi.eu/blog/guessing-url-points-wordpress-blog.html>`_ for more information.
 
 Information about usage: ``python3 find-wordpress-urls.py -h``

@@ -19,18 +19,25 @@ coURLan: Clean, filter, normalize, and sample URLs
 Why coURLan?
 ------------
 
-
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
-Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort. This library provides an additional brain for web crawling, scraping and management of Internet archives. Specific fonctionality for crawlers: stay away from pages with little text content or target synoptic pages explicitly to gather links.
 
-This navigation help targets text-based documents (i.e. currently web pages expected to be in HTML format) and tries to guess the language of pages to allow for language-focused collection. Additional functions include straightforward domain name extraction and URL sampling.
+This library provides an additional “brain” for web crawling, scraping and management of Internet archives:
+
+- Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort.
+- Stay away from pages with little text content or explicitly target synoptic pages to gather links.
+
+
+    “It is important for the crawler to visit "important" pages first, so that the fraction of the Web that is visited (and kept up to date) is more meaningful.” (Cho et al. 1998)
+
+
+Using content and language-focused filters, Courlan helps navigating the Web and enhancing text quality. Additional functions include straightforward domain name extraction and URL sampling.
 
 
 Features
 --------
 
-Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text. Most helpers revolve around the ``strict`` and ``language`` arguments:
+Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text.
 
 - Heuristics for triage of links
    - Targeting spam and unsuitable content-types
@@ -40,7 +47,7 @@ Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_
    - Validation
    - Canonicalization/Normalization
    - Sampling
-- Command-line interface (CLI) and Python tool
+- Usable with Python or on the command-line
 
 
 **Let the coURLan fish out juicy bits for you!**
@@ -58,7 +65,9 @@ Here is a `courlan <https://en.wiktionary.org/wiki/courlan>`_ (source: `Limpkin 
 Installation
 ------------
 
-This Python package is tested on Linux, macOS and Windows systems, it is compatible with Python 3.5 upwards. It is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package managers ``pip`` and ``pipenv``:
+This package is compatible with with all common versions of Python, it is tested on Linux, macOS and Windows systems.
+
+Courlan is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package managers ``pip``:
 
 .. code-block:: bash
 
@@ -69,6 +78,9 @@ This Python package is tested on Linux, macOS and Windows systems, it is compati
 
 Python
 ------
+
+Most filters revolve around the ``strict`` and ``language`` arguments.
+
 
 check_url()
 ~~~~~~~~~~~
@@ -82,7 +94,8 @@ All useful operations chained in ``check_url(url)``:
     >>> check_url('https://github.com/adbar/courlan')
     ('https://github.com/adbar/courlan', 'github.com')
     # noisy query parameters can be removed
-    >>> check_url('https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org', strict=True)
+    my_url = 'https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org'
+    >>> check_url(my_url, strict=True)
     ('https://httpbin.org/redirect-to', 'httpbin.org')
     # Check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
@@ -112,9 +125,9 @@ Define stricter restrictions on the expected content type with ``strict=True``. 
 
 .. code-block:: python
 
-    # strict filtering
+    # strict filtering: blocked as it is a major platform
     >>> check_url('https://www.twitch.com/', strict=True)
-    # blocked as it is a major platform
+    >>>
 
 
 
@@ -125,7 +138,8 @@ Sampling by domain name
 .. code-block:: python
 
     >>> from courlan import sample_urls
-    >>> my_sample = sample_urls(my_urls, 100)
+    >>> my_urls = ['https://example.org/' + str(x) for x in range(100)]
+    >>> my_sample = sample_urls(my_urls, 10)
     # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
 
 
@@ -293,7 +307,7 @@ Settings
 
 ``courlan`` is optimized for English and German but its generic approach is also usable in other contexts.
 
-To review details of strict URL filtering see ``settings.py``. This can be overriden by `cloning the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `recompiling the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
+Details of strict URL filtering can be reviewed and changed in the file ``settings.py``. To override the default settings, `clone the repository <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github>`_ and `re-install the package locally <https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree>`_.
 
 
 
@@ -310,8 +324,8 @@ Author
 
 This effort is part of methods to derive information from web documents in order to build `text databases for research <https://www.dwds.de/d/k-web>`_ (chiefly linguistic analysis and natural language processing). Extracting and pre-processing web texts to the exacting standards of scientific research presents a substantial challenge for those who conduct such research. Web corpus construction involves numerous design decisions, and this software package can help facilitate text data collection and enhance corpus quality.
 
-- Barbaresi, A. `Trafilatura: A Web Scraping Library and Command-Line Tool for Text Discovery and Extraction <https://aclanthology.org/2021.acl-demo.15/>`_, Proceedings of ACL/IJCNLP 2021: System Demonstrations, 2021, p. 122-131.
-- Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_", Proceedings of KONVENS 2019, Kaleidoscope Abstracts, 2019.
+- Barbaresi, A. "`Trafilatura: A Web Scraping Library and Command-Line Tool for Text Discovery and Extraction <https://aclanthology.org/2021.acl-demo.15/>`_." *Proceedings of ACL/IJCNLP 2021: System Demonstrations*, 2021, pp. 122-131.
+- Barbaresi, A. "`Generic Web Content Extraction with Open-Source Software <https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf>`_." *Proceedings of the 15th Conference on Natural Language Processing (KONVENS 2019)*, 2019, pp. 267-268.
 
 Contact: see `homepage <https://adrien.barbaresi.eu/>`_ or `GitHub <https://github.com/adbar>`_.
 
@@ -322,16 +336,15 @@ Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob
 Similar work
 ------------
 
-These Python libraries perform similar normalization tasks but don't entail language or content filters. They also don't necessarily focus on crawl optimization:
+These Python libraries perform similar normalization tasks but don't entail language or content filters. They also do not focus on crawl optimization:
 
 - `furl <https://github.com/gruns/furl>`_
 - `ural <https://github.com/medialab/ural>`_
-- `urlnorm <https://github.com/kurtmckee/urlnorm>`_ (outdated)
 - `yarl <https://github.com/aio-libs/yarl>`_
 
 
 References
 ----------
 
-- Cho, J., Garcia-Molina, H., & Page, L. (1998). Efficient crawling through URL ordering. Computer networks and ISDN systems, 30(1-7), 161–172.
+- Cho, J., Garcia-Molina, H., & Page, L. (1998). Efficient crawling through URL ordering. *Computer networks and ISDN systems*, 30(1-7), 161–172.
 - Edwards, J., McCurley, K. S., and Tomlin, J. A. (2001). "An adaptive model for optimizing performance of an incremental web crawler". In Proceedings of the 10th international conference on World Wide Web - WWW '01. pp. 106–113.

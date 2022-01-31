@@ -1,6 +1,6 @@
 """
 URL filter and manipulation tools
-http://github.com/adbar/courlan
+https://github.com/adbar/courlan
 """
 
 import re
@@ -31,7 +31,7 @@ def get_long_description():
 setup(
     name='courlan',
     version=get_version('courlan'),
-    description='Clean, filter and sample URLs to optimize data collection. Includes spam, content type and language filters.',
+    description='Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters.',
     long_description=get_long_description(),
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -57,16 +57,17 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Filters',
+        'Topic :: Text Processing :: Linguistic',
     ],
-    keywords=['urls', 'url-parsing', 'url-manipulation', 'preprocessing', 'validation', 'webcrawling'],
-    url='http://github.com/adbar/courlan',
+    keywords=['cleaner', 'crawler', 'preprocessing', 'url-parsing', 'url-manipulation', 'urls', 'validation', 'webcrawling'],
+    url='https://github.com/adbar/courlan',
     author='Adrien Barbaresi',
     author_email='barbaresi@bbaw.de',
     license='GPLv3+',
     packages=['courlan'],
     project_urls={
-        "Tracker": "https://github.com/adbar/courlan/issues",
         "Blog": "https://adrien.barbaresi.eu/blog/",  # /tag/courlan.html
+        "Tracker": "https://github.com/adbar/courlan/issues",
     },
     #package_data={},
     include_package_data=True,
