@@ -73,9 +73,9 @@ setup(
     include_package_data=True,
     python_requires='>=3.6',
     install_requires=[
-        'langcodes>=3.2.1',
-        'tld>=0.12',
-        'urllib3>=1.26,<2',
+        'langcodes >= 3.3.0',
+        'tld >= 0.12.6',
+        'urllib3 >= 1.26, <2',
     ],
     #extras_require=extras,
     entry_points = {
