@@ -15,4 +15,5 @@ __version__ = '0.6.0'
 from .clean import clean_url, normalize_url, scrub_url
 from .core import check_url, extract_links, sample_urls
 from .filters import is_navigation_page, is_not_crawlable, lang_filter, validate_url
+from .urlstore import UrlStore
 from .urlutils import extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_external
