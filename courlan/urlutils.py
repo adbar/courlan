@@ -41,7 +41,10 @@ def get_host_and_path(url):
     parsed_url = urlparse(url)
     host = parsed_url._replace(path='', params='', query='', fragment='')
     path = parsed_url._replace(scheme='', netloc='')
-    return host.geturl(), path.geturl()
+    hostval, pathval = host.geturl(), path.geturl()
+    if not hostval or not pathval:
+        raise ValueError('incomplete URL: %s', url)
+    return hostval, pathval
 
 
 def get_hostinfo(url):

@@ -265,9 +265,11 @@ def test_urlutils():
     '''Test URL manipulation tools'''
     assert extract_domain('https://httpbin.org/') == 'httpbin.org'
     assert get_base_url('https://example.org/path') == 'https://example.org'
+    with pytest.raises(ValueError):
+        assert get_host_and_path('123') is None
     assert get_host_and_path('https://example.org/path') == ('https://example.org', '/path')
-    assert get_hostinfo('https://example.org/path') == ('example.org', 'https://example.org')
     assert get_hostinfo('https://httpbin.org/') == ('httpbin.org', 'https://httpbin.org')
+    assert get_hostinfo('https://example.org/path') == ('example.org', 'https://example.org')
 
 
 def test_external():
