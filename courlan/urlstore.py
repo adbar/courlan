@@ -6,7 +6,7 @@ import bz2
 import logging
 
 from collections import defaultdict, deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from sys import getsizeof as size
 
 import _pickle as pickle  # import pickle
@@ -93,7 +93,7 @@ class UrlStore:
             return pickle.loads(bz2.decompress(value))
         return value
 
-    def _store_urls(self, domain, urls, set_timestamp=False):
+    def _store_urls(self, domain, urls, timestamp=None):
         # compression
         if self.compressed is True:
             pickled = pickle.dumps(urls, protocol=4)
@@ -111,8 +111,8 @@ class UrlStore:
         else:
             self.urldict[domain].all_visited = True
         # timestamp/backoff value
-        if set_timestamp is True:
-            self.urldict[domain].timestamp = datetime.now()
+        if timestamp is not None:
+            self.urldict[domain].timestamp = timestamp
 
     def _search_urls(self, urls, switch=None):
         # init
@@ -162,8 +162,10 @@ class UrlStore:
             for url in url_tuples:
                 if url.visited is False:
                     url.visited = True
-                    self._store_urls(domain, url_tuples, set_timestamp=True)
+                    self._store_urls(domain, url_tuples, timestamp=datetime.now())
                     return domain + url.urlpath
+        # nothing to draw from
+        self.urldict[domain].all_visited = True
         return None
 
     def is_known(self, url):
@@ -185,19 +187,57 @@ class UrlStore:
     def find_unvisited_urls(self, urls):
         return self._search_urls(urls, switch=2)
 
-    def get_download_urls(self, limit=10):
-        now = datetime.now()
-        targets = []
+    def get_download_urls(self, timelimit=10):
         potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
         if not potential:
             self.done = True
             return None
+        targets = []
         for domain in potential:
             timestamp = self.urldict[domain].timestamp
-            if timestamp is None or (now - timestamp).total_seconds() > limit:
+            if timestamp is None or (datetime.now() - timestamp).total_seconds() > timelimit:
                 targets.append(domain)
         # get corresponding URLs and filter out None values
         return list(filter(None, [self.get_url(domain) for domain in targets]))
+
+    def establish_download_schedule(self, max_urls=100, time_limit=10):
+        # see which domains are free
+        potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
+        if not potential:
+            self.done = True
+            return []
+        # variables init
+        per_domain = max_urls // len(potential) or 1
+        targets = []
+        # iterate potential domains
+        for domain in potential:
+            url_tuples = self._load_urls(domain)
+            # load urls
+            urlpaths = []
+            # get first non-seen urls
+            for url in url_tuples:
+                if len(urlpaths) >= per_domain or (len(targets) + len(urlpaths)) >= max_urls:
+                    break
+                if url.visited is False:
+                    urlpaths.append(url.urlpath)
+                    url.visited = True
+            # determine timestamps
+            now = datetime.now()
+            original_timestamp = self.urldict[domain].timestamp
+            if original_timestamp is None or (now - original_timestamp).total_seconds() > time_limit:
+                schedule_secs = 0
+            else:
+                schedule_secs = time_limit - float('{:.2f}'.format((now - original_timestamp).total_seconds()))
+            for urlpath in urlpaths:
+                targets.append((schedule_secs, domain + urlpath))
+                schedule_secs += time_limit
+            # calculate difference and offset last addition
+            total_diff = now + timedelta(0, schedule_secs - time_limit)
+            # store new info
+            self._store_urls(domain, url_tuples, timestamp=total_diff)
+        # sort by first tuple element (time in secs)
+        return sorted(targets, key=lambda x: x[0])
+
 
     def dump_urls(self):
         for domain in self.urldict:

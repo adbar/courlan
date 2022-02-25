@@ -115,7 +115,7 @@ def test_urlstore():
     assert my_urls.find_unvisited_urls(candidates) == [example_domain + '/this', example_domain + '/999']
 
     # get download URLs
-    downloadable_urls = my_urls.get_download_urls(limit=0)
+    downloadable_urls = my_urls.get_download_urls(timelimit=0)
     assert len(downloadable_urls) == 2 and downloadable_urls[0] == 'https://www.example.org/1/7'
     assert (datetime.now() - my_urls.urldict['https://www.example.org'].timestamp).total_seconds() < 0.1
     downloadable_urls = my_urls.get_download_urls()  # limit=10
@@ -124,6 +124,14 @@ def test_urlstore():
     downloadable_urls = other_store.get_download_urls()
     assert downloadable_urls is None and other_store.done is True
 
+    # schedule
+    schedule = other_store.establish_download_schedule()
+    assert schedule == []
+    schedule = my_urls.establish_download_schedule(max_urls=1, time_limit=1)
+    assert len(schedule) == 1 and round(schedule[0][0]) == 1 and schedule[0][1] == 'https://www.example.org/1/6'
+    schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
+    print(schedule)
+    assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
 
 
 def test_dbdump(capsys):
