@@ -39,13 +39,14 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
-    __slots__ = ('compressed', 'language', 'strict', 'urldict', 'validation')
+    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict', 'validation')
 
     def __init__(self, compressed=False, language=None, strict=False, validation=True):
         self.compressed = compressed
+        self.done = False
         self.language = language
         self.strict = strict
-        self.urldict = {}
+        self.urldict = defaultdict(DomainEntry)
         self.validation = validation
 
     def _filter_url(self, url):
@@ -56,10 +57,10 @@ class UrlStore:
             return False
         return True
 
-    def _filter_urlpaths(self, domain, urls):
-        if self.validation is True or self.language is not None:
-            return [u for u in urls if self._filter_url(domain + u) is True]
-        return urls
+    #def _filter_urlpaths(self, domain, urls):
+    #    if self.validation is True or self.language is not None:
+    #        return [u for u in urls if self._filter_url(domain + u) is True]
+    #    return urls
 
     def _buffer_urls(self, data, visited=False):
         inputdict = defaultdict(deque)
@@ -75,18 +76,24 @@ class UrlStore:
                 LOGGER.warning('Could not parse URL, discarding: %s', url)
         return inputdict
 
+    def _extend_urls(self, domain, leftseries=[], rightseries=[]):
+        #if not leftseries and not rightseries:
+        #    return
+        # load data
+        current_deque = self._load_urls(domain)
+        known = {u.urlpath for u in current_deque}
+        # process and store
+        current_deque.extendleft(t for t in leftseries if not t.urlpath in known)
+        current_deque.extend(t for t in rightseries if not t.urlpath in known)
+        self._store_urls(domain, current_deque)
+
     def _load_urls(self, domain):
-        if domain in self.urldict:
-            value = self.urldict[domain].tuples
-            if isinstance(value, bytes):
-                return pickle.loads(bz2.decompress(value))
-            return value
-        return deque()
+        value = self.urldict[domain].tuples
+        if isinstance(value, bytes):
+            return pickle.loads(bz2.decompress(value))
+        return value
 
     def _store_urls(self, domain, urls, set_timestamp=False):
-        # init
-        if domain not in self.urldict:
-            self.urldict[domain] = DomainEntry()
         # compression
         if self.compressed is True:
             pickled = pickle.dumps(urls, protocol=4)
@@ -125,56 +132,44 @@ class UrlStore:
                     known_paths = {u.urlpath for u in self._load_urls(hostinfo)}
                 elif switch == 2:
                     known_paths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
-            # process result
-            if not known_paths:
-                continue
-            if switch == 1 and urlpath in known_paths:
-                del remaining_urls[url]
-            elif switch == 2 and urlpath in known_paths and known_paths[urlpath] is True:
-                del remaining_urls[url]
+            # run checks
+            if urlpath in known_paths:
+                # case 1: the path matches, case 2: visited URL
+                if switch == 1 or (switch == 2 and known_paths[urlpath] is True):
+                    del remaining_urls[url]
         # preserve input order
         return list(remaining_urls)
 
-    def add_data(self, data, visited=False):
-        for key, value in self._buffer_urls(data, visited).items():
-            self._store_urls(key, value)
-
-    def extend_urls(self, domain, leftseries=[], rightseries=[], visited=False):
-        # filter
-        leftseries = self._filter_urlpaths(domain, leftseries)
-        rightseries = self._filter_urlpaths(domain, rightseries)
-        if not leftseries and not rightseries:
-            return
-        # load data
-        current_deque = self._load_urls(domain)
-        in_store = {u.urlpath for u in current_deque}
-        # process and store
-        current_deque.extendleft([UrlPathTuple(u, visited) for u in leftseries if not u in in_store])
-        current_deque.extend([UrlPathTuple(u, visited) for u in rightseries if not u in in_store])
-        self._store_urls(domain, current_deque)
+    def add_urls(self, urls=None, appendleft=None, visited=False):
+        if urls:
+            for host, urltuples in self._buffer_urls(urls, visited).items():
+                if host not in self.urldict:
+                    self._store_urls(host, urltuples)
+                else:
+                    self._extend_urls(host, leftseries=urltuples)
+        if appendleft:
+            for host, urltuples in self._buffer_urls(appendleft, visited).items():
+                if host not in self.urldict:
+                    self._store_urls(host, urltuples)
+                else:
+                    self._extend_urls(host, rightseries=urltuples)
 
     def get_url(self, domain):
-        # domain is full
-        if self.urldict[domain].all_visited is True:
-            return None
-        url_tuples = self._load_urls(domain)
-        i = 0
-        # get first non-seen url
-        for url in url_tuples:
-            if url.visited is False:
-                # set visited to True
-                url.visited = True
-                break
-            i += 1
-        # store info
-        self._store_urls(domain, url_tuples, set_timestamp=True)
-        return domain + url.urlpath
+        # not fully used
+        if self.urldict[domain].all_visited is False:
+            url_tuples = self._load_urls(domain)
+            # get first non-seen url
+            for url in url_tuples:
+                if url.visited is False:
+                    url.visited = True
+                    self._store_urls(domain, url_tuples, set_timestamp=True)
+                    return domain + url.urlpath
+        return None
 
     def is_known(self, url):
         hostinfo, urlpath = get_host_and_path(url)
         values = self._load_urls(hostinfo)
-        if not values:
-            return False
+        # returns False if domain or URL is new
         return urlpath in {u.urlpath for u in values}
 
     def find_unknown_urls(self, urls):
@@ -183,9 +178,8 @@ class UrlStore:
     def has_been_visited(self, url):
         hostinfo, urlpath = get_host_and_path(url)
         values = self._load_urls(hostinfo)
-        if not values:
-            return False
         known_urlpaths = {u.urlpath: u.visited for u in values}
+        # defaults to None, thus False
         return known_urlpaths.get(urlpath) or False
 
     def find_unvisited_urls(self, urls):
@@ -196,6 +190,7 @@ class UrlStore:
         targets = []
         potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
         if not potential:
+            self.done = True
             return None
         for domain in potential:
             timestamp = self.urldict[domain].timestamp
