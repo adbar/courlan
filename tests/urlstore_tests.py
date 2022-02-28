@@ -2,10 +2,14 @@
 Unit tests for the UrlStore class of the courlan package.
 """
 
+import os
 import pickle
+import signal
 import uuid
 
 from datetime import datetime
+
+import pytest
 
 from courlan import UrlStore
 
@@ -135,10 +139,19 @@ def test_urlstore():
 
 
 def test_dbdump(capsys):
+    'Test cases where the URLs are dumped.'
+
     # database dump
     other_one = UrlStore()
     other_one.add_urls(['http://print.org/print'])
     other_one.dump_urls()
     captured = capsys.readouterr()
-    assert captured.out.strip() == 'http://print.org/print'
+    assert captured.out.strip() == 'http://print.org/print\tFalse'
+    interrupted_one = UrlStore()
+    interrupted_one.add_urls(['https://www.example.org/1', 'https://www.example.org/10'])
+    pid = os.getpid()
+    with pytest.raises(SystemExit):
+        os.kill(pid, signal.SIGINT)
+    captured = capsys.readouterr()
+    assert captured.err.strip().endswith('https://www.example.org/10')
 

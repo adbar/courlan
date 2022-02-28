@@ -4,10 +4,11 @@ Defines a URL store which holds URLs along with relevant information.
 
 import bz2
 import logging
+import signal
+import sys
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-from sys import getsizeof as size
 
 import _pickle as pickle  # import pickle
 
@@ -48,6 +49,15 @@ class UrlStore:
         self.strict = strict
         self.urldict = defaultdict(DomainEntry)
         self.validation = validation
+
+        def dump_unvisited_urls(num, frame):
+            LOGGER.warning('Processing interrupted, dumping unvisited URLs from %s hosts', len(self.urldict))
+            for domain in self.urldict:
+                print('\n'.join([domain + u.urlpath for u in self._load_urls(domain) if u.visited is False]), file=sys.stderr)
+            sys.exit()
+
+        signal.signal(signal.SIGINT, dump_unvisited_urls)
+        signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
     def _filter_url(self, url):
         # TODO: validate URL / check_url()?
@@ -99,7 +109,7 @@ class UrlStore:
             pickled = pickle.dumps(urls, protocol=4)
             new_value = bz2.compress(pickled)
             # be sure to make gains through compression
-            if size(new_value) < size(pickled):
+            if sys.getsizeof(new_value) < sys.getsizeof(pickled):
                 self.urldict[domain].tuples = new_value
             else:
                 self.urldict[domain].tuples = urls
@@ -241,5 +251,5 @@ class UrlStore:
 
     def dump_urls(self):
         for domain in self.urldict:
-            print('\n'.join([domain + u.urlpath for u in self._load_urls(domain)]))
+            print('\n'.join([domain + u.urlpath + '\t' + str(u.visited) for u in self._load_urls(domain)]))
 
