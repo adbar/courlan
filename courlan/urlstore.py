@@ -111,13 +111,7 @@ class UrlStore:
     def _store_urls(self, domain, urls, timestamp=None):
         # compression
         if self.compressed is True:
-            pickled = pickle.dumps(urls, protocol=4)
-            new_value = bz2.compress(pickled)
-            # be sure to make gains through compression
-            if sys.getsizeof(new_value) < sys.getsizeof(pickled):
-                self.urldict[domain].tuples = new_value
-            else:
-                self.urldict[domain].tuples = urls
+            self.urldict[domain].tuples =  bz2.compress(pickle.dumps(urls, protocol=4))
         else:
             self.urldict[domain].tuples = urls
         # adjust all_visited status
