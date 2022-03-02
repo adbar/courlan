@@ -149,9 +149,12 @@ def test_dbdump(capsys):
     assert captured.out.strip() == 'http://print.org/print\tFalse'
     interrupted_one = UrlStore()
     interrupted_one.add_urls(['https://www.example.org/1', 'https://www.example.org/10'])
-    pid = os.getpid()
-    with pytest.raises(SystemExit):
-        os.kill(pid, signal.SIGINT)
-    captured = capsys.readouterr()
-    assert captured.err.strip().endswith('https://www.example.org/10')
+
+    # don't test it on Windows
+    if os.name != 'nt':
+        pid = os.getpid()
+        with pytest.raises(SystemExit):
+            os.kill(pid, signal.SIGINT)
+        captured = capsys.readouterr()
+        assert captured.err.strip().endswith('https://www.example.org/10')
 

@@ -10,7 +10,10 @@ import sys
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 
-import _pickle as pickle  # import pickle
+try:
+    import _pickle as pickle
+except ImportError:
+    import pickle
 
 from .filters import lang_filter, validate_url
 from .urlutils import get_host_and_path
@@ -56,8 +59,10 @@ class UrlStore:
                 print('\n'.join([domain + u.urlpath for u in self._load_urls(domain) if u.visited is False]), file=sys.stderr)
             sys.exit()
 
-        signal.signal(signal.SIGINT, dump_unvisited_urls)
-        signal.signal(signal.SIGTERM, dump_unvisited_urls)
+        # don't use the following on Windows
+        if not sys.platform.startswith('win'):
+            signal.signal(signal.SIGINT, dump_unvisited_urls)
+            signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
     def _filter_url(self, url):
         # TODO: validate URL / check_url()?
