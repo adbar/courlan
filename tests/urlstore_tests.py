@@ -24,12 +24,16 @@ def test_urlstore():
     assert len(my_urls.urldict) == 1
     firstelem = my_urls.urldict['http://example.org'].tuples[0]
     assert firstelem.urlpath == '/' and firstelem.visited is False
+    my_urls.urldict['http://example.org'].rules = pickle.loads(b'\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub.')
+    assert my_urls.urldict['http://example.org'].rules is not None
+
     # sanity checks
     my_urls = UrlStore(validation=True)
     my_urls.add_urls(candidates)
     assert len(my_urls.urldict) == 1
     firstelem = my_urls.urldict['http://example.org'].tuples[0]
     assert firstelem.urlpath == '/' and firstelem.visited is False
+
     # filters
     my_urls = UrlStore(language='en', strict=True)
     candidates = ['https://de.wikipedia.org/', 'https://www.sitemaps.org/en_GB/protocol.html', 'http://example.com/de/test.html']
@@ -87,9 +91,11 @@ def test_urlstore():
 
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
+    assert my_urls.urldict[example_domain].count == 0
     url1 = my_urls.get_url(example_domain)
     url2 = my_urls.get_url(example_domain)
     assert url1 != url2 and url1 == 'https://www.example.org/1/9'
+    assert my_urls.urldict[example_domain].count == 2
     url_tuples = my_urls._load_urls(example_domain)
     # positions
     assert url1.endswith(url_tuples[0].urlpath)  and url2.endswith(url_tuples[1].urlpath)
@@ -122,6 +128,8 @@ def test_urlstore():
     downloadable_urls = my_urls.get_download_urls(timelimit=0)
     assert len(downloadable_urls) == 2 and downloadable_urls[0] == 'https://www.example.org/1/7'
     assert (datetime.now() - my_urls.urldict['https://www.example.org'].timestamp).total_seconds() < 0.1
+    assert my_urls.urldict['https://www.example.org'].count == 3
+    assert my_urls.urldict['https://test.org'].count == 1
     downloadable_urls = my_urls.get_download_urls()  # limit=10
     assert len(downloadable_urls) == 0
     other_store = UrlStore()
@@ -131,11 +139,18 @@ def test_urlstore():
     # schedule
     schedule = other_store.establish_download_schedule()
     assert schedule == []
+    # store exhaustion
+    other_store = UrlStore()
+    other_store.add_urls(['http://domain.fi/page1', 'http://domain.fi/page2', 'http://domain.no/0'])
+    schedule = other_store.establish_download_schedule()
+    assert len(schedule) == 3
+    # reaching buffer limit
     schedule = my_urls.establish_download_schedule(max_urls=1, time_limit=1)
     assert len(schedule) == 1 and round(schedule[0][0]) == 1 and schedule[0][1] == 'https://www.example.org/1/6'
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
-    print(schedule)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
+    assert my_urls.urldict['https://www.example.org'].count == 7
+    assert my_urls.urldict['https://test.org'].count == 4
 
 
 def test_dbdump(capsys):

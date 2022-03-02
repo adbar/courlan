@@ -24,10 +24,12 @@ LOGGER = logging.getLogger(__name__)
 
 class DomainEntry:
     "Class to record host-related information and URL paths."
-    __slots__ = ('all_visited', 'timestamp', 'tuples')
+    __slots__ = ('all_visited', 'count', 'rules', 'timestamp', 'tuples')
 
     def __init__(self):
         self.all_visited = False
+        self.count = 0
+        self.rules = None
         self.tuples = deque()
         self.timestamp = None
 
@@ -171,6 +173,7 @@ class UrlStore:
             for url in url_tuples:
                 if url.visited is False:
                     url.visited = True
+                    self.urldict[domain].count += 1
                     self._store_urls(domain, url_tuples, timestamp=datetime.now())
                     return domain + url.urlpath
         # nothing to draw from
@@ -230,6 +233,7 @@ class UrlStore:
                 if url.visited is False:
                     urlpaths.append(url.urlpath)
                     url.visited = True
+                    self.urldict[domain].count += 1
             # determine timestamps
             now = datetime.now()
             original_timestamp = self.urldict[domain].timestamp
@@ -246,7 +250,6 @@ class UrlStore:
             self._store_urls(domain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
         return sorted(targets, key=lambda x: x[0])
-
 
     def dump_urls(self):
         for domain in self.urldict:
