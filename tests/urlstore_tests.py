@@ -77,28 +77,28 @@ def test_urlstore():
     my_urls.add_urls(extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
-    extension_urls = [example_domain + '/1/' + str(a) for a in range(11)]
+    extension_urls = [example_domain + '/1/' + str(a) + '/' for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
-    assert url_tuples[-1].urlpath == '/1/10' and url_tuples[0].urlpath == '/1/9'
+    assert url_tuples[-1].urlpath == '/1/9' and url_tuples[0].urlpath == '/1/10/'
 
     # duplicates
     my_urls.add_urls(extension_urls)
     my_urls.add_urls(appendleft=extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + len(extension_urls)
-    assert url_tuples[-1].urlpath == '/1/10' and url_tuples[0].urlpath == '/1/9'
+    assert url_tuples[-1].urlpath == '/1/9' and url_tuples[0].urlpath == '/1/10/'
 
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
     assert my_urls.urldict[example_domain].count == 0
     url1 = my_urls.get_url(example_domain)
     url2 = my_urls.get_url(example_domain)
-    assert url1 != url2 and url1 == 'https://www.example.org/1/9'
+    assert url1 != url2 and url1 == 'https://www.example.org/1/10/'
     assert my_urls.urldict[example_domain].count == 2
     url_tuples = my_urls._load_urls(example_domain)
     # positions
-    assert url1.endswith(url_tuples[0].urlpath)  and url2.endswith(url_tuples[1].urlpath)
+    assert url1.endswith(url_tuples[0].urlpath) and url2.endswith(url_tuples[1].urlpath)
     # timestamp
     assert my_urls.urldict[example_domain].timestamp is not None
     # nothing left
@@ -113,7 +113,7 @@ def test_urlstore():
     assert my_urls.is_known('https://www.other.org/1') is False
     assert my_urls.is_known('https://www.example.org/1') is True
     candidates = ['https://test.org/category/this', 'https://www.example.org/1', 'https://otherdomain.org/']
-    assert my_urls.find_unknown_urls(candidates) == ['https://test.org/category/this', 'https://otherdomain.org/']
+    assert my_urls.filter_unknown_urls(candidates) == ['https://test.org/category/this', 'https://otherdomain.org/']
     # visited or not
     assert url_tuples[0].visited is True and url_tuples[1].visited is True and url_tuples[2].visited is False
     assert my_urls.has_been_visited('http://tovisit.com/page') is True
@@ -122,11 +122,14 @@ def test_urlstore():
     assert my_urls.has_been_visited(example_domain + '/this') is False
     assert my_urls.has_been_visited(example_domain + '/999') is False
     candidates = [url1, example_domain + '/this', example_domain + '/999']
-    assert my_urls.find_unvisited_urls(candidates) == [example_domain + '/this', example_domain + '/999']
+    assert my_urls.filter_unvisited_urls(candidates) == [example_domain + '/this', example_domain + '/999']
+    assert len(my_urls.find_known_urls(example_domain)) == len(my_urls._load_urls(example_domain)) == 10011
+    assert len(my_urls.find_unvisited_urls(example_domain)) == 10009
 
     # get download URLs
     downloadable_urls = my_urls.get_download_urls(timelimit=0)
-    assert len(downloadable_urls) == 2 and downloadable_urls[0] == 'https://www.example.org/1/7'
+    print(downloadable_urls)
+    assert len(downloadable_urls) == 2 and downloadable_urls[0] == 'https://www.example.org/1'
     assert (datetime.now() - my_urls.urldict['https://www.example.org'].timestamp).total_seconds() < 0.1
     assert my_urls.urldict['https://www.example.org'].count == 3
     assert my_urls.urldict['https://test.org'].count == 1
@@ -146,7 +149,7 @@ def test_urlstore():
     assert len(schedule) == 3
     # reaching buffer limit
     schedule = my_urls.establish_download_schedule(max_urls=1, time_limit=1)
-    assert len(schedule) == 1 and round(schedule[0][0]) == 1 and schedule[0][1] == 'https://www.example.org/1/6'
+    assert len(schedule) == 1 and round(schedule[0][0]) == 1 and schedule[0][1] == 'https://www.example.org/2'
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
     assert my_urls.urldict['https://www.example.org'].count == 7

@@ -16,7 +16,7 @@ except ImportError:
     import pickle
 
 from .filters import lang_filter, validate_url
-from .urlutils import get_host_and_path
+from .urlutils import get_host_and_path, is_known_link
 
 
 LOGGER = logging.getLogger(__name__)
@@ -81,28 +81,22 @@ class UrlStore:
 
     def _buffer_urls(self, data, visited=False):
         inputdict = defaultdict(deque)
+        #known = set()
         for url in list(dict.fromkeys(data)):
             # filter
             if self._filter_url(url) is False:
                 continue
+            # test for duplicates
+            #if is_known_url(url, known):
+            #    continue
             # segment URL and add to domain dictionary
             try:
                 hostinfo, urlpath = get_host_and_path(url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
+                #known.add(url)
             except ValueError:
                 LOGGER.warning('Could not parse URL, discarding: %s', url)
         return inputdict
-
-    def _extend_urls(self, domain, leftseries=[], rightseries=[]):
-        #if not leftseries and not rightseries:
-        #    return
-        # load data
-        current_deque = self._load_urls(domain)
-        known = {u.urlpath for u in current_deque}
-        # process and store
-        current_deque.extendleft(t for t in leftseries if not t.urlpath in known)
-        current_deque.extend(t for t in rightseries if not t.urlpath in known)
-        self._store_urls(domain, current_deque)
 
     def _load_urls(self, domain):
         value = self.urldict[domain].tuples
@@ -110,7 +104,18 @@ class UrlStore:
             return pickle.loads(bz2.decompress(value))
         return value
 
-    def _store_urls(self, domain, urls, timestamp=None):
+    def _store_urls(self, domain, to_right=None, timestamp=None, to_left=None):
+        if domain in self.urldict:
+            urls = self._load_urls(domain)
+            known = {u.urlpath for u in urls}
+        else:
+            urls = deque()
+            known = set()
+        # check if the link or its variants are known
+        if to_right is not None:
+            urls.extend(t for t in to_right if not is_known_link(t.urlpath, known))
+        if to_left is not None:
+            urls.extendleft(t for t in to_left if not is_known_link(t.urlpath, known))
         # compression
         if self.compressed is True:
             self.urldict[domain].tuples =  bz2.compress(pickle.dumps(urls, protocol=4))
@@ -154,16 +159,10 @@ class UrlStore:
     def add_urls(self, urls=None, appendleft=None, visited=False):
         if urls:
             for host, urltuples in self._buffer_urls(urls, visited).items():
-                if host not in self.urldict:
-                    self._store_urls(host, urltuples)
-                else:
-                    self._extend_urls(host, leftseries=urltuples)
+                self._store_urls(host, to_right=urltuples)
         if appendleft:
             for host, urltuples in self._buffer_urls(appendleft, visited).items():
-                if host not in self.urldict:
-                    self._store_urls(host, urltuples)
-                else:
-                    self._extend_urls(host, rightseries=urltuples)
+                self._store_urls(host, to_left=urltuples)
 
     def get_url(self, domain):
         # not fully used
@@ -186,7 +185,11 @@ class UrlStore:
         # returns False if domain or URL is new
         return urlpath in {u.urlpath for u in values}
 
-    def find_unknown_urls(self, urls):
+    def find_known_urls(self, domain):
+        values = self._load_urls(domain)
+        return [domain + u.urlpath for u in values]
+
+    def filter_unknown_urls(self, urls):
         return self._search_urls(urls, switch=1)
 
     def has_been_visited(self, url):
@@ -196,7 +199,11 @@ class UrlStore:
         # defaults to None, thus False
         return known_urlpaths.get(urlpath) or False
 
-    def find_unvisited_urls(self, urls):
+    def find_unvisited_urls(self, domain):
+        values = self._load_urls(domain)
+        return [domain + u.urlpath for u in values if u.visited is False]
+
+    def filter_unvisited_urls(self, urls):
         return self._search_urls(urls, switch=2)
 
     def get_download_urls(self, timelimit=10):
