@@ -17,15 +17,10 @@ from unittest.mock import patch
 
 import pytest
 
-try:
-    import tldextract
-    TLD_EXTRACTION = tldextract.TLDExtract(suffix_list_urls=None)
-except ImportError:
-    TLD_EXTRACTION = None
-
 from courlan import cli
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
 from courlan.filters import extension_filter, path_filter, spam_filter, type_filter
+from courlan.urlutils import is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -227,9 +222,6 @@ def test_urlcheck():
     #assert check_url('https://www.httpbin.org/status/302', with_redirects=True) == ('https://www.httpbin.org/status/302', 'httpbin.org')
     assert check_url('https://www.httpbin.org/status/404', with_redirects=True) is None
     assert check_url('https://www.ht.or', with_redirects=True) is None
-    if TLD_EXTRACTION is None:
-        assert check_url('http://www.example') is None
-        assert check_url('http://example.invalid/', False) is None
     # recheck type and spam filters
     assert check_url('http://example.org/code/oembed/') is None
     assert check_url('http://cams.com/', strict=False) == ('http://cams.com', 'cams.com')
@@ -270,6 +262,13 @@ def test_urlutils():
     assert get_host_and_path('https://example.org/path') == ('https://example.org', '/path')
     assert get_hostinfo('https://httpbin.org/') == ('httpbin.org', 'https://httpbin.org')
     assert get_hostinfo('https://example.org/path') == ('example.org', 'https://example.org')
+    # keeping track of known URLs
+    known_links = {'https://test.org'}
+    assert is_known_link('https://test.org/1', known_links) is False
+    assert is_known_link('https://test.org', known_links) is True
+    assert is_known_link('http://test.org', known_links) is True
+    assert is_known_link('http://test.org/', known_links) is True
+    assert is_known_link('https://test.org/', known_links) is True
 
 
 def test_external():
@@ -281,10 +280,6 @@ def test_external():
     assert is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False) is True
     # malformed URLs
     assert is_external('h1234', 'https://www.google.co.uk/', ignore_suffix=True) is True
-    #if TLD_EXTRACTION is not None:
-    #    # tldextract object
-    #    tldinfo = TLD_EXTRACTION('http://127.0.0.1:8080/test/')
-    #    assert is_external('https://127.0.0.1:80/', tldinfo) is False
 
 
 def test_extraction():

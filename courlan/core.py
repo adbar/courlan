@@ -19,7 +19,7 @@ from .filters import basic_filter, extension_filter, lang_filter, \
                      path_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
-from .urlutils import extract_domain, fix_relative_urls, is_external
+from .urlutils import extract_domain, fix_relative_urls, is_external, is_known_link
 
 
 LOGGER = logging.getLogger(__name__)
@@ -207,10 +207,13 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
         if checked is None:
             continue
         # additional cleaning step?
-        newlink = re.sub(r'/\&$', '', checked[0])
+        link = re.sub(r'/\&$', '', checked[0])
         # external/internal links
-        if external_bool == is_external(newlink, reference):
-            validlinks.add(newlink)
+        if external_bool != is_external(link, reference):
+            continue
+        if is_known_link(link, validlinks) is True:
+            continue
+        validlinks.add(link)
     # return
     LOGGER.info('%s links found – %s valid links', len(candidates), len(validlinks))
     return validlinks

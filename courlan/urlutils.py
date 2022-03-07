@@ -89,3 +89,24 @@ def is_external(url, reference, ignore_suffix=True):
         ref_domain, domain = get_fld(reference, fail_silently=True), get_fld(url, fail_silently=True)
     # comparison
     return domain != ref_domain
+
+
+def is_known_link(link, known_links):
+    "Compare the link and its possible variants to the existing URL base."
+    # easy check
+    if link in known_links:
+        return True
+    # trailing slash
+    test1 = link.rstrip('/')
+    test2 = test1 + '/'
+    if test1 in known_links or test2 in known_links:
+        return True
+    # http/https + trailing slash
+    if link[:4] == 'http':
+        if link[:5] == 'https':
+            testlink = link[:4] + link[5:]
+        else:
+            testlink = ''.join([link[:4], 's', link[4:]])
+        test1, test2 = testlink.rstrip('/'), testlink.rstrip('/') + '/'
+        return testlink in known_links or test1 in known_links or test2 in known_links
+    return False
