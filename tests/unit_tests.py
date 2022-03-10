@@ -286,6 +286,9 @@ def test_extraction():
     '''test link comparison in HTML'''
     assert len(extract_links(None, 'https://test.com/', False)) == 0
     assert len(extract_links('', 'https://test.com/', False)) == 0
+    # link known under another form
+    pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
+    assert len(extract_links(pagecontent, 'https://test.org', False)) == 1
     # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False)) == 1

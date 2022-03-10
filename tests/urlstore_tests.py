@@ -117,6 +117,9 @@ def test_urlstore():
     # visited or not
     assert url_tuples[0].visited is True and url_tuples[1].visited is True and url_tuples[2].visited is False
     assert my_urls.has_been_visited('http://tovisit.com/page') is True
+    assert my_urls.urldict['http://tovisit.com'].all_visited is True
+    assert my_urls.filter_unvisited_urls(['http://tovisit.com/page']) == []
+    assert my_urls.filter_unvisited_urls(['http://tovisit.com/otherpage']) == ['http://tovisit.com/otherpage']
     assert my_urls.has_been_visited('https://www.other.org/1') is False
     assert my_urls.has_been_visited(url1) is True
     assert my_urls.has_been_visited(example_domain + '/this') is False

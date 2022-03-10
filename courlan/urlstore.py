@@ -137,10 +137,6 @@ class UrlStore:
         # iterate
         for url in sorted(remaining_urls):
             hostinfo, urlpath = get_host_and_path(url)
-            # already seen
-            if hostinfo in self.urldict and self.urldict[hostinfo].all_visited is True:
-                del remaining_urls[url]
-                continue
             # examine domain
             if hostinfo != last_domain:
                 last_domain = hostinfo
