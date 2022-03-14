@@ -19,6 +19,8 @@ coURLan: Clean, filter, normalize, and sample URLs
 Why coURLan?
 ------------
 
+    “It is important for the crawler to visit "important" pages first, so that the fraction of the Web that is visited (and kept up to date) is more meaningful.” (Cho et al. 1998)
+
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
 
@@ -26,10 +28,6 @@ This library provides an additional “brain” for web crawling, scraping and m
 
 - Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort.
 - Stay away from pages with little text content or explicitly target synoptic pages to gather links.
-
-
-    “It is important for the crawler to visit "important" pages first, so that the fraction of the Web that is visited (and kept up to date) is more meaningful.” (Cho et al. 1998)
-
 
 Using content and language-focused filters, Courlan helps navigating the Web and enhancing text quality. Additional functions include straightforward domain name extraction and URL sampling.
 
@@ -241,6 +239,26 @@ Basic URL validation only:
     (False, None)
     >>> validate_url('http://www.example.org/')
     (True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
+
+
+UrlStore class
+~~~~~~~~~~~~~~
+
+The `UrlStore` class allow for storing and retrieving domain-classified URLs, where a domain is in the form "https://example.org") and a URL in the form "https://example.org/path/testpage". It features the following methods:
+
+- URL management
+   - `add_urls(urls=[], appendleft=None, visited=False)`: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
+   - `dump_urls()`: Print all URLs in store (URL + TAB + visited or not).
+   - `is_known(url)`: Check if the given URL has already been stored.
+   - `filter_unknown_urls(urls)`: Take a list of URLs and return the currently unknown ones.
+   - `filter_unvisited_urls(urls)`: Take a list of URLs and return the currently unvisited ones.
+   - `find_known_urls(domain)`: Get all already known URLs for the given domain (ex. "https://example.org").
+   - `find_unvisited_urls(domain)`: Get all unvisited URLs for the given domain.
+   - `has_been_visited(url)`: Check if the given URL has already been visited.
+- Crawling and downloads
+   - `establish_download_schedule(max_urls=100, time_limit=10)`: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
+   - `get_download_urls(timelimit=10)`: Get a list of immediately downloadable URLs according to the given time limit per domain.
+   - `get_url(domain)`: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
 
 
 

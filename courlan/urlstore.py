@@ -153,6 +153,9 @@ class UrlStore:
         return list(remaining_urls)
 
     def add_urls(self, urls=None, appendleft=None, visited=False):
+        """Add a list of URLs to the (possibly) existing one.
+        Optional: append certain URLs to the left,
+        specify if the URLs have already been visited."""
         if urls:
             for host, urltuples in self._buffer_urls(urls, visited).items():
                 self._store_urls(host, to_right=urltuples)
@@ -161,6 +164,7 @@ class UrlStore:
                 self._store_urls(host, to_left=urltuples)
 
     def get_url(self, domain):
+        "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
         if self.urldict[domain].all_visited is False:
             url_tuples = self._load_urls(domain)
@@ -176,19 +180,23 @@ class UrlStore:
         return None
 
     def is_known(self, url):
+        "Check if the given URL has already been stored."
         hostinfo, urlpath = get_host_and_path(url)
         values = self._load_urls(hostinfo)
         # returns False if domain or URL is new
         return urlpath in {u.urlpath for u in values}
 
     def find_known_urls(self, domain):
+        """Get all already known URLs for the given domain (ex. "https://example.org")."""
         values = self._load_urls(domain)
         return [domain + u.urlpath for u in values]
 
     def filter_unknown_urls(self, urls):
+        "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
 
     def has_been_visited(self, url):
+        "Check if the given URL has already been visited.."
         hostinfo, urlpath = get_host_and_path(url)
         values = self._load_urls(hostinfo)
         known_urlpaths = {u.urlpath: u.visited for u in values}
@@ -196,13 +204,17 @@ class UrlStore:
         return known_urlpaths.get(urlpath) or False
 
     def find_unvisited_urls(self, domain):
+        "Get all unvisited URLs for the given domain."
         values = self._load_urls(domain)
         return [domain + u.urlpath for u in values if u.visited is False]
 
     def filter_unvisited_urls(self, urls):
+        "Take a list of URLs and return the currently unvisited ones."
         return self._search_urls(urls, switch=2)
 
     def get_download_urls(self, timelimit=10):
+        """Get a list of immediately downloadable URLs according to the given
+           time limit per domain."""
         potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
         if not potential:
             self.done = True
@@ -216,6 +228,8 @@ class UrlStore:
         return list(filter(None, [self.get_url(domain) for domain in targets]))
 
     def establish_download_schedule(self, max_urls=100, time_limit=10):
+        """Get up to the specified number of URLs along with a suitable
+           backoff schedule (in seconds)."""
         # see which domains are free
         potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
         if not potential:
@@ -255,6 +269,6 @@ class UrlStore:
         return sorted(targets, key=lambda x: x[0])
 
     def dump_urls(self):
+        "Print all URLs in store (URL + TAB + visited or not)."
         for domain in self.urldict:
             print('\n'.join([domain + u.urlpath + '\t' + str(u.visited) for u in self._load_urls(domain)]))
-
