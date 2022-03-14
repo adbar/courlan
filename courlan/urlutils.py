@@ -58,7 +58,7 @@ def get_hostinfo(url):
 def fix_relative_urls(baseurl, url):
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
-        return f'https:{url}' if baseurl.startswith('https') else f'http:{url}'
+        return 'https:' + url if baseurl.startswith('https') else 'http:' + url
     if url.startswith('/'):
         # imperfect path handling
         return baseurl + url
