@@ -38,27 +38,22 @@ def find_target(url):
 
     # wordpress.com
     if re.match(r'https?://.+?\.wordpress\.[a-z]{2,3}', url): # [a-z]+?
-       # files.wordpress.com hack
-       url = re.sub(r'\.files\.wordpress\.', '.wordpress.', url)
-       # wphost = re.match (r'(htt.+?\.wordpress\.[a-z]{2,3}/)', url)
-       wphost = re.match (r'(htt.+?\.wordpress\.[a-z]{2,3})/?', url)
-       if wphost:
-           return wphost.group(1).rstrip('/') + '/'
+        # files.wordpress.com hack
+        url = re.sub(r'\.files\.wordpress\.', '.wordpress.', url)
+        if wphost := re.match(r'(htt.+?\.wordpress\.[a-z]{2,3})/?', url):
+            return wphost.group(1).rstrip('/') + '/'
 
-    # K.O. victory
-    ko_string = re.match(r'(.+?)(/wp/|/wordpress/|/wp-content/)', url)
-    if ko_string:
+    if ko_string := re.match(r'(.+?)(/wp/|/wordpress/|/wp-content/)', url):
         return ko_string.group(1).rstrip('/') + '/'
 
-    # /tag/ /category/
-    tagcat = re.match(r'(.+?)(/tag/|/category/|\?cat=)', url)
-    if tagcat:
+    if tagcat := re.match(r'(.+?)(/tag/|/category/|\?cat=)', url):
         return tagcat.group(1).rstrip('/') + '/'
 
     # query parameters
     if re.search(r'/\?p=|\?page_id=|\?paged=/', url):
-        mquery = re.match(r'(https?://.+?/)(blog/|weblog/)?(\?p=|\?page_id=|\?paged=)', url)
-        if mquery:
+        if mquery := re.match(
+            r'(https?://.+?/)(blog/|weblog/)?(\?p=|\?page_id=|\?paged=)', url
+        ):
             if mquery.group(2) and mquery.group(3):
                 return mquery.group(1) + mquery.group(2)
             else:
@@ -66,8 +61,10 @@ def find_target(url):
 
     # URL types
     if re.search(r'/20[0-9]{2}/[0-9]{2}/|/archives/', url):
-        url_types = re.search(r'(https?://.+?/)(blog/|weblog/)?(20[0-9]{2}/[0-9]{2}/|/archives/)', url)
-        if url_types:
+        if url_types := re.search(
+            r'(https?://.+?/)(blog/|weblog/)?(20[0-9]{2}/[0-9]{2}/|/archives/)',
+            url,
+        ):
             # print (url)
             if url_types.group(2) and url_types.group(3):
                 return url_types.group(1) + url_types.group(2)
@@ -80,12 +77,14 @@ def find_target(url):
     # if mpath:
     #    path = mpath.group(1)
     #else:
-    #    path = '' 
+    #    path = ''
     if args.lax is True and re.search(
         r'/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/', url
     ):
-        url_lax = re.search(r'(https?://.+?/)(blog/|weblog/)?(/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/)', url)
-        if url_lax:
+        if url_lax := re.search(
+            r'(https?://.+?/)(blog/|weblog/)?(/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/)',
+            url,
+        ):
             if url_lax.group(2) and url_lax.group(3):
                 return url_lax.group(1) + url_lax.group(2)
             else:
