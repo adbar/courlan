@@ -122,7 +122,7 @@ class UrlStore:
         else:
             self.urldict[domain].tuples = urls
         # adjust all_visited status
-        self.urldict[domain].all_visited = all(u.visited is not False for u in urls)
+        self.urldict[domain].all_visited = all(u.visited is True for u in urls)
         # timestamp/backoff value
         if timestamp is not None:
             self.urldict[domain].timestamp = timestamp
