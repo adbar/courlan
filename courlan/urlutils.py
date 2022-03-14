@@ -64,9 +64,9 @@ def fix_relative_urls(baseurl, url):
         return baseurl + url
     if url.startswith('.'):
         # don't try to correct these URLs
-        return f'{baseurl}/' + re.sub(r'(.+/)+', '', url)
+        return baseurl + '/' + re.sub(r'(.+/)+', '', url)
     if not url.startswith('http') and not url.startswith('{'):
-        return f'{baseurl}/{url}'
+        return baseurl + '/' + url
     # todo: handle here
     #if url.startswith('{'):
     return url
@@ -96,7 +96,7 @@ def is_known_link(link, known_links):
         return True
     # trailing slash
     test1 = link.rstrip('/')
-    test2 = f'{test1}/'
+    test2 = test1 + '/'
     if test1 in known_links or test2 in known_links:
         return True
     # http/https + trailing slash
