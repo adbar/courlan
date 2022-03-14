@@ -68,7 +68,8 @@ def scrub_url(url):
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
-        if match := re.match(r'(.*?)[<>"\'\r\n ]', url):
+        match = re.match(r'(.*?)[<>"\'\r\n ]', url)
+        if match:
             url = match.group(1)
     if len(url) > 500:
         logging.debug(
