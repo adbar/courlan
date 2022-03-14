@@ -142,10 +142,10 @@ class UrlStore:
                 elif switch == 2:
                     known_paths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
             # run checks
-            if urlpath in known_paths and (
-                switch == 1 or (switch == 2 and known_paths[urlpath] is True)
-            ):
-                del remaining_urls[url]
+            if urlpath in known_paths:
+                # case 1: the path matches, case 2: visited URL
+                if switch == 1 or (switch == 2 and known_paths[urlpath] is True):
+                    del remaining_urls[url]
         # preserve input order
         return list(remaining_urls)
 
