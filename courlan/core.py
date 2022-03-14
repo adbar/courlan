@@ -108,7 +108,8 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             LOGGER.debug('rejected, domain name: %s', url)
             return None
 
-    except (AttributeError, ValueError):
+    # handle exceptions
+    except (AttributeError, ValueError, UnicodeError):
         LOGGER.debug('discarded URL: %s', url)
         return None
 
@@ -187,10 +188,14 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
                 langmatch.group(1).startswith(language) or
                 langmatch.group(1) == 'x-default'
                 ):
-                if mymatch := LINK_REGEX.search(link):
+                mymatch = LINK_REGEX.search(link)
+                if mymatch:
                     candidates.add(mymatch.group(1))
-        elif mymatch := LINK_REGEX.search(link):
-            candidates.add(mymatch.group(1))
+        # default
+        else:
+            mymatch = LINK_REGEX.search(link)
+            if mymatch:
+                candidates.add(mymatch.group(1))
     # filter candidates
     for link in candidates:
         # repair using base
