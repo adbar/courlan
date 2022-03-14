@@ -20,16 +20,16 @@ LOGGER = logging.getLogger(__name__)
 
 # content filters
 WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
-PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # , re.IGNORECASE (?=[&?])
-ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE) # live|sex|ass|orgasm|cams|
+PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)   # (?=[&?])
+ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE)  # ass|orgasm ?
 
 # language filter
-PATH_LANG_FILTER = re.compile(r'^(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
+PATH_LANG_FILTER = re.compile(r'(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
 ALL_PATH_LANGS = re.compile(r'(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)', re.IGNORECASE)
 HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.(?:[^.]+)\.(?:[^.]+)/', re.IGNORECASE)
 
 # navigation/crawls
-NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/', re.IGNORECASE) # ?p=[0-9]+$
+NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+', re.IGNORECASE)
 NOTCRAWLABLE = re.compile(r'/(login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)', re.IGNORECASE)
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
 INDEX_PAGE_FILTER = re.compile(r'.{0,5}/index(\.[a-z]{3,4})?/?$', re.IGNORECASE)
@@ -56,14 +56,10 @@ def basic_filter(url):
 
 def extension_filter(urlpath):
     '''Filter based on file extension'''
-    if EXTENSION_REGEX.search(urlpath) and not urlpath.endswith(WHITELISTED_EXTENSIONS):
-        return False
-    return True
-    # suggestion:
-    #return bool(
-    #    not EXTENSION_REGEX.search(urlpath)
-    #    or urlpath.endswith(WHITELISTED_EXTENSIONS)
-    #)
+    return bool(
+        not EXTENSION_REGEX.search(urlpath)
+        or urlpath.endswith(WHITELISTED_EXTENSIONS)
+    )
 
 
 def langcodes_score(language, segment, score):
@@ -96,7 +92,7 @@ def lang_filter(url, language=None, strict=False):
     # init score
     score = 0
     # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.search(url)
+    match = PATH_LANG_FILTER.match(url)
     if match:
         # look for other occurrences
         occurrences = ALL_PATH_LANGS.findall(url)
@@ -141,9 +137,6 @@ def spam_filter(url):
 
 def type_filter(url, strict=False, with_nav=False):
     '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
-    # directory
-    #if url.endswith('/'):
-    #    return False
     try:
         # feeds
         if url.endswith(('/feed', '/rss')):
@@ -183,8 +176,6 @@ def validate_url(url):
     if len(parsed_url.netloc) < 5 or \
        (parsed_url.netloc.startswith('www.') and len(parsed_url.netloc) < 8):
         return False, None
-    # if validators.url(parsed_url.geturl(), public=True) is False:
-    #    return False
     # default
     return True, parsed_url
 

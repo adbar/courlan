@@ -172,6 +172,7 @@ def test_lang_filter():
 def test_navigation():
     assert is_navigation_page('https://test.org/') is False
     assert is_navigation_page('https://test.org/page/1') is True
+    assert is_navigation_page('https://test.org/?p=11') is True
     assert is_not_crawlable('https://test.org/login') is True
     assert is_not_crawlable('https://test.org/login/') is True
     assert is_not_crawlable('https://test.org/page') is False
