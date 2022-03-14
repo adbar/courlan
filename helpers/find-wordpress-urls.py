@@ -1,11 +1,8 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
+"""Purpose: Extract possible WordPress links.
+http://codex.wordpress.org/Using_Permalinks"""
 
 ### Code made available on https://github.com/adbar/url-tools under GPL license.
 ### Adrien Barbaresi, 2015.
-
-# Purpose: Extract possible WordPress links
-# http://codex.wordpress.org/Using_Permalinks
 
 ## TODO:
 # fasttrack: wordpress.com
@@ -80,7 +77,7 @@ def find_target(url):
     # if mpath:
     #    path = mpath.group(1)
     #else:
-    #    path = '' 
+    #    path = ''
     if args.lax is True and re.search(
         r'/[a-z]+-[a-z]+-[a-z]+|/20[0-9]{2}/', url
     ):

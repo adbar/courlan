@@ -69,8 +69,7 @@ def process_args(args):
     else:
         urllist = []
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
-            for line in inputfh:
-                urllist.append(line.strip())
+            urllist.extend(line.strip() for line in inputfh)
         with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
             for url in sample_urls(urllist, args.samplesize, exclude_min=args.exclude_min, exclude_max=args.exclude_max, strict=args.strict, verbose=args.verbose):
                 outputfh.write(url + '\n')

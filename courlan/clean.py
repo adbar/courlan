@@ -72,8 +72,10 @@ def scrub_url(url):
         if match:
             url = match.group(1)
     if len(url) > 500:
-        logging.debug('invalid-looking link %s of length %d',
-                       url[:50] + '...', len(url))
+        logging.debug(
+            'invalid-looking link %s of length %d', f'{url[:50]}...', len(url)
+        )
+
     # trailing ampersand
     url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs
@@ -122,10 +124,7 @@ def normalize_url(parsed_url, strict=False, language=None):
     # Leading /../'s in the path are removed
     newpath = PATH2.sub('', newpath)
     # fragment
-    if strict is True:
-        newfragment = ''
-    else:
-        newfragment = parsed_url.fragment
+    newfragment = '' if strict is True else parsed_url.fragment
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
                  scheme=parsed_url.scheme.lower(),

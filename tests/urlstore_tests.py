@@ -44,8 +44,11 @@ def test_urlstore():
 
     # try example URLs
     example_domain = 'https://www.example.org'
-    example_urls = [example_domain + '/' + str(a) for a in range(10000)]
-    test_urls = ['https://test.org/' + str(uuid.uuid4())[:20] for a in range(10000)]
+    example_urls = [f'{example_domain}/{str(a)}' for a in range(10000)]
+    test_urls = [
+        f'https://test.org/{str(uuid.uuid4())[:20]}' for _ in range(10000)
+    ]
+
     urls = example_urls + test_urls
 
     # compression 1
@@ -53,7 +56,7 @@ def test_urlstore():
     url_buffer = UrlStore()._buffer_urls(example_urls)
     my_urls.add_urls(example_urls)
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
-    assert my_urls.is_known(example_domain + '/100') is True
+    assert my_urls.is_known(f'{example_domain}/100') is True
     # compression 2
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(test_urls)
@@ -62,22 +65,25 @@ def test_urlstore():
 
     # test loading
     url_buffer = UrlStore()._buffer_urls(urls)
-    assert sum([len(v) for _, v in url_buffer.items()]) == len(urls)
+    assert sum(len(v) for _, v in url_buffer.items()) == len(urls)
     my_urls = UrlStore()
     my_urls.add_urls(urls)
-    assert sum([len(my_urls._load_urls(k)) for k, _ in my_urls.urldict.items()]) == len(urls)
+    assert sum(
+        len(my_urls._load_urls(k)) for k, _ in my_urls.urldict.items()
+    ) == len(urls)
+
     if my_urls.compressed is False:
-        assert sum([len(v.tuples) for _, v in my_urls.urldict.items()]) == len(urls)
+        assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(['https://visited.com/visited'], visited=True)
     assert my_urls.urldict['https://visited.com'].tuples[0].visited is True
     assert my_urls.urldict['https://visited.com'].all_visited is True
 
     # test extension
-    extension_urls = [example_domain + '/1/' + str(a) for a in range(10)]
+    extension_urls = [f'{example_domain}/1/{str(a)}' for a in range(10)]
     my_urls.add_urls(extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
-    extension_urls = [example_domain + '/1/' + str(a) + '/' for a in range(11)]
+    extension_urls = [f'{example_domain}/1/{str(a)}/' for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
@@ -122,9 +128,9 @@ def test_urlstore():
     assert my_urls.filter_unvisited_urls(['http://tovisit.com/otherpage']) == ['http://tovisit.com/otherpage']
     assert my_urls.has_been_visited('https://www.other.org/1') is False
     assert my_urls.has_been_visited(url1) is True
-    assert my_urls.has_been_visited(example_domain + '/this') is False
-    assert my_urls.has_been_visited(example_domain + '/999') is False
-    candidates = [url1, example_domain + '/this', example_domain + '/999']
+    assert my_urls.has_been_visited(f'{example_domain}/this') is False
+    assert my_urls.has_been_visited(f'{example_domain}/999') is False
+    candidates = [url1, f'{example_domain}/this', f'{example_domain}/999']
     assert my_urls.filter_unvisited_urls(candidates) == [example_domain + '/this', example_domain + '/999']
     assert len(my_urls.find_known_urls(example_domain)) == len(my_urls._load_urls(example_domain)) == 10011
     assert len(my_urls.find_unvisited_urls(example_domain)) == 10009

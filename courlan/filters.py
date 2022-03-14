@@ -171,7 +171,10 @@ def validate_url(url):
         parsed_url = urlparse(url)
     except ValueError:
         return False, None
-    if bool(parsed_url.scheme) is False or parsed_url.scheme not in ('http', 'https'):
+    if not bool(parsed_url.scheme) or parsed_url.scheme not in (
+        'http',
+        'https',
+    ):
         return False, None
     if len(parsed_url.netloc) < 5 or \
        (parsed_url.netloc.startswith('www.') and len(parsed_url.netloc) < 8):
