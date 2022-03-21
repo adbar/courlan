@@ -25,8 +25,8 @@ from .urlutils import extract_domain, fix_relative_urls, is_external, is_known_l
 LOGGER = logging.getLogger(__name__)
 
 FIND_LINKS_REGEX = re.compile(r'<a [^<>]+?>', re.I)
-HREFLANG_REGEX = re.compile(r'hreflang=["\']([a-z-]+)', re.I)
-LINK_REGEX = re.compile(r'href=["\']([^ ]+?)["\']', re.I)
+HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
+LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\']|[ >])', re.I)
 
 
 def check_url(url, strict=False, with_redirects=False, language=None, with_nav=False):

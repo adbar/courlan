@@ -296,6 +296,8 @@ def test_extraction():
     assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='en')) == 0
+    pagecontent = '<html><a href=https://test.com/example hreflang=de-DE/></html>'
+    assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
     # x-default
     pagecontent = '<html><a href="https://test.com/example" hreflang="x-default"/></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False, language='de')) == 1
@@ -315,6 +317,12 @@ def test_extraction():
     pagecontent = '<html><a href="{privacy}" target="_privacy">{privacy-link}</a></html>'
     assert len(extract_links(pagecontent, 'https://test.com/', False)) == 0
     assert len(extract_links(pagecontent, 'https://test.com/', True)) == 0
+    # links without quotes
+    pagecontent = '<html><a href=/contact>Link</a></html>'
+    assert extract_links(pagecontent, 'https://test.com/', False) == {'https://test.com/contact'}
+    assert extract_links(pagecontent, 'https://test.com/', True) == set()
+    pagecontent = '<html><a href=/contact attribute=value>Link</a></html>'
+    assert extract_links(pagecontent, 'https://test.com/', False) == {'https://test.com/contact'}
 
 
 def test_cli():
