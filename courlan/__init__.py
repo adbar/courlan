@@ -8,7 +8,7 @@ __title__ = 'courlan'
 __author__ = 'Adrien Barbaresi'
 __license__ = 'GNU GPL v3+'
 __copyright__ = 'Copyright 2020-2022, Adrien Barbaresi'
-__version__ = '0.6.0'
+__version__ = '0.7.0'
 
 
 # imports

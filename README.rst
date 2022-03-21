@@ -65,7 +65,7 @@ Installation
 
 This package is compatible with with all common versions of Python, it is tested on Linux, macOS and Windows systems.
 
-Courlan is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package managers ``pip``:
+Courlan is available on the package repository `PyPI <https://pypi.org/>`_ and can notably be installed with the Python package manager ``pip``:
 
 .. code-block:: bash
 
@@ -247,18 +247,18 @@ UrlStore class
 The `UrlStore` class allow for storing and retrieving domain-classified URLs, where a domain is in the form "https://example.org") and a URL in the form "https://example.org/path/testpage". It features the following methods:
 
 - URL management
-   - `add_urls(urls=[], appendleft=None, visited=False)`: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
-   - `dump_urls()`: Print all URLs in store (URL + TAB + visited or not).
-   - `is_known(url)`: Check if the given URL has already been stored.
-   - `filter_unknown_urls(urls)`: Take a list of URLs and return the currently unknown ones.
-   - `filter_unvisited_urls(urls)`: Take a list of URLs and return the currently unvisited ones.
-   - `find_known_urls(domain)`: Get all already known URLs for the given domain (ex. "https://example.org").
-   - `find_unvisited_urls(domain)`: Get all unvisited URLs for the given domain.
-   - `has_been_visited(url)`: Check if the given URL has already been visited.
+   - ``add_urls(urls=[], appendleft=None, visited=False)``: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
+   - ``dump_urls()``: Print all URLs in store (URL + TAB + visited or not).
+   - ``is_known(url)``: Check if the given URL has already been stored.
+   - ``has_been_visited(url)``: Check if the given URL has already been visited.
+   - ``filter_unknown_urls(urls)``: Take a list of URLs and return the currently unknown ones.
+   - ``filter_unvisited_urls(urls)``: Take a list of URLs and return the currently unvisited ones.
+   - ``find_known_urls(domain)``: Get all already known URLs for the given domain (ex. "https://example.org").
+   - ``find_unvisited_urls(domain)``: Get all unvisited URLs for the given domain.
 - Crawling and downloads
-   - `establish_download_schedule(max_urls=100, time_limit=10)`: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
-   - `get_download_urls(timelimit=10)`: Get a list of immediately downloadable URLs according to the given time limit per domain.
-   - `get_url(domain)`: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
+   - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
+   - ``get_download_urls(timelimit=10)``: Get a list of immediately downloadable URLs according to the given time limit per domain.
+   - ``establish_download_schedule(max_urls=100, time_limit=10)``: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
 
 
 
@@ -354,7 +354,7 @@ Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob
 Similar work
 ------------
 
-These Python libraries perform similar normalization tasks but don't entail language or content filters. They also do not focus on crawl optimization:
+These Python libraries perform similar normalization tasks but do not entail language or content filters. They also do not focus on crawl optimization:
 
 - `furl <https://github.com/gruns/furl>`_
 - `ural <https://github.com/medialab/ural>`_
@@ -365,4 +365,4 @@ References
 ----------
 
 - Cho, J., Garcia-Molina, H., & Page, L. (1998). Efficient crawling through URL ordering. *Computer networks and ISDN systems*, 30(1-7), 161–172.
-- Edwards, J., McCurley, K. S., and Tomlin, J. A. (2001). "An adaptive model for optimizing performance of an incremental web crawler". In Proceedings of the 10th international conference on World Wide Web - WWW '01. pp. 106–113.
+- Edwards, J., McCurley, K. S., and Tomlin, J. A. (2001). "An adaptive model for optimizing performance of an incremental web crawler". In *Proceedings of the 10th international conference on World Wide Web - WWW '01*, pp. 106–113.

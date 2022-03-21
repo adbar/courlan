@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.7.0
+
+- UrlStore class added: data store containing URLs with relevant information
+- code cleaning abd maintenance (bugs, simplification)
+
+
 ### 0.6.0
 
 - reviewed code base: simplicity and execution speed

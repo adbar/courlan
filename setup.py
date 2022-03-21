@@ -54,6 +54,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Text Processing :: Filters',
@@ -75,7 +76,7 @@ setup(
     install_requires=[
         'langcodes >= 3.3.0',
         'tld >= 0.12.6',
-        'urllib3 >= 1.26, <2',
+        'urllib3 >= 1.26, < 2',
     ],
     #extras_require=extras,
     entry_points = {
