@@ -48,7 +48,6 @@ def test_urlstore():
     test_urls = [
         f'https://test.org/{str(uuid.uuid4())[:20]}' for _ in range(10000)
     ]
-
     urls = example_urls + test_urls
 
     # compression 1
@@ -137,9 +136,8 @@ def test_urlstore():
 
     # get download URLs
     downloadable_urls = my_urls.get_download_urls(timelimit=0)
-    print(downloadable_urls)
     assert len(downloadable_urls) == 2 and downloadable_urls[0] == 'https://www.example.org/1'
-    assert (datetime.now() - my_urls.urldict['https://www.example.org'].timestamp).total_seconds() < 0.1
+    assert (datetime.now() - my_urls.urldict['https://www.example.org'].timestamp).total_seconds() < 0.25
     assert my_urls.urldict['https://www.example.org'].count == 3
     assert my_urls.urldict['https://test.org'].count == 1
     downloadable_urls = my_urls.get_download_urls()  # limit=10

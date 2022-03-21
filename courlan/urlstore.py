@@ -4,16 +4,12 @@ Defines a URL store which holds URLs along with relevant information.
 
 import bz2
 import logging
+import pickle
 import signal
 import sys
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-
-try:
-    import _pickle as pickle
-except ImportError:
-    import pickle
 
 from .filters import lang_filter, validate_url
 from .urlutils import get_host_and_path, is_known_link
