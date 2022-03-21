@@ -22,6 +22,8 @@ LOGGER = logging.getLogger(__name__)
 WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
 PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)   # (?=[&?])
 ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE)  # ass|orgasm ?
+UNSUITABLE_FILTER = re.compile(r'\b(?:add?s?|banner|doubleclick|livestream|tradedoubler)\b|/oembed\b')
+VIDEOS_FILTER = re.compile(r'\b(?:live|videos?)\b', re.IGNORECASE)
 
 # language filter
 PATH_LANG_FILTER = re.compile(r'(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
@@ -141,9 +143,6 @@ def type_filter(url, strict=False, with_nav=False):
         # feeds
         if url.endswith(('/feed', '/rss')):
             raise ValueError
-        # embedded content
-        if re.search(r'/oembed\b', url, re.IGNORECASE):
-            raise ValueError
         # wordpress structure
         if WORDPRESS_CONTENT_FILTER.search(url) and (
             with_nav is not True or not is_navigation_page(url)
@@ -152,12 +151,10 @@ def type_filter(url, strict=False, with_nav=False):
         # hidden in parameters
         if strict is True and PARAM_FILTER.search(url):
             raise ValueError
-        # not suitable
-        if re.match(r'https?://banner\.|https?://add?s?\.', url, re.IGNORECASE):
+        # not suitable, ads and embedded content
+        if UNSUITABLE_FILTER.search(url):
             raise ValueError
-        if re.search(r'\b(?:doubleclick|tradedoubler|livestream)\b|/(?:live|videos?)/', url, re.IGNORECASE):
-            raise ValueError
-        if strict is True and re.search(r'\b(?:live|videos?)\b', url, re.IGNORECASE):
+        if strict is True and VIDEOS_FILTER.search(url):
             raise ValueError
     except ValueError:
         return False

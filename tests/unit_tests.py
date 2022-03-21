@@ -115,7 +115,7 @@ def test_type_filter():
     # -video- vs. /video/
     assert type_filter('http://my-videos.com/') is True
     assert type_filter('http://my-videos.com/', strict=True) is False
-    assert type_filter('http://example.com/video/1') is False
+    assert type_filter('http://example.com/video/1', strict=True) is False
     assert type_filter('http://example.com/new-video-release') is True
     assert type_filter('http://example.com/new-video-release', strict=True) is False
     # tags
@@ -125,8 +125,8 @@ def test_type_filter():
     assert type_filter('http://www.example.org/author/abcde') is False
     assert type_filter('http://www.example.org/autor/abcde/') is False
     # misc
-    # assert type_filter('http://www.bmbwk.gv.at/forschung/fps/gsk/befragung.xml?style=text') is True
-    # assert type_filter('http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118') is True
+    assert type_filter('http://www.bmbwk.gv.at/forschung/fps/gsk/befragung.xml?style=text') is True
+    #assert type_filter('http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118') is True
 
 
 def test_path_filter():
@@ -175,6 +175,7 @@ def test_navigation():
     assert is_navigation_page('https://test.org/?p=11') is True
     assert is_not_crawlable('https://test.org/login') is True
     assert is_not_crawlable('https://test.org/login/') is True
+    assert is_not_crawlable('https://test.org/login.php') is True
     assert is_not_crawlable('https://test.org/page') is False
 
 
