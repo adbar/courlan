@@ -5,7 +5,7 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 
 from functools import lru_cache
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult
 
 from tld import get_fld, get_tld
 
@@ -30,25 +30,41 @@ def extract_domain(url, blacklist=None):
     return re.sub(r'^www[0-9]*\.', '', tldinfo.fld)
 
 
+def _parse(url):
+    'Parse a string or use urllib.parse object directly.'
+    if isinstance(url, str):
+        parsed_url = urlparse(url)
+    elif isinstance(url, ParseResult):
+        parsed_url = url
+    else:
+        raise TypeError('wrong input type:', type(url))
+    return parsed_url
+
+
 def get_base_url(url):
-    'Strip URL of some of its parts to get base URL.'
-    parsed_url = urlparse(url)
+    '''Strip URL of some of its parts to get base URL.
+       Accepts strings and urllib.parse ParseResult objects.'''
+    parsed_url = _parse(url)
     return parsed_url._replace(path='', params='', query='', fragment='').geturl()
 
 
 def get_host_and_path(url):
-    """Decompose URL in two parts: protocol + host/domain and path."""
-    parsed_url = urlparse(url)
+    '''Decompose URL in two parts: protocol + host/domain and path.
+       Accepts strings and urllib.parse ParseResult objects.'''
+    parsed_url = _parse(url)
     host = parsed_url._replace(path='', params='', query='', fragment='')
     path = parsed_url._replace(scheme='', netloc='')
     hostval, pathval = host.geturl(), path.geturl()
+    # correction for root/homepage
+    if pathval == '':
+        pathval = '/'
     if not hostval or not pathval:
         raise ValueError('incomplete URL: %s', url)
     return hostval, pathval
 
 
 def get_hostinfo(url):
-    """Extract domain and host info (protocol + host/domain) from a URL."""
+    'Extract domain and host info (protocol + host/domain) from a URL.'
     domainname = extract_domain(url)
     parsed_url = urlparse(url)
     host = parsed_url._replace(path='', params='', query='', fragment='')

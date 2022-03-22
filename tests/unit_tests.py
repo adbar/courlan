@@ -14,13 +14,14 @@ import tempfile
 
 from contextlib import redirect_stdout
 from unittest.mock import patch
+from urllib.parse import ParseResult
 
 import pytest
 
 from courlan import cli
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
 from courlan.filters import extension_filter, path_filter, spam_filter, type_filter
-from courlan.urlutils import is_known_link
+from courlan.urlutils import _parse, is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -257,11 +258,22 @@ def test_urlcheck():
 
 def test_urlutils():
     '''Test URL manipulation tools'''
+    # domain extraction
     assert extract_domain('https://httpbin.org/') == 'httpbin.org'
+    # url parsing
+    result = _parse('https://httpbin.org/')
+    assert isinstance(result, ParseResult)
+    newresult = _parse(result)
+    assert isinstance(result, ParseResult)
+    with pytest.raises(TypeError):
+        result = _parse(float(1.23))
+
     assert get_base_url('https://example.org/path') == 'https://example.org'
     with pytest.raises(ValueError):
         assert get_host_and_path('123') is None
     assert get_host_and_path('https://example.org/path') == ('https://example.org', '/path')
+    assert get_host_and_path('https://example.org/') == ('https://example.org', '/')
+    assert get_host_and_path('https://example.org') == ('https://example.org', '/')
     assert get_hostinfo('https://httpbin.org/') == ('httpbin.org', 'https://httpbin.org')
     assert get_hostinfo('https://example.org/path') == ('example.org', 'https://example.org')
     # keeping track of known URLs

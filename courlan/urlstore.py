@@ -41,15 +41,14 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
-    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict', 'validation')
+    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict')
 
-    def __init__(self, compressed=False, language=None, strict=False, validation=True):
+    def __init__(self, compressed=False, language=None, strict=False):
         self.compressed = compressed
         self.done = False
         self.language = language
         self.strict = strict
         self.urldict = defaultdict(DomainEntry)
-        self.validation = validation
 
         def dump_unvisited_urls(num, frame):
             LOGGER.warning('Processing interrupted, dumping unvisited URLs from %s hosts', len(self.urldict))
@@ -62,14 +61,6 @@ class UrlStore:
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
-    def _filter_url(self, url):
-        # TODO: validate URL / check_url()?
-        if self.validation is True and validate_url(url)[0] is False:
-            return False
-        if self.language is not None and lang_filter(url, self.language, self.strict) is False:
-            return False
-        return True
-
     #def _filter_urlpaths(self, domain, urls):
     #    if self.validation is True or self.language is not None:
     #        return [u for u in urls if self._filter_url(domain + u) is True]
@@ -77,21 +68,20 @@ class UrlStore:
 
     def _buffer_urls(self, data, visited=False):
         inputdict = defaultdict(deque)
-        #known = set()
         for url in list(dict.fromkeys(data)):
-            # filter
-            if self._filter_url(url) is False:
-                continue
-            # test for duplicates
-            #if is_known_url(url, known):
-            #    continue
             # segment URL and add to domain dictionary
             try:
-                hostinfo, urlpath = get_host_and_path(url)
+                # validate
+                validation_result, parsed_url = validate_url(url)
+                if validation_result is False:
+                    continue
+                # filter
+                if self.language is not None and lang_filter(url, self.language, self.strict) is False:
+                    continue
+                hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
-                #known.add(url)
-            except ValueError:
-                LOGGER.warning('Could not parse URL, discarding: %s', url)
+            except (TypeError, ValueError):
+                LOGGER.warning('Discarding URL %s', url)
         return inputdict
 
     def _load_urls(self, domain):
