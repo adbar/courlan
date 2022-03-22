@@ -394,9 +394,22 @@ def test_sample():
 
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = ['http://t.o/t1', 'http://test.org/test1', 'http://test.org/test2', 'http://test2.org/test2']
-    assert len(list(sample_urls(mylist, 1, verbose=True))) == 1
-    assert not list(sample_urls(mylist, 1, exclude_min=10, verbose=True))
-    assert not list(sample_urls(mylist, 1, exclude_max=1, verbose=True))
+    assert len(sample_urls(mylist, 1, verbose=True)) == 2
+    assert not sample_urls(mylist, 1, exclude_min=10, verbose=True)
+    assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 1
+
+    test_urls = [f'https://test.org/{str(a)}' for a in range(1000)]
+    example_urls = [f'https://www.example.org/{str(a)}' for a in range(100)]
+    other_urls = [f'https://www.other.org/{str(a)}' for a in range(10000)]
+    urls = test_urls + example_urls + other_urls
+    sample = sample_urls(urls, 10)
+    assert len([u for u in sample if 'test.org' in u]) == 10
+    assert len([u for u in sample if 'example.org' in u]) == 10
+    assert len([u for u in sample if 'other.org' in u]) == 10
+    sample = sample_urls(urls, 150)
+    assert len([u for u in sample if 'test.org' in u]) == 150
+    assert len([u for u in sample if 'example.org' in u]) == 100
+    assert len([u for u in sample if 'other.org' in u]) == 150
 
 
 def test_examples():

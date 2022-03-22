@@ -19,6 +19,7 @@ from .filters import basic_filter, extension_filter, lang_filter, \
                      path_filter, spam_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
+from .urlstore import UrlStore
 from .urlutils import extract_domain, fix_relative_urls, is_external, is_known_link
 
 
@@ -116,41 +117,40 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
     return url, domain
 
 
-def sample_urls(urllist, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
+def sample_urls(input_urls, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
     '''Sample a list of URLs by domain name, optionally using constraints on their number'''
-    lastseen, urlbuffer = None, []
+    # logging
     if verbose is True:
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
-    for url in sorted(urllist):  # key=cmp_to_key(locale.strcoll)
-        # first basic filter
-        checked = check_url(url, strict=strict, with_redirects=False)
-        if checked is None:
+    # deduplicate
+    input_urls = list(dict.fromkeys(input_urls))
+    # validate
+    input_urls = [u for u in input_urls if check_url(u, strict=strict, with_redirects=False) is not None]
+    # store
+    output_urls = []
+    urlstore = UrlStore(compressed=False, language=None, strict=strict)
+    urlstore.add_urls(input_urls)
+    # iterate
+    for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
+        urlpaths = [p.urlpath for p in urlstore._load_urls(domain)]
+        # too few or too many URLs
+        if (exclude_min is not None and len(urlpaths) < exclude_min or
+            exclude_max is not None and len(urlpaths) > exclude_max):
+            LOGGER.info('discarded (size): %s\t\turls: %s', domain, len(urlpaths))
             continue
-        url, domain = checked[0], checked[1]
-        # continue collection
-        if domain != lastseen:
-            # deduplicate URL list
-            urlbuffer = list(dict.fromkeys(urlbuffer))
-            # threshold for too small websites
-            if exclude_min is None or len(urlbuffer) >= exclude_min:
-                # write all the buffer
-                if len(urlbuffer) <= samplesize:
-                    yield from sorted(urlbuffer)
-                    LOGGER.info('%s\t\turls: %s', lastseen, len(urlbuffer))
-                # print all or sample URLs
-                elif exclude_max is None or len(urlbuffer) <= exclude_max:
-                    yield from sorted(sample(urlbuffer, k=samplesize))
-                    LOGGER.info('%s\t\turls: %s\tprop.: %s', lastseen, len(urlbuffer), samplesize/len(urlbuffer))
-                else:
-                    LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
-            else:
-                LOGGER.info('discarded (exclude size): %s\t\turls: %s', lastseen, len(urlbuffer))
-            urlbuffer = []
-        # register new info
-        urlbuffer.append(url)
-        lastseen = domain
+        # copy all URLs
+        if len(urlpaths) <= samplesize:
+            output_urls.extend([domain + p for p in urlpaths])
+            LOGGER.info('%s\t\turls: %s', domain, len(urlpaths))
+            continue
+        # sample
+        mysample = sorted(sample(urlpaths, k=samplesize))
+        output_urls.extend([domain + p for p in mysample])
+        LOGGER.info('%s\t\turls: %s\tprop.: %s', domain, len(mysample), len(mysample)/len(urlpaths))
+    # return gathered URLs
+    return output_urls
 
 
 def extract_links(pagecontent, base_url, external_bool, language=None,
