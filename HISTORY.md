@@ -4,7 +4,7 @@
 ### 0.7.0
 
 - UrlStore class added: data store containing URLs with relevant information
-- code cleaning abd maintenance (bugs, simplification)
+- code cleaning and maintenance (bugs, simplification)
 
 
 ### 0.6.0

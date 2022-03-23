@@ -244,7 +244,7 @@ Basic URL validation only:
 UrlStore class
 ~~~~~~~~~~~~~~
 
-The `UrlStore` class allow for storing and retrieving domain-classified URLs, where a domain is in the form "https://example.org") and a URL in the form "https://example.org/path/testpage". It features the following methods:
+The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, where a URL like ``https://example.org/path/testpage`` is stored as the path ``/path/testpage`` within the domain ``https://example.org``. It features the following methods:
 
 - URL management
    - ``add_urls(urls=[], appendleft=None, visited=False)``: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
