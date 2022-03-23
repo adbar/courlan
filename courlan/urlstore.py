@@ -74,14 +74,16 @@ class UrlStore:
                 # validate
                 validation_result, parsed_url = validate_url(url)
                 if validation_result is False:
-                    continue
+                    LOGGER.debug('Invalid URL: %s', url)
+                    raise ValueError
                 # filter
                 if self.language is not None and lang_filter(url, self.language, self.strict) is False:
-                    continue
+                    LOGGER.debug('Wrong language: %s', url)
+                    raise ValueError
                 hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
-                LOGGER.warning('Discarding URL %s', url)
+                LOGGER.warning('Discarding URL: %s', url)
         return inputdict
 
     def _load_urls(self, domain):
