@@ -1,3 +1,5 @@
 include CONTRIBUTING.md HISTORY.md README.rst LICENSE pytest.ini
-include tests/*.py
 include courlan_harns-march.jpg
+
+include tests/*.py
+graft tests/data/

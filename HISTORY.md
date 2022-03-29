@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.7.1
+
+- bug in sampling fixed
+- UrlStore: validation by default
+
+
 ### 0.7.0
 
 - UrlStore class added: data store containing URLs with relevant information
