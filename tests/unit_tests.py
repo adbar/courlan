@@ -266,7 +266,7 @@ def test_urlutils():
     newresult = _parse(result)
     assert isinstance(result, ParseResult)
     with pytest.raises(TypeError):
-        result = _parse(float(1.23))
+        result = _parse(1.23)
 
     assert get_base_url('https://example.org/path') == 'https://example.org'
     with pytest.raises(ValueError):
