@@ -141,6 +141,9 @@ class UrlStore:
         # preserve input order
         return list(remaining_urls)
 
+    def _timestamp(self, domain):
+        return self.urldict[domain].timestamp
+
     def add_urls(self, urls=None, appendleft=None, visited=False):
         """Add a list of URLs to the (possibly) existing one.
         Optional: append certain URLs to the left,
@@ -203,6 +206,10 @@ class UrlStore:
         "Take a list of URLs and return the currently unvisited ones."
         return self._search_urls(urls, switch=2)
 
+    def unvisited_websites_number(self):
+        "Return the number of websites for which there are still URLs to visit."
+        return len([d for d in self.urldict if self.urldict[d].all_visited is False])
+
     def get_download_urls(self, timelimit=10):
         """Get a list of immediately downloadable URLs according to the given
            time limit per domain."""
@@ -213,7 +220,7 @@ class UrlStore:
             return None
         targets = []
         for domain in potential:
-            timestamp = self.urldict[domain].timestamp
+            timestamp = self._timestamp(domain)
             if timestamp is None or (datetime.now() - timestamp).total_seconds() > timelimit:
                 targets.append(domain)
         # get corresponding URLs and filter out None values
@@ -247,7 +254,7 @@ class UrlStore:
                         self.urldict[domain].count += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self.urldict[domain].timestamp
+            original_timestamp = self._timestamp(domain)
             if original_timestamp is None or (now - original_timestamp).total_seconds() > time_limit:
                 schedule_secs = 0
             else:
@@ -262,7 +269,22 @@ class UrlStore:
         # sort by first tuple element (time in secs)
         return sorted(targets, key=lambda x: x[0])
 
+    def get_rules(self, website):
+        "Return the stored crawling rules for the given website."
+        return self.urldict[website].rules
+
+    def get_known_domains(self):
+        "Return all known domains as a list."
+        return list(self.urldict)
+
     def dump_urls(self):
+        "Return a list of all known URLs."
+        urls = []
+        for domain in self.get_known_domains():
+            urls.extend(self.find_known_urls(domain))
+        return urls
+
+    def print_urls(self):
         "Print all URLs in store (URL + TAB + visited or not)."
-        for domain in self.urldict:
+        for domain in self.get_known_domains():
             print('\n'.join([domain + u.urlpath + '\t' + str(u.visited) for u in self._load_urls(domain)]))
