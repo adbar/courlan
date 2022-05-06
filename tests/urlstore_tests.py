@@ -47,12 +47,16 @@ def test_urlstore():
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(example_urls)
     my_urls.add_urls(example_urls)
+    # necessary to pickle
+    my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
     assert my_urls.is_known(f'{example_domain}/100') is True
     # compression 2
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(test_urls)
     my_urls.add_urls(test_urls)
+    # necessary to pickle
+    my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
 
     # test loading

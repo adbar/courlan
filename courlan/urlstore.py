@@ -10,6 +10,7 @@ import sys
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
+from threading import Lock
 
 from .filters import lang_filter, validate_url
 from .urlutils import get_host_and_path, is_known_link
@@ -41,7 +42,7 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
-    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict')
+    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict', '_lock')
 
     def __init__(self, compressed=False, language=None, strict=False):
         self.compressed = compressed
@@ -49,6 +50,7 @@ class UrlStore:
         self.language = language
         self.strict = strict
         self.urldict = defaultdict(DomainEntry)
+        self._lock = Lock()
 
         def dump_unvisited_urls(num, frame):
             LOGGER.warning('Processing interrupted, dumping unvisited URLs from %s hosts', len(self.urldict))
@@ -104,16 +106,18 @@ class UrlStore:
             urls.extend(t for t in to_right if not is_known_link(t.urlpath, known))
         if to_left is not None:
             urls.extendleft(t for t in to_left if not is_known_link(t.urlpath, known))
-        # compression
-        if self.compressed is True:
-            self.urldict[domain].tuples =  bz2.compress(pickle.dumps(urls, protocol=4))
-        else:
-            self.urldict[domain].tuples = urls
-        # adjust all_visited status
-        self.urldict[domain].all_visited = all(u.visited is True for u in urls)
-        # timestamp/backoff value
-        if timestamp is not None:
-            self.urldict[domain].timestamp = timestamp
+        # use lock
+        with self._lock:
+            # compression
+            if self.compressed is True:
+                self.urldict[domain].tuples = bz2.compress(pickle.dumps(urls, protocol=4))
+            else:
+                self.urldict[domain].tuples = urls
+            # adjust all_visited status
+            self.urldict[domain].all_visited = all(u.visited is True for u in urls)
+            # timestamp/backoff value
+            if timestamp is not None:
+                self.urldict[domain].timestamp = timestamp
 
     def _search_urls(self, urls, switch=None):
         # init
@@ -157,11 +161,13 @@ class UrlStore:
             for url in url_tuples:
                 if url.visited is False:
                     url.visited = True
-                    self.urldict[domain].count += 1
+                    with self._lock:
+                        self.urldict[domain].count += 1
                     self._store_urls(domain, url_tuples, timestamp=datetime.now())
                     return domain + url.urlpath
         # nothing to draw from
-        self.urldict[domain].all_visited = True
+        with self._lock:
+            self.urldict[domain].all_visited = True
         return None
 
     def is_known(self, url):
@@ -200,7 +206,8 @@ class UrlStore:
     def get_download_urls(self, timelimit=10):
         """Get a list of immediately downloadable URLs according to the given
            time limit per domain."""
-        potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
+        with self._lock:
+            potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
         if not potential:
             self.done = True
             return None
@@ -216,10 +223,11 @@ class UrlStore:
         """Get up to the specified number of URLs along with a suitable
            backoff schedule (in seconds)."""
         # see which domains are free
-        potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
-        if not potential:
-            self.done = True
-            return []
+        with self._lock:
+            potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
+            if not potential:
+                self.done = True
+                return []
         # variables init
         per_domain = max_urls // len(potential) or 1
         targets = []
@@ -235,7 +243,8 @@ class UrlStore:
                 if url.visited is False:
                     urlpaths.append(url.urlpath)
                     url.visited = True
-                    self.urldict[domain].count += 1
+                    with self._lock:
+                        self.urldict[domain].count += 1
             # determine timestamps
             now = datetime.now()
             original_timestamp = self.urldict[domain].timestamp
