@@ -144,6 +144,8 @@ class UrlStore:
     def _timestamp(self, domain):
         return self.urldict[domain].timestamp
 
+    # URL MANIPULATION AND INFO
+
     def add_urls(self, urls=None, appendleft=None, visited=False):
         """Add a list of URLs to the (possibly) existing one.
         Optional: append certain URLs to the left,
@@ -154,24 +156,6 @@ class UrlStore:
         if appendleft:
             for host, urltuples in self._buffer_urls(appendleft, visited).items():
                 self._store_urls(host, to_left=urltuples)
-
-    def get_url(self, domain):
-        "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
-        # not fully used
-        if self.urldict[domain].all_visited is False:
-            url_tuples = self._load_urls(domain)
-            # get first non-seen url
-            for url in url_tuples:
-                if url.visited is False:
-                    url.visited = True
-                    with self._lock:
-                        self.urldict[domain].count += 1
-                    self._store_urls(domain, url_tuples, timestamp=datetime.now())
-                    return domain + url.urlpath
-        # nothing to draw from
-        with self._lock:
-            self.urldict[domain].all_visited = True
-        return None
 
     def is_known(self, url):
         "Check if the given URL has already been stored."
@@ -188,6 +172,12 @@ class UrlStore:
     def filter_unknown_urls(self, urls):
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
+
+    def get_known_domains(self):
+        "Return all known domains as a list."
+        return list(self.urldict)
+
+    # URL-BASED QUERIES
 
     def has_been_visited(self, url):
         "Check if the given URL has already been visited.."
@@ -209,6 +199,26 @@ class UrlStore:
     def unvisited_websites_number(self):
         "Return the number of websites for which there are still URLs to visit."
         return len([d for d in self.urldict if self.urldict[d].all_visited is False])
+
+    # DOWNLOADS
+
+    def get_url(self, domain):
+        "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
+        # not fully used
+        if self.urldict[domain].all_visited is False:
+            url_tuples = self._load_urls(domain)
+            # get first non-seen url
+            for url in url_tuples:
+                if url.visited is False:
+                    url.visited = True
+                    with self._lock:
+                        self.urldict[domain].count += 1
+                    self._store_urls(domain, url_tuples, timestamp=datetime.now())
+                    return domain + url.urlpath
+        # nothing to draw from
+        with self._lock:
+            self.urldict[domain].all_visited = True
+        return None
 
     def get_download_urls(self, timelimit=10):
         """Get a list of immediately downloadable URLs according to the given
@@ -273,9 +283,15 @@ class UrlStore:
         "Return the stored crawling rules for the given website."
         return self.urldict[website].rules
 
-    def get_known_domains(self):
-        "Return all known domains as a list."
-        return list(self.urldict)
+    # GENERAL INFO
+
+    def total_url_number(self):
+        "Find number of all URLs in store."
+        return sum(len(self.urldict[d].tuples) for d in self.urldict)
+
+    def download_threshold_reached(self, threshold):
+        "Find out if the download limit has been reached for one og the websites in store."
+        return any(self.urldict[d].count >= threshold for d in self.urldict)
 
     def dump_urls(self):
         "Return a list of all known URLs."

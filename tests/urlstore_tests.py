@@ -68,6 +68,7 @@ def test_urlstore():
     assert sum(
         len(my_urls._load_urls(k)) for k, _ in my_urls.urldict.items()
     ) == len(urls)
+    assert my_urls.total_url_number() == len(urls)
 
     if my_urls.compressed is False:
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
@@ -159,7 +160,9 @@ def test_urlstore():
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
     assert my_urls.urldict['https://www.example.org'].count == 7
-    assert my_urls.urldict['https://test.org'].count == 4
+    assert my_urls.urldict['https://test.org'].count == 4 == sum(u.visited is True for u in my_urls.urldict['https://test.org'].tuples)
+    assert my_urls.download_threshold_reached(8) is False
+    assert my_urls.download_threshold_reached(7) is True
 
 
 def test_dbdump(capsys):
