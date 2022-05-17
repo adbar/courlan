@@ -248,7 +248,10 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
 
 - URL management
    - ``add_urls(urls=[], appendleft=None, visited=False)``: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
-   - ``dump_urls()``: Print all URLs in store (URL + TAB + visited or not).
+   - ``dump_urls()``: Return a list of all known URLs.
+   - ``print_urls()``: Print all URLs in store (URL + TAB + visited or not).
+   - ``get_known_domains()``: Return all known domains as a list.
+   - ``total_url_number()``: Find number of all URLs in store.
    - ``is_known(url)``: Check if the given URL has already been stored.
    - ``has_been_visited(url)``: Check if the given URL has already been visited.
    - ``filter_unknown_urls(urls)``: Take a list of URLs and return the currently unknown ones.
@@ -257,9 +260,12 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``find_unvisited_urls(domain)``: Get all unvisited URLs for the given domain.
 - Crawling and downloads
    - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
+   - ``get_rules(domain)``: Return the stored crawling rules for the given website.
    - ``get_download_urls(timelimit=10)``: Get a list of immediately downloadable URLs according to the given time limit per domain.
    - ``establish_download_schedule(max_urls=100, time_limit=10)``: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
-
+   - ``download_threshold_reached(threshold)``: Find out if the download limit (in seconds) has been reached for one of the websites in store.
+   - ``unvisited_websites_number()``: Return the number of websites for which there are still URLs to visit.
+   - ``is_exhausted_domain(domain)``: Tell if all known URLs for the website have been visited.
 
 
 Command-line

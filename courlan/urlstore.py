@@ -178,7 +178,7 @@ class UrlStore:
         return list(self.urldict)
 
     def is_exhausted_domain(self, domain):
-        "Tell if all known URLs for the domain have been visited."
+        "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
             return self.urldict[domain].all_visited
         raise KeyError('website not in store')
@@ -296,7 +296,7 @@ class UrlStore:
         return sum(len(self.urldict[d].tuples) for d in self.urldict)
 
     def download_threshold_reached(self, threshold):
-        "Find out if the download limit has been reached for one og the websites in store."
+        "Find out if the download limit (in seconds) has been reached for one of the websites in store."
         return any(self.urldict[d].count >= threshold for d in self.urldict)
 
     def dump_urls(self):

@@ -1,6 +1,11 @@
 ## History / Changelog
 
 
+### 0.7.2
+
+- UrlStore: threading lock and convenience functions added
+
+
 ### 0.7.1
 
 - bug in sampling fixed
