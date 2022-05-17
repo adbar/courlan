@@ -14,14 +14,20 @@ from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS,\
                       TARGET_LANG_DE, TARGET_LANG_EN
 
-
+# parsing
 PROTOCOLS = re.compile(r'https?://')
 SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)|(?:https?://[^/]+?/[^/]+?[&?]u(rl)?=)(https?://[^"> ]+)')
 MIDDLE_URL = re.compile(r'https?://.+?(https?://.+?)(?:https?://|$)')
-
 NETLOC_RE = re.compile(r'(?<=\w):(?:80|443)')
+
+# path
 PATH1 = re.compile(r'/+')
 PATH2 = re.compile(r'^(?:/\.\.(?![^/]))+')
+
+# scrub
+LINK_TAG = re.compile(r'</?a>')
+TRAILING_AMP = re.compile(r'/?\&$')
+TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\r\n ]')
 
 
 def clean_url(url, language=None):
@@ -46,10 +52,11 @@ def scrub_url(url):
         url = url.replace('<![CDATA[', '') # url = re.sub(r'^<!\[CDATA\[', '', url)
         url = url.replace(']]>', '') # url = re.sub(r'\]\]>$', '', url)
     # markup rests
-    url = re.sub(r'</?a>', '', url)
-    # &amp;
+    url = LINK_TAG.sub('', url)
+    # & and &amp;
     if '&amp;' in url:
         url = url.replace('&amp;', '&')
+    url = TRAILING_AMP.sub('', url)
     #if '"' in link:
     #    link = link.split('"')[0]
     # double/faulty URLs
@@ -68,7 +75,7 @@ def scrub_url(url):
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
-        match = re.match(r'(.*?)[<>"\'\r\n ]', url)
+        match = TRAILING_PARTS.match(url)
         if match:
             url = match.group(1)
     if len(url) > 500:
@@ -76,8 +83,6 @@ def scrub_url(url):
             'invalid-looking link %s of length %d', f'{url[:50]}...', len(url)
         )
 
-    # trailing ampersand
-    url = url.strip('&')
     # trailing slashes in URLs without path or in embedded URLs
     if url.count('/') == 3 or url.count('://') > 1:
         url = url.rstrip('/')

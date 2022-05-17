@@ -110,7 +110,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
             return None
 
     # handle exceptions
-    except (AttributeError, ValueError, UnicodeError):
+    except (AttributeError, ValueError):
         LOGGER.debug('discarded URL: %s', url)
         return None
 
@@ -206,8 +206,7 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
                             with_redirects=redirects, language=language)
         if checked is None:
             continue
-        # additional cleaning step?
-        link = re.sub(r'/\&$', '', checked[0])
+        link = checked[0]
         # external/internal links
         if external_bool != is_external(link, reference):
             continue

@@ -15,6 +15,8 @@ RETRY_STRATEGY = urllib3.util.Retry(
 )
 HTTP_POOL = urllib3.PoolManager(retries=RETRY_STRATEGY)
 
+ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
+
 
 # Test redirects
 def redirection_test(url):
@@ -37,7 +39,7 @@ def redirection_test(url):
         logging.error('unknown: %s %s', url, err) # sys.exc_info()[0]
     else:
         # response
-        if rhead.status in (200, 300, 301, 302, 303, 304, 305, 306, 307, 308):
+        if rhead.status in ACCEPTABLE_CODES:
             logging.debug('result found: %s %s', rhead.geturl(), rhead.status)
             return rhead.geturl()
     #else:

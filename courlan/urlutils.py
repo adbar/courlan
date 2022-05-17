@@ -10,6 +10,8 @@ from urllib.parse import urlparse, ParseResult
 from tld import get_fld, get_tld
 
 
+DOMAIN_REGEX = re.compile(r'^www[0-9]*\.')
+
 @lru_cache(maxsize=1024)
 def get_tldinfo(url):
     '''Cached function to extract top-level domain info'''
@@ -27,7 +29,7 @@ def extract_domain(url, blacklist=None):
         return None
     # return domain
     # this step seems necessary to standardize output
-    return re.sub(r'^www[0-9]*\.', '', tldinfo.fld)
+    return DOMAIN_REGEX.sub('', tldinfo.fld)
 
 
 def _parse(url):
