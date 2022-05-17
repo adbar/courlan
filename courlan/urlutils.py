@@ -74,15 +74,15 @@ def get_hostinfo(url):
 def fix_relative_urls(baseurl, url):
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
-        return 'https:' + url if baseurl.startswith('https') else 'http:' + url
+        return f'https:{url}' if baseurl.startswith('https') else f'http:{url}'
     if url.startswith('/'):
         # imperfect path handling
         return baseurl + url
     if url.startswith('.'):
         # don't try to correct these URLs
-        return baseurl + '/' + re.sub(r'(.+/)+', '', url)
+        return f'{baseurl}/' + re.sub(r'(.+/)+', '', url)
     if not url.startswith('http') and not url.startswith('{'):
-        return baseurl + '/' + url
+        return f'{baseurl}/{url}'
     # todo: handle here
     #if url.startswith('{'):
     return url
@@ -112,7 +112,7 @@ def is_known_link(link, known_links):
         return True
     # trailing slash
     test1 = link.rstrip('/')
-    test2 = test1 + '/'
+    test2 = f'{test1}/'
     if test1 in known_links or test2 in known_links:
         return True
     # http/https + trailing slash

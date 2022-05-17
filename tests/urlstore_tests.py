@@ -129,7 +129,11 @@ def test_urlstore():
     assert my_urls.has_been_visited(f'{example_domain}/this') is False
     assert my_urls.has_been_visited(f'{example_domain}/999') is False
     candidates = [url1, f'{example_domain}/this', f'{example_domain}/999']
-    assert my_urls.filter_unvisited_urls(candidates) == [example_domain + '/this', example_domain + '/999']
+    assert my_urls.filter_unvisited_urls(candidates) == [
+        f'{example_domain}/this',
+        f'{example_domain}/999',
+    ]
+
     assert len(my_urls.find_known_urls(example_domain)) == len(my_urls._load_urls(example_domain)) == 10011
     assert len(my_urls.find_unvisited_urls(example_domain)) == 10009
     assert my_urls.unvisited_websites_number() == 4
