@@ -75,6 +75,17 @@ def test_urlstore():
     my_urls.add_urls(['https://visited.com/visited'], visited=True)
     assert my_urls.urldict['https://visited.com'].tuples[0].visited is True
     assert my_urls.urldict['https://visited.com'].all_visited is True
+    assert my_urls.is_exhausted_domain('https://visited.com') is True
+    # new unvisited URLs
+    my_urls.add_urls(['https://visited.com/1'], visited=False)
+    assert my_urls.urldict['https://visited.com'].tuples[1].visited is False
+    assert my_urls.urldict['https://visited.com'].all_visited is False
+    assert my_urls.is_exhausted_domain('https://visited.com') is False
+    with pytest.raises(KeyError):
+        assert my_urls.is_exhausted_domain('https://visited2.com') is True
+    # revert changes for further tests
+    del my_urls.urldict['https://visited.com'].tuples[1]
+    my_urls.urldict['https://visited.com'].all_visited = True
 
     # test extension
     extension_urls = [f'{example_domain}/1/{str(a)}' for a in range(10)]

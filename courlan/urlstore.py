@@ -177,6 +177,12 @@ class UrlStore:
         "Return all known domains as a list."
         return list(self.urldict)
 
+    def is_exhausted_domain(self, domain):
+        "Tell if all known URLs for the domain have been visited."
+        if domain in self.urldict:
+            return self.urldict[domain].all_visited
+        raise KeyError('website not in store')
+
     # URL-BASED QUERIES
 
     def has_been_visited(self, url):
