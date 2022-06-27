@@ -104,7 +104,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
         if strict is True:
             domain = extract_domain(url, blacklist=BLACKLIST)
         else:
-            domain = extract_domain(url)
+            domain = extract_domain(url, fast=True)
         if domain is None:
             LOGGER.debug('rejected, domain name: %s', url)
             return None

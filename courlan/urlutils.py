@@ -7,29 +7,45 @@ import re
 from functools import lru_cache
 from urllib.parse import urlparse, ParseResult
 
-from tld import get_fld, get_tld
+from tld import get_tld
 
 
-DOMAIN_REGEX = re.compile(r'^www[0-9]*\.')
+DOMAIN_REGEX = re.compile(r'(?:http|ftp)s?://(?:www[0-9]*\.)?([^/]+)')
+NO_EXTENSION_REGEX = re.compile(r'(^[^.]+)')
+CLEAN_DOMAIN_REGEX = re.compile(r'^www[0-9]*\.')
+
 
 @lru_cache(maxsize=1024)
-def get_tldinfo(url):
+def get_tldinfo(url, fast=False):
     '''Cached function to extract top-level domain info'''
-    return get_tld(url, as_object=True, fail_silently=True)
+    if fast is True:
+        # try with regexes
+        match = DOMAIN_REGEX.match(url)
+        if match:
+            full_domain = match.group(1)
+            return NO_EXTENSION_REGEX.match(full_domain).group(0), full_domain
+    # fallback
+    tldinfo = get_tld(url, as_object=True, fail_silently=True)
+    if tldinfo is None:
+        return None, None
+    # this step is necessary to standardize output
+    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub('', tldinfo.fld)
 
 
-def extract_domain(url, blacklist=None):
+def extract_domain(url, blacklist=None, fast=False):
     '''Extract domain name information using top-level domain info'''
     if blacklist is None:
         blacklist = set()
     # new code: Python >= 3.6 with tld module
-    tldinfo = get_tldinfo(url)
-    # invalid input OR domain TLD blacklist
-    if tldinfo is None or tldinfo.domain in blacklist:
+    domain, full_domain = get_tldinfo(url, fast=fast)
+    # invalid input
+    if full_domain is None:
+        return None
+    # blacklisting
+    if domain in blacklist or full_domain in blacklist:
         return None
     # return domain
-    # this step seems necessary to standardize output
-    return DOMAIN_REGEX.sub('', tldinfo.fld)
+    return full_domain
 
 
 def _parse(url):
@@ -67,7 +83,7 @@ def get_host_and_path(url):
 
 def get_hostinfo(url):
     'Extract domain and host info (protocol + host/domain) from a URL.'
-    domainname = extract_domain(url)
+    domainname = extract_domain(url, fast=True)
     parsed_url = urlparse(url)
     host = parsed_url._replace(path='', params='', query='', fragment='')
     return domainname, host.geturl()
@@ -91,20 +107,14 @@ def fix_relative_urls(baseurl, url):
 
 
 def is_external(url, reference, ignore_suffix=True):
-    '''Determine if a link leads to another host, takes a reference URL or
-       tld/tldextract object as input, returns a boolean'''
-    # new code: Python >= 3.6 with tld module
-    if ignore_suffix is True:
-        try:
-            ref_domain, domain = get_tldinfo(reference).domain, \
-                                 get_tldinfo(url).domain
-        # invalid input
-        except AttributeError:
-            return True
-    else:
-        ref_domain, domain = get_fld(reference, fail_silently=True), get_fld(url, fail_silently=True)
+    '''Determine if a link leads to another host, takes a reference URL and
+       a URL as input, returns a boolean'''
+    stripped_ref, ref = get_tldinfo(reference, fast=True)
+    stripped_domain, domain = get_tldinfo(url, fast=True)
     # comparison
-    return domain != ref_domain
+    if ignore_suffix is True:
+        return stripped_domain != stripped_ref
+    return domain != ref
 
 
 def is_known_link(link, known_links):
