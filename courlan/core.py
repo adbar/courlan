@@ -16,7 +16,7 @@ from random import sample
 
 from .clean import normalize_url, scrub_url
 from .filters import basic_filter, extension_filter, lang_filter, \
-                     path_filter, spam_filter, type_filter, validate_url
+                     path_filter, type_filter, validate_url
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlstore import UrlStore
@@ -64,11 +64,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
                 LOGGER.debug('rejected, redirection: %s', url)
                 raise ValueError
 
-        # spam
-        if strict is True and spam_filter(url) is False:
-            LOGGER.debug('rejected, spam filter: %s', url)
-            raise ValueError
-        # structural elements
+        # spam & structural elements
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
             LOGGER.debug('rejected, type filter: %s', url)
             raise ValueError
@@ -102,7 +98,7 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
 
         # domain info: use blacklist in strict mode only
         if strict is True:
-            domain = extract_domain(url, blacklist=BLACKLIST)
+            domain = extract_domain(url, blacklist=BLACKLIST, fast=True)
         else:
             domain = extract_domain(url, fast=True)
         if domain is None:

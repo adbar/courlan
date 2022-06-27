@@ -20,7 +20,7 @@ import pytest
 
 from courlan import cli
 from courlan import clean_url, normalize_url, scrub_url, check_url, is_external, sample_urls, validate_url, extract_links, extract_domain, fix_relative_urls, get_base_url, get_host_and_path, get_hostinfo, is_navigation_page, is_not_crawlable, lang_filter
-from courlan.filters import extension_filter, path_filter, spam_filter, type_filter
+from courlan.filters import extension_filter, path_filter, type_filter
 from courlan.urlutils import _parse, is_known_link
 
 
@@ -100,8 +100,9 @@ def test_extension_filter():
 
 
 def test_spam_filter():
-    assert spam_filter('http://www.example.org/cams/test.html') is False
-    assert spam_filter('http://www.example.org/test.html') is True
+    assert type_filter('http://www.example.org/cams/test.html', strict=False) is True
+    assert type_filter('http://www.example.org/cams/test.html', strict=True) is False
+    assert type_filter('http://www.example.org/test.html') is True
 
 
 def test_type_filter():
@@ -251,7 +252,7 @@ def test_urlcheck():
     assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
     assert check_url('{mylink}') is None
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de') is not None
-    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None
+    #assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None
     #assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
     #assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 

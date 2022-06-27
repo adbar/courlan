@@ -26,8 +26,8 @@ PATH2 = re.compile(r'^(?:/\.\.(?![^/]))+')
 
 # scrub
 LINK_TAG = re.compile(r'</?a>')
-TRAILING_AMP = re.compile(r'/?\&$')
-TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\r\n ]')
+TRAILING_AMP = re.compile(r'/\&$')
+TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
 
 def clean_url(url, language=None):
@@ -48,9 +48,9 @@ def scrub_url(url):
     # clean the input string
     url = url.replace('[ \t]+', '')
     # <![CDATA[http://www.urbanlife.de/item/260-bmw-i8-hybrid-revolution-unter-den-sportwagen.html]]>
-    if url.startswith('<![CDATA['): # re.match(r'<!\[CDATA\[', url):
-        url = url.replace('<![CDATA[', '') # url = re.sub(r'^<!\[CDATA\[', '', url)
-        url = url.replace(']]>', '') # url = re.sub(r'\]\]>$', '', url)
+    if url.startswith('<![CDATA['):
+        url = url.replace('<![CDATA[', '')  # url = re.sub(r'^<!\[CDATA\[', '', url)
+        url = url.replace(']]>', '')  # url = re.sub(r'\]\]>$', '', url)
     # markup rests
     url = LINK_TAG.sub('', url)
     # & and &amp;
@@ -121,6 +121,8 @@ def normalize_url(parsed_url, strict=False, language=None):
     '''Takes a URL string or a parsed URL and returns a (basically) normalized URL string'''
     if not isinstance(parsed_url, ParseResult):
         parsed_url = urlparse(parsed_url)
+    #elif not isinstance(parsed_url, str):
+    #    raise TypeError('wrong input type: %s', type(parsed_url))
     # port
     if parsed_url.port is not None and parsed_url.port in (80, 443):
         parsed_url = parsed_url._replace(netloc=NETLOC_RE.sub('', parsed_url.netloc))

@@ -19,11 +19,10 @@ from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 LOGGER = logging.getLogger(__name__)
 
 # content filters
-WORDPRESS_CONTENT_FILTER = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
-PARAM_FILTER = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)   # (?=[&?])
-ADULT_FILTER = re.compile(r'\b(?:adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE)  # ass|orgasm ?
-UNSUITABLE_FILTER = re.compile(r'\b(?:add?s?|banner|doubleclick|livestream|tradedoubler)\b|/oembed\b')
-VIDEOS_FILTER = re.compile(r'\b(?:live|videos?)\b', re.IGNORECASE)
+WORDPRESS_CONTENT = re.compile(r'/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$', re.IGNORECASE)
+FILE_TYPE = re.compile(r'\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b', re.IGNORECASE)  # (?=[&?])
+UNDESIRABLE = re.compile(r'\b(?:add?s?|banner|doubleclick|livestream|tradedoubler)\b|/oembed\b')
+ADULT_AND_VIDEOS = re.compile(r'\b(?:live|videos?|adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b', re.IGNORECASE)  # ass|orgasm ?
 
 # language filter
 PATH_LANG_FILTER = re.compile(r'(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
@@ -128,34 +127,25 @@ def path_filter(urlpath, query):
     return True
 
 
-def spam_filter(url):
-    '''Try to filter out spam and adult websites'''
-    # TODO: to improve!
-    #for exp in (''):
-    #    if exp in url:
-    #        return False
-    return not ADULT_FILTER.search(url)
-
-
 def type_filter(url, strict=False, with_nav=False):
-    '''Make sure the target URL is from a suitable type (HTML page with primarily text)'''
+    '''Make sure the target URL is from a suitable type (HTML page with primarily text).
+       Strict: Try to filter out other document types, spam, video and adult websites.'''
     try:
         # feeds
         if url.endswith(('/feed', '/rss')):
             raise ValueError
-        # wordpress structure
-        if WORDPRESS_CONTENT_FILTER.search(url) and (
+        # wordpress website structure
+        if WORDPRESS_CONTENT.search(url) and (
             with_nav is not True or not is_navigation_page(url)
         ):
             raise ValueError
-        # hidden in parameters
-        if strict is True and PARAM_FILTER.search(url):
+        # not suitable: ads, adult and embedded content
+        if UNDESIRABLE.search(url):
             raise ValueError
-        # not suitable, ads and embedded content
-        if UNSUITABLE_FILTER.search(url):
-            raise ValueError
-        if strict is True and VIDEOS_FILTER.search(url):
-            raise ValueError
+        # type hidden in parameters + video content
+        if strict is True:
+            if FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url):
+                raise ValueError
     except ValueError:
         return False
     # default
