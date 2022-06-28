@@ -176,7 +176,8 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
     if reference is None:
         reference = base_url
     # extract links
-    for link in FIND_LINKS_REGEX.findall(pagecontent):
+    for match in FIND_LINKS_REGEX.finditer(pagecontent):
+        link = match.group(0)
         # https://en.wikipedia.org/wiki/Hreflang
         if language is not None and 'hreflang' in link:
             langmatch = HREFLANG_REGEX.search(link)
