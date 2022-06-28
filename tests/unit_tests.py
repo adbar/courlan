@@ -260,6 +260,7 @@ def test_urlcheck():
 def test_urlutils():
     '''Test URL manipulation tools'''
     # domain extraction
+    assert extract_domain('h') is None
     assert extract_domain('https://httpbin.org/') == 'httpbin.org'
     # url parsing
     result = _parse('https://httpbin.org/')
