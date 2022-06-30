@@ -252,8 +252,9 @@ def test_urlcheck():
     assert check_url('https://www.katholisch-in-duisdorf.de/kontakt/links/index.html', strict=True) is not None
     assert check_url('{mylink}') is None
     assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de') is not None
-    #assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is None
-    #assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is None
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='de', strict=True) is not None
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en') is not None
+    assert check_url('https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html', language='en', strict=True) is None
     #assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
 

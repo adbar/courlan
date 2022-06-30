@@ -27,7 +27,7 @@ ADULT_AND_VIDEOS = re.compile(r'\b(?:live|videos?|adult|amateur|arsch|cams?|cash
 # language filter
 PATH_LANG_FILTER = re.compile(r'(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)', re.IGNORECASE)
 ALL_PATH_LANGS = re.compile(r'(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)', re.IGNORECASE)
-HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.(?:[^.]+)\.(?:[^.]+)/', re.IGNORECASE)
+HOST_LANG_FILTER = re.compile(r'https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/', re.IGNORECASE)
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(r'/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+', re.IGNORECASE)
