@@ -24,12 +24,12 @@ Why coURLan?
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
 
-This library provides an additional “brain” for web crawling, scraping and management of Internet archives:
+This library provides an additional “brain” for web crawling, scraping and management of web archives:
 
 - Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort.
 - Stay away from pages with little text content or explicitly target synoptic pages to gather links.
 
-Using content and language-focused filters, Courlan helps navigating the Web and enhancing text quality. Additional functions include straightforward domain name extraction and URL sampling.
+Using content and language-focused filters, Courlan helps navigating the Web so as to improve the resulting document collections. Additional functions include straightforward domain name extraction and URL sampling.
 
 
 Features
@@ -162,6 +162,7 @@ Determine if a link leads to another host:
 
 Other useful functions dedicated to URL handling:
 
+- ``extract_domain(url, fast=True)``: find domain and subdomain or just domain with ``fast=False``
 - ``get_base_url(url)``: strip the URL of some of its parts
 - ``get_host_and_path(url)``: decompose URLs in two parts: protocol + host/domain and path
 - ``get_hostinfo(url)``: extract domain and host info (protocol + host/domain)

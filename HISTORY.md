@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.8.0
+
+- performance optimizations
+- fast track for domain extraction (`extract_domain(url, fast=True)`), now taking subdomains into account
+
+
 ### 0.7.2
 
 - UrlStore: threading lock and convenience functions added
