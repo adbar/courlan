@@ -8,10 +8,12 @@ Implements a basic command-line interface.
 import argparse
 import sys
 
+from typing import Any, List
+
 from .core import check_url, sample_urls
 
 
-def parse_args(args):
+def parse_args(args: Any) -> Any:
     """Define parser for command-line arguments"""
     argsparser = argparse.ArgumentParser(description='Command-line interface for Courlan')
     group1 = argsparser.add_argument_group('I/O', 'Manage input and output')
@@ -53,7 +55,7 @@ def parse_args(args):
     return argsparser.parse_args()
 
 
-def process_args(args):
+def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
     if args.sample is False:
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh, \
@@ -67,7 +69,7 @@ def process_args(args):
                     with open(args.discardedfile, 'a', encoding='utf-8') as discardfh:
                         discardfh.write(line)
     else:
-        urllist = []
+        urllist: List[str] = []
         with open(args.inputfile, 'r', encoding='utf-8', errors='ignore') as inputfh:
             urllist.extend(line.strip() for line in inputfh)
         with open(args.outputfile, 'w', encoding='utf-8') as outputfh:
@@ -75,7 +77,7 @@ def process_args(args):
                 outputfh.write(url + '\n')
 
 
-def main():
+def main() -> None:
     """Run as a command-line utility."""
     args = parse_args(sys.argv[1:])
     process_args(args)

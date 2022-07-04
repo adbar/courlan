@@ -11,7 +11,7 @@ import sys
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, DefaultDict, List, Optional, Union
+from typing import Any, DefaultDict, Deque, List, Optional, Union
 
 from urllib.robotparser import RobotFileParser
 
@@ -29,9 +29,9 @@ class DomainEntry:
     def __init__(self) -> None:
         self.all_visited: bool = False
         self.count: int = 0
-        self.rules: Any = None
-        self.tuples: deque = deque()
-        self.timestamp: Any = None
+        self.rules: Optional[Any] = None
+        self.tuples: Deque[tuple] = deque()
+        self.timestamp: Optional[Any] = None
 
 
 class UrlPathTuple:
@@ -52,10 +52,10 @@ class UrlStore:
         self.done: bool = False
         self.language: Optional[str] = language
         self.strict: bool = strict
-        self.urldict: defaultdict = defaultdict(DomainEntry)
+        self.urldict: DefaultDict = defaultdict(DomainEntry)
         self._lock: Lock = Lock()
 
-        def dump_unvisited_urls(num, frame):
+        def dump_unvisited_urls(num: Any, frame: Any) -> None:
             LOGGER.warning('Processing interrupted, dumping unvisited URLs from %s hosts', len(self.urldict))
             for domain in self.urldict:
                 print('\n'.join([domain + u.urlpath for u in self._load_urls(domain) if u.visited is False]), file=sys.stderr)
@@ -176,7 +176,7 @@ class UrlStore:
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
 
-    def get_known_domains(self):
+    def get_known_domains(self) -> list:
         "Return all known domains as a list."
         return list(self.urldict)
 
@@ -245,7 +245,7 @@ class UrlStore:
         # get corresponding URLs and filter out None values
         return list(filter(None, [self.get_url(domain) for domain in targets]))
 
-    def establish_download_schedule(self, max_urls=100, time_limit=10):
+    def establish_download_schedule(self, max_urls: int=100, time_limit: int=10) -> list:
         """Get up to the specified number of URLs along with a suitable
            backoff schedule (in seconds)."""
         # see which domains are free
@@ -256,12 +256,12 @@ class UrlStore:
                 return []
         # variables init
         per_domain = max_urls // len(potential) or 1
-        targets = []
+        targets: List[tuple] = []
         # iterate potential domains
         for domain in potential:
             url_tuples = self._load_urls(domain)
             # load urls
-            urlpaths = []
+            urlpaths: List[str] = []
             # get first non-seen urls
             for url in url_tuples:
                 if len(urlpaths) >= per_domain or (len(targets) + len(urlpaths)) >= max_urls:
@@ -275,7 +275,7 @@ class UrlStore:
             now = datetime.now()
             original_timestamp = self._timestamp(domain)
             if original_timestamp is None or (now - original_timestamp).total_seconds() > time_limit:
-                schedule_secs = 0
+                schedule_secs = 0.0
             else:
                 schedule_secs = time_limit - float(f'{(now - original_timestamp).total_seconds():.2f}')
             for urlpath in urlpaths:
@@ -298,7 +298,7 @@ class UrlStore:
         "Find number of all URLs in store."
         return sum(len(self.urldict[d].tuples) for d in self.urldict)
 
-    def download_threshold_reached(self, threshold) -> bool:
+    def download_threshold_reached(self, threshold: float) -> bool:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."
         return any(self.urldict[d].count >= threshold for d in self.urldict)
 

@@ -12,7 +12,7 @@ import sys
 
 #from functools import cmp_to_key
 from random import sample
-from typing import Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from .clean import normalize_url, scrub_url
 from .filters import basic_filter, extension_filter, lang_filter, \
@@ -113,7 +113,7 @@ def check_url(url: Optional[str], strict: bool=False, with_redirects: bool=False
     return url, domain
 
 
-def sample_urls(input_urls, samplesize, exclude_min=None, exclude_max=None, strict=False, verbose=False):
+def sample_urls(input_urls: List[str], samplesize: int, exclude_min: Optional[int]=None, exclude_max: Optional[int]=None, strict: bool=False, verbose: bool=False) -> list:
     '''Sample a list of URLs by domain name, optionally using constraints on their number'''
     # logging
     if verbose is True:

@@ -64,7 +64,7 @@ def extension_filter(urlpath: str) -> bool:
     )
 
 
-def langcodes_score(language, segment, score) -> int:
+def langcodes_score(language: str, segment: str, score: int) -> int:
     '''Use langcodes on selected URL segments and integrate
        them into a score.'''
     # see also: https://babel.pocoo.org/en/latest/locale.html
@@ -85,7 +85,7 @@ def langcodes_score(language, segment, score) -> int:
     return score
 
 
-def lang_filter(url, language=None, strict=False) -> bool:
+def lang_filter(url: str, language: Optional[str]=None, strict: bool=False) -> bool:
     '''Heuristics targeting internationalization and linguistic elements.
        Based on a score.'''
     # sanity check
@@ -171,13 +171,13 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
     return True, parsed_url
 
 
-def is_navigation_page(url) -> bool:
+def is_navigation_page(url: str) -> bool:
     '''Determine if the URL is related to navigation and overview pages
        rather than content pages, e.g. /page/1 vs. article page.'''
     return bool(NAVIGATION_FILTER.search(url))
 
 
-def is_not_crawlable(url) -> bool:
+def is_not_crawlable(url: str) -> bool:
     '''Run tests to check if the URL may lead to deep web or pages
        generally not usable in a crawling context.'''
     return bool(NOTCRAWLABLE.search(url))

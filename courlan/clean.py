@@ -31,7 +31,7 @@ TRAILING_AMP = re.compile(r'/\&$')
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
 
-def clean_url(url, language=None) -> Optional[str]:
+def clean_url(url: str, language: Optional[str]=None) -> Optional[str]:
     '''Helper function: chained scrubbing and normalization'''
     try:
         return normalize_url(scrub_url(url), language)  # type: ignore
