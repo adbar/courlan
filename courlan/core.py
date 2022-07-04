@@ -12,7 +12,7 @@ import sys
 
 #from functools import cmp_to_key
 from random import sample
-
+from typing import Optional, Set, Tuple
 
 from .clean import normalize_url, scrub_url
 from .filters import basic_filter, extension_filter, lang_filter, \
@@ -30,7 +30,7 @@ HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
 LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\']|[ >])', re.I)
 
 
-def check_url(url, strict=False, with_redirects=False, language=None, with_nav=False):
+def check_url(url: Optional[str], strict: bool=False, with_redirects: bool=False, language: None=None, with_nav: bool=False) -> Optional[Tuple[str, str]]:
     """ Check links for appropriateness and sanity
     Args:
         url: url to check
@@ -50,12 +50,12 @@ def check_url(url, strict=False, with_redirects=False, language=None, with_nav=F
     # use standard parsing library, validate and strip fragments, then normalize
     try:
         # length test
-        if basic_filter(url) is False:
+        if basic_filter(url) is False:  # type: ignore
             LOGGER.debug('rejected, basic filter: %s', url)
             raise ValueError
 
         # clean
-        url = scrub_url(url)
+        url = scrub_url(url)  # type: ignore
 
         # get potential redirect
         if with_redirects is True:
@@ -149,8 +149,8 @@ def sample_urls(input_urls, samplesize, exclude_min=None, exclude_max=None, stri
     return output_urls
 
 
-def extract_links(pagecontent, base_url, external_bool, language=None,
-                  strict=True, with_nav=False, redirects=False, reference=None):
+def extract_links(pagecontent: str, base_url: str, external_bool: bool, language: None=None,
+                  strict: bool=True, with_nav: bool=False, redirects: bool=False, reference: Optional[str]=None) -> Set[str]:
     """ Filter links in a HTML document using a series of heuristics
     Args:
         pagecontent: whole page in binary format
@@ -169,7 +169,7 @@ def extract_links(pagecontent, base_url, external_bool, language=None,
     Raises:
         Nothing.
     """
-    candidates, validlinks = set(), set()
+    candidates, validlinks = set(), set()  # type: Set[str], Set[str]
     if pagecontent is None or pagecontent == '':
         return validlinks
     # define host reference

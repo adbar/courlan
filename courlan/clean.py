@@ -8,6 +8,7 @@ Functions performing URL trimming and cleaning
 import logging
 import re
 
+from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
 from .filters import validate_url
@@ -30,15 +31,15 @@ TRAILING_AMP = re.compile(r'/\&$')
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
 
-def clean_url(url, language=None):
+def clean_url(url, language=None) -> Optional[str]:
     '''Helper function: chained scrubbing and normalization'''
     try:
-        return normalize_url(scrub_url(url), language)
+        return normalize_url(scrub_url(url), language)  # type: ignore
     except (AttributeError, ValueError):
         return None
 
 
-def scrub_url(url):
+def scrub_url(url: str) -> str:
     '''Strip unnecessary parts and make sure only one URL is considered'''
     # trim
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
@@ -91,7 +92,7 @@ def scrub_url(url):
     return url
 
 
-def clean_query(parsed_url, strict=False, language=None):
+def clean_query(parsed_url: ParseResult, strict: bool=False, language: None=None) -> ParseResult:
     '''Strip unwanted query elements'''
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
@@ -117,7 +118,7 @@ def clean_query(parsed_url, strict=False, language=None):
     return parsed_url
 
 
-def normalize_url(parsed_url, strict=False, language=None):
+def normalize_url(parsed_url: ParseResult, strict: bool=False, language: None=None) -> str:
     '''Takes a URL string or a parsed URL and returns a (basically) normalized URL string'''
     if not isinstance(parsed_url, ParseResult):
         parsed_url = urlparse(parsed_url)

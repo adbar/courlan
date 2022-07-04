@@ -9,6 +9,7 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
+from typing import Any, Optional, Tuple
 from urllib.parse import urlparse
 
 from langcodes import Language, tag_is_valid
@@ -50,12 +51,12 @@ LANGUAGE_MAPPINGS = {
 }
 
 
-def basic_filter(url):
+def basic_filter(url: str) -> bool:
     '''Filter URLs based on basic formal characteristics'''
     return bool(url.startswith('http') and 10 <= len(url) < 500)
 
 
-def extension_filter(urlpath):
+def extension_filter(urlpath: str) -> bool:
     '''Filter based on file extension'''
     return bool(
         not EXTENSION_REGEX.search(urlpath)
@@ -63,7 +64,7 @@ def extension_filter(urlpath):
     )
 
 
-def langcodes_score(language, segment, score):
+def langcodes_score(language, segment, score) -> int:
     '''Use langcodes on selected URL segments and integrate
        them into a score.'''
     # see also: https://babel.pocoo.org/en/latest/locale.html
@@ -84,7 +85,7 @@ def langcodes_score(language, segment, score):
     return score
 
 
-def lang_filter(url, language=None, strict=False):
+def lang_filter(url, language=None, strict=False) -> bool:
     '''Heuristics targeting internationalization and linguistic elements.
        Based on a score.'''
     # sanity check
@@ -117,7 +118,7 @@ def lang_filter(url, language=None, strict=False):
     return score >= 0
 
 
-def path_filter(urlpath, query):
+def path_filter(urlpath: str, query: str) -> bool:
     '''Filters based on URL path: index page, imprint, etc.'''
     if NOTCRAWLABLE.search(urlpath):
         return False
@@ -127,7 +128,7 @@ def path_filter(urlpath, query):
     return True
 
 
-def type_filter(url, strict=False, with_nav=False):
+def type_filter(url: str, strict: bool=False, with_nav: bool=False) -> bool:
     '''Make sure the target URL is from a suitable type (HTML page with primarily text).
        Strict: Try to filter out other document types, spam, video and adult websites.'''
     try:
@@ -152,7 +153,7 @@ def type_filter(url, strict=False, with_nav=False):
     return True
 
 
-def validate_url(url):
+def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
     '''Parse and validate the input'''
     try:
         parsed_url = urlparse(url)
@@ -164,19 +165,19 @@ def validate_url(url):
     ):
         return False, None
     if len(parsed_url.netloc) < 5 or \
-       (parsed_url.netloc.startswith('www.') and len(parsed_url.netloc) < 8):
+       (parsed_url.netloc.startswith('www.') and len(parsed_url.netloc) < 8):  # type: ignore
         return False, None
     # default
     return True, parsed_url
 
 
-def is_navigation_page(url):
+def is_navigation_page(url) -> bool:
     '''Determine if the URL is related to navigation and overview pages
        rather than content pages, e.g. /page/1 vs. article page.'''
     return bool(NAVIGATION_FILTER.search(url))
 
 
-def is_not_crawlable(url):
+def is_not_crawlable(url) -> bool:
     '''Run tests to check if the URL may lead to deep web or pages
        generally not usable in a crawling context.'''
     return bool(NOTCRAWLABLE.search(url))

@@ -6,7 +6,11 @@ Functions devoted to requests over the WWW.
 ## under GNU GPL v3 license
 
 import logging
-import urllib3
+
+from typing import Optional
+
+import urllib3  # type: ignore
+
 
 RETRY_STRATEGY = urllib3.util.Retry(
     total=5,
@@ -19,7 +23,7 @@ ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
 
 
 # Test redirects
-def redirection_test(url):
+def redirection_test(url: str) -> Optional[str]:
     """ Test final URL to handle redirects
     Args:
         url: url to check

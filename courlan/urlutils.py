@@ -5,6 +5,7 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 
 from functools import lru_cache
+from typing import Any, Optional, Set, Tuple, Union
 from urllib.parse import urlparse, ParseResult
 
 from tld import get_tld
@@ -16,23 +17,23 @@ CLEAN_DOMAIN_REGEX = re.compile(r'^www[0-9]*\.')
 
 
 @lru_cache(maxsize=1024)
-def get_tldinfo(url, fast=False):
+def get_tldinfo(url: str, fast: bool=False) -> Union[Tuple[None, None], Tuple[Any, Any]]:
     '''Cached function to extract top-level domain info'''
     if fast is True:
         # try with regexes
         match = DOMAIN_REGEX.match(url)
         if match:
             full_domain = match.group(1)
-            return NO_EXTENSION_REGEX.match(full_domain).group(0), full_domain
+            return NO_EXTENSION_REGEX.match(full_domain).group(0), full_domain  # type: ignore
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
     if tldinfo is None:
         return None, None
     # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub('', tldinfo.fld)
+    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub('', tldinfo.fld)  # type: ignore
 
 
-def extract_domain(url, blacklist=None, fast=False):
+def extract_domain(url: str, blacklist: Optional[Set[str]]=None, fast: bool=False) -> Optional[str]:
     '''Extract domain name information using top-level domain info'''
     if blacklist is None:
         blacklist = set()
@@ -48,7 +49,7 @@ def extract_domain(url, blacklist=None, fast=False):
     return full_domain
 
 
-def _parse(url):
+def _parse(url: Any) -> ParseResult:
     'Parse a string or use urllib.parse object directly.'
     if isinstance(url, str):
         parsed_url = urlparse(url)
@@ -59,14 +60,14 @@ def _parse(url):
     return parsed_url
 
 
-def get_base_url(url):
+def get_base_url(url: Any) -> str:
     '''Strip URL of some of its parts to get base URL.
        Accepts strings and urllib.parse ParseResult objects.'''
     parsed_url = _parse(url)
     return parsed_url._replace(path='', params='', query='', fragment='').geturl()
 
 
-def get_host_and_path(url):
+def get_host_and_path(url: Any) -> Tuple[str, str]:
     '''Decompose URL in two parts: protocol + host/domain and path.
        Accepts strings and urllib.parse ParseResult objects.'''
     parsed_url = _parse(url)
@@ -77,11 +78,11 @@ def get_host_and_path(url):
     if pathval == '':
         pathval = '/'
     if not hostval or not pathval:
-        raise ValueError('incomplete URL: %s', url)
+        raise ValueError(f'incomplete URL: {url}')
     return hostval, pathval
 
 
-def get_hostinfo(url):
+def get_hostinfo(url: str) -> Tuple[Optional[str], str]:
     'Extract domain and host info (protocol + host/domain) from a URL.'
     domainname = extract_domain(url, fast=True)
     parsed_url = urlparse(url)
@@ -89,7 +90,7 @@ def get_hostinfo(url):
     return domainname, host.geturl()
 
 
-def fix_relative_urls(baseurl, url):
+def fix_relative_urls(baseurl: str, url: str) -> str:
     'Prepend protocol and host information to relative links.'
     if url.startswith('//'):
         return 'https:' + url if baseurl.startswith('https') else 'http:' + url
@@ -106,7 +107,7 @@ def fix_relative_urls(baseurl, url):
     return url
 
 
-def is_external(url, reference, ignore_suffix=True):
+def is_external(url: str, reference: str, ignore_suffix: bool=True) -> bool:
     '''Determine if a link leads to another host, takes a reference URL and
        a URL as input, returns a boolean'''
     stripped_ref, ref = get_tldinfo(reference, fast=True)
@@ -117,7 +118,7 @@ def is_external(url, reference, ignore_suffix=True):
     return domain != ref
 
 
-def is_known_link(link, known_links):
+def is_known_link(link: str, known_links: Set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     # easy check
     if link in known_links:
