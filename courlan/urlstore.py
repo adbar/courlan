@@ -11,7 +11,7 @@ import sys
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, DefaultDict, Deque, List, Optional, Union
+from typing import Any, DefaultDict, Deque, List, Optional, Tuple, Union
 
 from urllib.robotparser import RobotFileParser
 
@@ -29,8 +29,8 @@ class DomainEntry:
     def __init__(self) -> None:
         self.all_visited: bool = False
         self.count: int = 0
-        self.rules: Optional[Any] = None
-        self.tuples: Deque[tuple] = deque()
+        self.rules: Optional[RobotFileParser] = None
+        self.tuples: Deque[UrlPathTuple] = deque()
         self.timestamp: Optional[Any] = None
 
 
@@ -57,7 +57,7 @@ class UrlStore:
         self.done: bool = False
         self.language: Optional[str] = language
         self.strict: bool = strict
-        self.urldict: DefaultDict = defaultdict(DomainEntry)
+        self.urldict: DefaultDict[str, DomainEntry] = defaultdict(DomainEntry)
         self._lock: Lock = Lock()
 
         def dump_unvisited_urls(num: Any, frame: Any) -> None:
@@ -90,8 +90,8 @@ class UrlStore:
 
     def _buffer_urls(
         self, data: List[str], visited: bool = False
-    ) -> DefaultDict[str, deque]:
-        inputdict = defaultdict(deque)  # type: defaultdict
+    ) -> DefaultDict[str, Deque[UrlPathTuple]]:
+        inputdict: DefaultDict[str, Deque[UrlPathTuple]] = defaultdict(deque)
         for url in list(dict.fromkeys(data)):
             # segment URL and add to domain dictionary
             try:
@@ -113,7 +113,7 @@ class UrlStore:
                 LOGGER.warning("Discarding URL: %s", url)
         return inputdict
 
-    def _load_urls(self, domain: str) -> deque:
+    def _load_urls(self, domain: str) -> Deque[UrlPathTuple]:
         value = self.urldict[domain].tuples
         if isinstance(value, bytes):
             return pickle.loads(bz2.decompress(value))
@@ -122,9 +122,9 @@ class UrlStore:
     def _store_urls(
         self,
         domain: str,
-        to_right: Optional[deque] = None,
+        to_right: Optional[Deque[UrlPathTuple]] = None,
         timestamp: Optional[datetime] = None,
-        to_left: Optional[deque] = None,
+        to_left: Optional[Deque[UrlPathTuple]] = None,
     ) -> None:
         if domain in self.urldict:
             urls = self._load_urls(domain)
@@ -141,7 +141,7 @@ class UrlStore:
         with self._lock:
             # compression
             if self.compressed is True:
-                self.urldict[domain].tuples = bz2.compress(
+                self.urldict[domain].tuples = bz2.compress(  # type: ignore
                     pickle.dumps(urls, protocol=4)
                 )
             else:
@@ -168,7 +168,7 @@ class UrlStore:
                     known_paths = {u.urlpath: None for u in self._load_urls(hostinfo)}
                 elif switch == 2:
                     known_paths = {
-                        u.urlpath: u.visited for u in self._load_urls(hostinfo)
+                        u.urlpath: u.visited for u in self._load_urls(hostinfo)  # type: ignore
                     }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (
@@ -215,7 +215,7 @@ class UrlStore:
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
 
-    def get_known_domains(self) -> list:
+    def get_known_domains(self) -> List[str]:
         "Return all known domains as a list."
         return list(self.urldict)
 
@@ -291,7 +291,7 @@ class UrlStore:
 
     def establish_download_schedule(
         self, max_urls: int = 100, time_limit: int = 10
-    ) -> list:
+    ) -> List[str]:
         """Get up to the specified number of URLs along with a suitable
         backoff schedule (in seconds)."""
         # see which domains are free
@@ -304,7 +304,7 @@ class UrlStore:
                 return []
         # variables init
         per_domain = max_urls // len(potential) or 1
-        targets: List[tuple] = []
+        targets: List[Tuple[float, str]] = []
         # iterate potential domains
         for domain in potential:
             url_tuples = self._load_urls(domain)
@@ -342,9 +342,9 @@ class UrlStore:
             # store new info
             self._store_urls(domain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
-        return sorted(targets, key=lambda x: x[0])
+        return sorted(targets, key=lambda x: x[0])  # type: ignore
 
-    def get_rules(self, website: str) -> RobotFileParser:
+    def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
         return self.urldict[website].rules
 
@@ -358,7 +358,7 @@ class UrlStore:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."
         return any(self.urldict[d].count >= threshold for d in self.urldict)
 
-    def dump_urls(self) -> list:
+    def dump_urls(self) -> List[str]:
         "Return a list of all known URLs."
         urls = []
         for domain in self.get_known_domains():
