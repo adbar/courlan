@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 
 class DomainEntry:
     "Class to record host-related information and URL paths."
-    __slots__ = ('all_visited', 'count', 'rules', 'timestamp', 'tuples')
+    __slots__ = ("all_visited", "count", "rules", "timestamp", "tuples")
 
     def __init__(self) -> None:
         self.all_visited: bool = False
@@ -36,7 +36,7 @@ class DomainEntry:
 
 class UrlPathTuple:
     "Class storing information for URL paths relative to a domain/host."
-    __slots__ = ('urlpath', 'visited')
+    __slots__ = ("urlpath", "visited")
 
     def __init__(self, urlpath: str, visited: bool) -> None:
         self.urlpath: str = urlpath
@@ -45,9 +45,14 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
-    __slots__ = ('compressed', 'done', 'language', 'strict', 'urldict', '_lock')
+    __slots__ = ("compressed", "done", "language", "strict", "urldict", "_lock")
 
-    def __init__(self, compressed: bool=False, language: Optional[str]=None, strict: bool=False) -> None:
+    def __init__(
+        self,
+        compressed: bool = False,
+        language: Optional[str] = None,
+        strict: bool = False,
+    ) -> None:
         self.compressed: bool = compressed
         self.done: bool = False
         self.language: Optional[str] = language
@@ -56,22 +61,36 @@ class UrlStore:
         self._lock: Lock = Lock()
 
         def dump_unvisited_urls(num: Any, frame: Any) -> None:
-            LOGGER.warning('Processing interrupted, dumping unvisited URLs from %s hosts', len(self.urldict))
+            LOGGER.warning(
+                "Processing interrupted, dumping unvisited URLs from %s hosts",
+                len(self.urldict),
+            )
             for domain in self.urldict:
-                print('\n'.join([domain + u.urlpath for u in self._load_urls(domain) if u.visited is False]), file=sys.stderr)
+                print(
+                    "\n".join(
+                        [
+                            domain + u.urlpath
+                            for u in self._load_urls(domain)
+                            if u.visited is False
+                        ]
+                    ),
+                    file=sys.stderr,
+                )
             sys.exit()
 
         # don't use the following on Windows
-        if not sys.platform.startswith('win'):
+        if not sys.platform.startswith("win"):
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
-    #def _filter_urlpaths(self, domain, urls):
+    # def _filter_urlpaths(self, domain, urls):
     #    if self.validation is True or self.language is not None:
     #        return [u for u in urls if self._filter_url(domain + u) is True]
     #    return urls
 
-    def _buffer_urls(self, data: List[str], visited: bool=False) -> DefaultDict[str, deque]:
+    def _buffer_urls(
+        self, data: List[str], visited: bool = False
+    ) -> DefaultDict[str, deque]:
         inputdict = defaultdict(deque)  # type: defaultdict
         for url in list(dict.fromkeys(data)):
             # segment URL and add to domain dictionary
@@ -79,16 +98,19 @@ class UrlStore:
                 # validate
                 validation_result, parsed_url = validate_url(url)
                 if validation_result is False:
-                    LOGGER.debug('Invalid URL: %s', url)
+                    LOGGER.debug("Invalid URL: %s", url)
                     raise ValueError
                 # filter
-                if self.language is not None and lang_filter(url, self.language, self.strict) is False:
-                    LOGGER.debug('Wrong language: %s', url)
+                if (
+                    self.language is not None
+                    and lang_filter(url, self.language, self.strict) is False
+                ):
+                    LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
                 hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
-                LOGGER.warning('Discarding URL: %s', url)
+                LOGGER.warning("Discarding URL: %s", url)
         return inputdict
 
     def _load_urls(self, domain: str) -> deque:
@@ -97,7 +119,13 @@ class UrlStore:
             return pickle.loads(bz2.decompress(value))
         return value
 
-    def _store_urls(self, domain: str, to_right: Optional[deque]=None, timestamp: Optional[datetime]=None, to_left: Optional[deque]=None) -> None:
+    def _store_urls(
+        self,
+        domain: str,
+        to_right: Optional[deque] = None,
+        timestamp: Optional[datetime] = None,
+        to_left: Optional[deque] = None,
+    ) -> None:
         if domain in self.urldict:
             urls = self._load_urls(domain)
             known = {u.urlpath for u in urls}
@@ -113,7 +141,9 @@ class UrlStore:
         with self._lock:
             # compression
             if self.compressed is True:
-                self.urldict[domain].tuples = bz2.compress(pickle.dumps(urls, protocol=4))
+                self.urldict[domain].tuples = bz2.compress(
+                    pickle.dumps(urls, protocol=4)
+                )
             else:
                 self.urldict[domain].tuples = urls
             # adjust all_visited status
@@ -122,7 +152,9 @@ class UrlStore:
             if timestamp is not None:
                 self.urldict[domain].timestamp = timestamp
 
-    def _search_urls(self, urls: List[str], switch: Optional[int]=None) -> List[Union[Any, str]]:
+    def _search_urls(
+        self, urls: List[str], switch: Optional[int] = None
+    ) -> List[Union[Any, str]]:
         # init
         last_domain, known_paths = None, {}
         remaining_urls = {u: None for u in urls}
@@ -135,7 +167,9 @@ class UrlStore:
                 if switch == 1:
                     known_paths = {u.urlpath: None for u in self._load_urls(hostinfo)}
                 elif switch == 2:
-                    known_paths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
+                    known_paths = {
+                        u.urlpath: u.visited for u in self._load_urls(hostinfo)
+                    }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (
                 switch == 1 or (switch == 2 and known_paths[urlpath] is True)
@@ -149,7 +183,12 @@ class UrlStore:
 
     # URL MANIPULATION AND INFO
 
-    def add_urls(self, urls: Optional[List[str]]=None, appendleft: Optional[List[str]]=None, visited: bool=False) -> None:
+    def add_urls(
+        self,
+        urls: Optional[List[str]] = None,
+        appendleft: Optional[List[str]] = None,
+        visited: bool = False,
+    ) -> None:
         """Add a list of URLs to the (possibly) existing one.
         Optional: append certain URLs to the left,
         specify if the URLs have already been visited."""
@@ -184,7 +223,7 @@ class UrlStore:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
             return self.urldict[domain].all_visited
-        raise KeyError('website not in store')
+        raise KeyError("website not in store")
 
     # URL-BASED QUERIES
 
@@ -229,28 +268,37 @@ class UrlStore:
             self.urldict[domain].all_visited = True
         return None
 
-    def get_download_urls(self, timelimit: int=10) -> Optional[List[str]]:
+    def get_download_urls(self, timelimit: int = 10) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
-           time limit per domain."""
+        time limit per domain."""
         with self._lock:
-            potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
+            potential = [
+                d for d in self.urldict if self.urldict[d].all_visited is False
+            ]
         if not potential:
             self.done = True
             return None
         targets = []
         for domain in potential:
             timestamp = self._timestamp(domain)
-            if timestamp is None or (datetime.now() - timestamp).total_seconds() > timelimit:
+            if (
+                timestamp is None
+                or (datetime.now() - timestamp).total_seconds() > timelimit
+            ):
                 targets.append(domain)
         # get corresponding URLs and filter out None values
         return list(filter(None, [self.get_url(domain) for domain in targets]))
 
-    def establish_download_schedule(self, max_urls: int=100, time_limit: int=10) -> list:
+    def establish_download_schedule(
+        self, max_urls: int = 100, time_limit: int = 10
+    ) -> list:
         """Get up to the specified number of URLs along with a suitable
-           backoff schedule (in seconds)."""
+        backoff schedule (in seconds)."""
         # see which domains are free
         with self._lock:
-            potential = [d for d in self.urldict if self.urldict[d].all_visited is False]
+            potential = [
+                d for d in self.urldict if self.urldict[d].all_visited is False
+            ]
             if not potential:
                 self.done = True
                 return []
@@ -264,7 +312,10 @@ class UrlStore:
             urlpaths: List[str] = []
             # get first non-seen urls
             for url in url_tuples:
-                if len(urlpaths) >= per_domain or (len(targets) + len(urlpaths)) >= max_urls:
+                if (
+                    len(urlpaths) >= per_domain
+                    or (len(targets) + len(urlpaths)) >= max_urls
+                ):
                     break
                 if url.visited is False:
                     urlpaths.append(url.urlpath)
@@ -274,10 +325,15 @@ class UrlStore:
             # determine timestamps
             now = datetime.now()
             original_timestamp = self._timestamp(domain)
-            if original_timestamp is None or (now - original_timestamp).total_seconds() > time_limit:
+            if (
+                original_timestamp is None
+                or (now - original_timestamp).total_seconds() > time_limit
+            ):
                 schedule_secs = 0.0
             else:
-                schedule_secs = time_limit - float(f'{(now - original_timestamp).total_seconds():.2f}')
+                schedule_secs = time_limit - float(
+                    f"{(now - original_timestamp).total_seconds():.2f}"
+                )
             for urlpath in urlpaths:
                 targets.append((schedule_secs, domain + urlpath))
                 schedule_secs += time_limit
@@ -312,4 +368,11 @@ class UrlStore:
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."
         for domain in self.get_known_domains():
-            print('\n'.join([domain + u.urlpath + '\t' + str(u.visited) for u in self._load_urls(domain)]))
+            print(
+                "\n".join(
+                    [
+                        domain + u.urlpath + "\t" + str(u.visited)
+                        for u in self._load_urls(domain)
+                    ]
+                )
+            )

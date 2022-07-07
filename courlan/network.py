@@ -24,7 +24,7 @@ ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
 
 # Test redirects
 def redirection_test(url: str) -> Optional[str]:
-    """ Test final URL to handle redirects
+    """Test final URL to handle redirects
     Args:
         url: url to check
 
@@ -34,18 +34,18 @@ def redirection_test(url: str) -> Optional[str]:
     Raises:
         Nothing.
     """
-    #headers.update({
+    # headers.update({
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
-    #})
+    # })
     try:
-        rhead = HTTP_POOL.request('HEAD', url)
+        rhead = HTTP_POOL.request("HEAD", url)
     except Exception as err:
-        logging.error('unknown: %s %s', url, err) # sys.exc_info()[0]
+        logging.error("unknown: %s %s", url, err)  # sys.exc_info()[0]
     else:
         # response
         if rhead.status in ACCEPTABLE_CODES:
-            logging.debug('result found: %s %s', rhead.geturl(), rhead.status)
+            logging.debug("result found: %s %s", rhead.geturl(), rhead.status)
             return rhead.geturl()
-    #else:
-    logging.debug('no result found: %s', url)
+    # else:
+    logging.debug("no result found: %s", url)
     return None
