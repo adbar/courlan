@@ -18,6 +18,7 @@ from .filters import is_navigation_page, is_not_crawlable, lang_filter, validate
 from .urlstore import UrlStore
 from .urlutils import (
     extract_domain,
+    filter_urls,
     fix_relative_urls,
     get_base_url,
     get_host_and_path,

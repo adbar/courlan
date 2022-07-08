@@ -5,7 +5,7 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 
 from functools import lru_cache
-from typing import Any, Optional, Set, Tuple, Union
+from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse, ParseResult
 
 from tld import get_tld
@@ -109,6 +109,22 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     # todo: handle here
     # if url.startswith('{'):
     return url
+
+
+def filter_urls(linklist: List[str], urlfilter: str) -> List[str]:
+    "Return a list of links corresponding to the given substring pattern."
+    if urlfilter is None:
+        return sorted(set(linklist))
+    # filter links
+    newlist = [l for l in linklist if urlfilter in l]
+    # feedburner option: filter and wildcards for feeds
+    if not newlist:
+        newlist = [
+            l
+            for l in linklist
+            if urlfilter in l or "feedburner" in l or "feedproxy" in l
+        ]
+    return sorted(set(newlist))
 
 
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:

@@ -29,6 +29,7 @@ from courlan import (
     validate_url,
     extract_links,
     extract_domain,
+    filter_urls,
     fix_relative_urls,
     get_base_url,
     get_host_and_path,
@@ -587,6 +588,11 @@ def test_urlutils():
     assert is_known_link("http://test.org", known_links) is True
     assert is_known_link("http://test.org/", known_links) is True
     assert is_known_link("https://test.org/", known_links) is True
+    # filter URLs
+    # unique and sorted URLs
+    urlfilter = "category"
+    myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]
+    assert filter_urls(myurls, urlfilter) == ["/category/abc", "/category/xyz"]
 
 
 def test_external():
