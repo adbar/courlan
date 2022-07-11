@@ -7,8 +7,6 @@ Functions devoted to requests over the WWW.
 
 import logging
 
-from typing import Optional
-
 import urllib3  # type: ignore
 
 

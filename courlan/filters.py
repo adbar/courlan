@@ -144,7 +144,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         # look for other occurrences
         occurrences = ALL_PATH_LANGS.findall(url)
         if len(occurrences) == 1:
-            score = langcodes_score(language, match.group(1), score)
+            score = langcodes_score(language, match[1], score)
         elif len(occurrences) == 2:
             for occurrence in occurrences:
                 score = langcodes_score(language, occurrence, score)
@@ -153,7 +153,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
     if strict is True and language in LANGUAGE_MAPPINGS:
         match = HOST_LANG_FILTER.match(url)
         if match:
-            candidate = match.group(1).lower()
+            candidate = match[1].lower()
             LOGGER.debug("candidate lang %s found in URL", candidate)
             if candidate in LANGUAGE_MAPPINGS[language]:
                 score += 1

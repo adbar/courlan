@@ -211,22 +211,21 @@ def extract_links(
         reference = base_url
     # extract links
     for match in FIND_LINKS_REGEX.finditer(pagecontent):
-        link = match.group(0)
+        link = match[0]
         # https://en.wikipedia.org/wiki/Hreflang
         if language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)
             if langmatch and (
-                langmatch.group(1).startswith(language)
-                or langmatch.group(1) == "x-default"
+                langmatch[1].startswith(language) or langmatch[1] == "x-default"
             ):
-                mymatch = LINK_REGEX.search(link)
-                if mymatch:
-                    candidates.add(mymatch.group(1))
+                linkmatch = LINK_REGEX.search(link)
+                if linkmatch:
+                    candidates.add(linkmatch[1])
         # default
         else:
-            mymatch = LINK_REGEX.search(link)
-            if mymatch:
-                candidates.add(mymatch.group(1))
+            linkmatch = LINK_REGEX.search(link)
+            if linkmatch:
+                candidates.add(linkmatch[1])
     # filter candidates
     for link in candidates:
         # repair using base

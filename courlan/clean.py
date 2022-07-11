@@ -68,20 +68,20 @@ def scrub_url(url: str) -> str:
     if len(protocols) > 1 and "web.archive.org" not in url:
         logging.debug("double url: %s %s", len(protocols), url)
         match = SELECTION.match(url)
-        if match and validate_url(match.group(1))[0] is True:
-            url = match.group(1)
+        if match and validate_url(match[1])[0] is True:
+            url = match[1]
             logging.debug("taking url: %s", url)
         else:
             match = MIDDLE_URL.match(url)
-            if match and validate_url(match.group(1))[0] is True:
-                url = match.group(1)
+            if match and validate_url(match[1])[0] is True:
+                url = match[1]
                 logging.debug("taking url: %s", url)
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
         match = TRAILING_PARTS.match(url)
         if match:
-            url = match.group(1)
+            url = match[1]
     if len(url) > 500:
         logging.debug(
             "invalid-looking link %s of length %d", f"{url[:50]}...", len(url)
