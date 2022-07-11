@@ -590,10 +590,12 @@ def test_urlutils():
     assert is_known_link("https://test.org/", known_links) is True
     # filter URLs
     # unique and sorted URLs
-    urlfilter = "category"
     myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]
-    assert filter_urls(myurls, urlfilter) == ["/category/abc", "/category/xyz"]
-
+    assert len(filter_urls(myurls, None)) == 3
+    assert filter_urls(myurls, "category") == ["/category/abc", "/category/xyz"]
+    # feeds
+    assert len(filter_urls(["https://feedburner.google.com/aabb"], "category")) == 1
+    assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
 
 def test_external():
     """test domain comparison"""

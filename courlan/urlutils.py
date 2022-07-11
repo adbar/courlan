@@ -111,7 +111,7 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     return url
 
 
-def filter_urls(linklist: List[str], urlfilter: str) -> List[str]:
+def filter_urls(linklist: List[str], urlfilter: Optional[str]) -> List[str]:
     "Return a list of links corresponding to the given substring pattern."
     if urlfilter is None:
         return sorted(set(linklist))
