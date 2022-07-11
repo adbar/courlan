@@ -4,6 +4,7 @@ https://github.com/adbar/courlan
 """
 
 import re
+import sys
 
 from pathlib import Path
 from setuptools import setup
@@ -25,6 +26,29 @@ def get_long_description():
     # with open("CHANGELOG.md", encoding="utf8") as f:
     #    long_description += f.read()
     return long_description
+
+
+# add argument to compile with mypyc
+if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
+    sys.argv.pop(1)
+    USE_MYPYC = True
+    from mypyc.build import mypycify
+
+    ext_modules = mypycify(
+        [
+            "courlan/__init__.py",
+            "courlan/clean.py",
+            "courlan/core.py",
+            "courlan/filters.py",
+            "courlan/settings.py",
+            "courlan/urlstore.py",
+            "courlan/urlutils.py",
+        ],
+        opt_level="3",
+        multi_file=True,
+    )
+else:
+    ext_modules = []
 
 
 setup(
@@ -93,4 +117,6 @@ setup(
     # platforms='any',
     tests_require=["pytest"],
     zip_safe=False,
+    # mypyc or not
+    ext_modules=ext_modules,
 )

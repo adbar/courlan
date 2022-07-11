@@ -1,6 +1,13 @@
 ## History / Changelog
 
 
+### 0.8.1
+
+- add type annotations and check with `mypy`
+- `url_filter()` function moved from Trafilatura
+- code style: use `black`
+
+
 ### 0.8.0
 
 - performance optimizations

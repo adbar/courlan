@@ -597,6 +597,7 @@ def test_urlutils():
     assert len(filter_urls(["https://feedburner.google.com/aabb"], "category")) == 1
     assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
 
+
 def test_external():
     """test domain comparison"""
     assert is_external("https://github.com/", "https://www.microsoft.com/") is True
