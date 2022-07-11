@@ -11,7 +11,7 @@ import sys
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, DefaultDict, Deque, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Deque, Dict, List, Optional, Tuple, Union
 
 from urllib.robotparser import RobotFileParser
 
@@ -156,7 +156,8 @@ class UrlStore:
         self, urls: List[str], switch: Optional[int] = None
     ) -> List[Union[Any, str]]:
         # init
-        last_domain, known_paths = None, {}
+        last_domain: Optional[str] = None
+        known_paths: Dict[str, Optional[bool]] = {}
         remaining_urls = {u: None for u in urls}
         # iterate
         for url in sorted(remaining_urls):
@@ -168,7 +169,7 @@ class UrlStore:
                     known_paths = {u.urlpath: None for u in self._load_urls(hostinfo)}
                 elif switch == 2:
                     known_paths = {
-                        u.urlpath: u.visited for u in self._load_urls(hostinfo)  # type: ignore
+                        u.urlpath: u.visited for u in self._load_urls(hostinfo)
                     }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (

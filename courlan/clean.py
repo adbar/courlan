@@ -96,7 +96,7 @@ def scrub_url(url: str) -> str:
 
 
 def clean_query(
-    parsed_url: ParseResult, strict: bool = False, language: None = None
+    parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
 ) -> ParseResult:
     """Strip unwanted query elements"""
     if len(parsed_url.query) > 0:
@@ -129,7 +129,7 @@ def clean_query(
 
 
 def normalize_url(
-    parsed_url: ParseResult, strict: bool = False, language: None = None
+    parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
 ) -> str:
     """Takes a URL string or a parsed URL and returns a (basically) normalized URL string"""
     if not isinstance(parsed_url, ParseResult):

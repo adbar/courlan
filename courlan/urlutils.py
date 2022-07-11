@@ -19,14 +19,14 @@ CLEAN_DOMAIN_REGEX = re.compile(r"^www[0-9]*\.")
 @lru_cache(maxsize=1024)
 def get_tldinfo(
     url: str, fast: bool = False
-) -> Union[Tuple[None, None], Tuple[Any, Any]]:
+) -> Union[Tuple[None, None], Tuple[str, str]]:
     """Cached function to extract top-level domain info"""
     if fast is True:
         # try with regexes
         match = DOMAIN_REGEX.match(url)
         if match:
-            full_domain = match.group(1)
-            return NO_EXTENSION_REGEX.match(full_domain).group(0), full_domain  # type: ignore
+            full_domain = match[1]
+            return NO_EXTENSION_REGEX.match(full_domain)[0], full_domain  # type: ignore[index]
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
     if tldinfo is None:

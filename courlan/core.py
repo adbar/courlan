@@ -37,10 +37,10 @@ LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\']|[ >])', re.I)
 
 
 def check_url(
-    url: Optional[str],
+    url: str,
     strict: bool = False,
     with_redirects: bool = False,
-    language: None = None,
+    language: Optional[str] = None,
     with_nav: bool = False,
 ) -> Optional[Tuple[str, str]]:
     """Check links for appropriateness and sanity
@@ -62,19 +62,16 @@ def check_url(
     # use standard parsing library, validate and strip fragments, then normalize
     try:
         # length test
-        if basic_filter(url) is False:  # type: ignore
+        if basic_filter(url) is False:
             LOGGER.debug("rejected, basic filter: %s", url)
             raise ValueError
 
         # clean
-        url = scrub_url(url)  # type: ignore
+        url = scrub_url(url)
 
-        # get potential redirect
+        # get potential redirect, can raise ValueError
         if with_redirects is True:
             url = redirection_test(url)
-            if url is None:
-                LOGGER.debug("rejected, redirection: %s", url)
-                raise ValueError
 
         # spam & structural elements
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
@@ -129,7 +126,7 @@ def sample_urls(
     exclude_max: Optional[int] = None,
     strict: bool = False,
     verbose: bool = False,
-) -> list:
+) -> List[str]:
     """Sample a list of URLs by domain name, optionally using constraints on their number"""
     # logging
     if verbose is True:
@@ -182,7 +179,7 @@ def extract_links(
     pagecontent: str,
     base_url: str,
     external_bool: bool,
-    language: None = None,
+    language: Optional[str] = None,
     strict: bool = True,
     with_nav: bool = False,
     redirects: bool = False,

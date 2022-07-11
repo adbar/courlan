@@ -23,7 +23,7 @@ ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
 
 
 # Test redirects
-def redirection_test(url: str) -> Optional[str]:
+def redirection_test(url: str) -> str:
     """Test final URL to handle redirects
     Args:
         url: url to check
@@ -45,7 +45,6 @@ def redirection_test(url: str) -> Optional[str]:
         # response
         if rhead.status in ACCEPTABLE_CODES:
             logging.debug("result found: %s %s", rhead.geturl(), rhead.status)
-            return rhead.geturl()
+            return rhead.geturl()  # type: ignore
     # else:
-    logging.debug("no result found: %s", url)
-    return None
+    raise ValueError("cannot reach URL: %s", url)
