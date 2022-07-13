@@ -70,7 +70,7 @@ def check_url(
         url = scrub_url(url)
 
         # get potential redirect, can raise ValueError
-        if with_redirects is True:
+        if with_redirects:
             url = redirection_test(url)
 
         # spam & structural elements
@@ -95,7 +95,7 @@ def check_url(
             raise ValueError
 
         # strict content filtering
-        if strict is True and path_filter(parsed_url.path, parsed_url.query) is False:
+        if strict and path_filter(parsed_url.path, parsed_url.query) is False:
             LOGGER.debug("rejected, path filter: %s", url)
             raise ValueError
 
@@ -103,7 +103,7 @@ def check_url(
         url = normalize_url(parsed_url, strict, language)
 
         # domain info: use blacklist in strict mode only
-        if strict is True:
+        if strict:
             domain = extract_domain(url, blacklist=BLACKLIST, fast=True)
         else:
             domain = extract_domain(url, fast=True)
@@ -111,7 +111,6 @@ def check_url(
             LOGGER.debug("rejected, domain name: %s", url)
             return None
 
-    # handle exceptions
     except (AttributeError, ValueError):
         LOGGER.debug("discarded URL: %s", url)
         return None
@@ -129,7 +128,7 @@ def sample_urls(
 ) -> List[str]:
     """Sample a list of URLs by domain name, optionally using constraints on their number"""
     # logging
-    if verbose is True:
+    if verbose:
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     else:
         logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
@@ -204,7 +203,7 @@ def extract_links(
         Nothing.
     """
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
-    if pagecontent is None or pagecontent == "":
+    if pagecontent is None or not pagecontent:
         return validlinks
     # define host reference
     if reference is None:
@@ -218,14 +217,10 @@ def extract_links(
             if langmatch and (
                 langmatch[1].startswith(language) or langmatch[1] == "x-default"
             ):
-                linkmatch = LINK_REGEX.search(link)
-                if linkmatch:
+                if linkmatch := LINK_REGEX.search(link):
                     candidates.add(linkmatch[1])
-        # default
-        else:
-            linkmatch = LINK_REGEX.search(link)
-            if linkmatch:
-                candidates.add(linkmatch[1])
+        elif linkmatch := LINK_REGEX.search(link):
+            candidates.add(linkmatch[1])
     # filter candidates
     for link in candidates:
         # repair using base

@@ -138,9 +138,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         return True
     # init score
     score = 0
-    # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.match(url)
-    if match:
+    if match := PATH_LANG_FILTER.match(url):
         # look for other occurrences
         occurrences = ALL_PATH_LANGS.findall(url)
         if len(occurrences) == 1:
@@ -148,11 +146,9 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         elif len(occurrences) == 2:
             for occurrence in occurrences:
                 score = langcodes_score(language, occurrence, score)
-        # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
-    if strict is True and language in LANGUAGE_MAPPINGS:
-        match = HOST_LANG_FILTER.match(url)
-        if match:
+    if strict and language in LANGUAGE_MAPPINGS:
+        if match := HOST_LANG_FILTER.match(url):
             candidate = match[1].lower()
             LOGGER.debug("candidate lang %s found in URL", candidate)
             if candidate in LANGUAGE_MAPPINGS[language]:
@@ -167,10 +163,7 @@ def path_filter(urlpath: str, query: str) -> bool:
     """Filters based on URL path: index page, imprint, etc."""
     if NOTCRAWLABLE.search(urlpath):
         return False
-    if INDEX_PAGE_FILTER.match(urlpath) and len(query) == 0:
-        # print('#', urlpath, INDEX_PAGE_FILTER.match(urlpath), query)
-        return False
-    return True
+    return bool(not INDEX_PAGE_FILTER.match(urlpath) or query)
 
 
 def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
@@ -182,16 +175,15 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
             raise ValueError
         # wordpress website structure
         if WORDPRESS_CONTENT.search(url) and (
-            with_nav is not True or not is_navigation_page(url)
+            not with_nav or not is_navigation_page(url)
         ):
             raise ValueError
         # not suitable: ads, adult and embedded content
         if UNDESIRABLE.search(url):
             raise ValueError
         # type hidden in parameters + video content
-        if strict is True:
-            if FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url):
-                raise ValueError
+        if strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)):
+            raise ValueError
     except ValueError:
         return False
     # default
