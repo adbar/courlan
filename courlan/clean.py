@@ -8,7 +8,7 @@ Functions performing URL trimming and cleaning
 import logging
 import re
 
-from typing import Optional
+from typing import Optional, Union
 from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
 from .filters import validate_url
@@ -35,7 +35,7 @@ TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
     """Helper function: chained scrubbing and normalization"""
     try:
-        return normalize_url(scrub_url(url), language)  # type: ignore
+        return normalize_url(scrub_url(url), False, language)
     except (AttributeError, ValueError):
         return None
 
@@ -129,7 +129,9 @@ def clean_query(
 
 
 def normalize_url(
-    parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
+    parsed_url: Union[ParseResult, str],
+    strict: bool = False,
+    language: Optional[str] = None,
 ) -> str:
     """Takes a URL string or a parsed URL and returns a (basically) normalized URL string"""
     if not isinstance(parsed_url, ParseResult):

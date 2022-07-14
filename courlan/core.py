@@ -204,7 +204,7 @@ def extract_links(
         Nothing.
     """
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
-    if pagecontent is None or pagecontent == "":
+    if pagecontent is None or not pagecontent:
         return validlinks
     # define host reference
     if reference is None:

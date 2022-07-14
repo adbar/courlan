@@ -343,7 +343,7 @@ class UrlStore:
             # store new info
             self._store_urls(domain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
-        return sorted(targets, key=lambda x: x[0])  # type: ignore
+        return sorted(targets, key=lambda x: x[0])  # type: ignore[arg-type]
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."

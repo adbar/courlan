@@ -32,7 +32,7 @@ def get_tldinfo(
     if tldinfo is None:
         return None, None
     # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub("", tldinfo.fld)  # type: ignore
+    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub("", tldinfo.fld)  # type: ignore[union-attr]
 
 
 def extract_domain(
@@ -149,8 +149,8 @@ def is_known_link(link: str, known_links: Set[str]) -> bool:
     if test1 in known_links or test2 in known_links:
         return True
     # http/https + trailing slash
-    if link[:4] == "http":
-        if link[:5] == "https":
+    if link.startswith("http"):
+        if link.startswith("https"):
             testlink = link[:4] + link[5:]
         else:
             testlink = "".join([link[:4], "s", link[4:]])
