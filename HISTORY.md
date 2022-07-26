@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.8.2
+
+- full type hinting
+- maintenance: code linted
+
+
 ### 0.8.1
 
 - add type annotations and check with `mypy`
