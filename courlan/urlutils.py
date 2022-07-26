@@ -23,10 +23,12 @@ def get_tldinfo(
     """Cached function to extract top-level domain info"""
     if fast is True:
         # try with regexes
-        match = DOMAIN_REGEX.match(url)
-        if match:
-            full_domain = match[1]
-            return NO_EXTENSION_REGEX.match(full_domain)[0], full_domain  # type: ignore[index]
+        domain_match = DOMAIN_REGEX.match(url)
+        if domain_match:
+            full_domain = domain_match[1]
+            clean_match = NO_EXTENSION_REGEX.match(full_domain)
+            if clean_match:
+                return clean_match[0], full_domain
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
     if tldinfo is None:
