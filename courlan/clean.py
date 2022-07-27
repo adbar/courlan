@@ -82,11 +82,10 @@ def scrub_url(url: str) -> str:
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
-        match = TRAILING_PARTS.match(url)
-        if match:
+        if match := TRAILING_PARTS.match(url):
             url = match[1]
     if len(url) > 500:
-        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
+        LOGGER.debug("invalid-looking link %s of length %d", f"{url[:50]}…", len(url))
 
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
@@ -107,7 +106,7 @@ def clean_query(
             teststr = qelem.lower()
             # control param
             if (
-                strict is True
+                strict
                 and teststr not in ALLOWED_PARAMS
                 and teststr not in CONTROL_PARAMS
             ):
@@ -147,7 +146,7 @@ def normalize_url(
     # Leading /../'s in the path are removed
     newpath = PATH2.sub("", newpath)
     # fragment
-    newfragment = "" if strict is True else parsed_url.fragment
+    newfragment = "" if strict else parsed_url.fragment
     # lowercase + remove fragments
     parsed_url = parsed_url._replace(
         scheme=parsed_url.scheme.lower(),
