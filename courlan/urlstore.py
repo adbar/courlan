@@ -71,7 +71,7 @@ class UrlStore:
                         [
                             domain + u.urlpath
                             for u in self._load_urls(domain)
-                            if u.visited is False
+                            if not u.visited
                         ]
                     ),
                     file=sys.stderr,
@@ -84,8 +84,8 @@ class UrlStore:
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
     # def _filter_urlpaths(self, domain, urls):
-    #    if self.validation is True or self.language is not None:
-    #        return [u for u in urls if self._filter_url(domain + u) is True]
+    #    if self.validation or self.language is not None:
+    #        return [u for u in urls if self._filter_url(domain + u)]
     #    return urls
 
     def _buffer_urls(
@@ -140,14 +140,14 @@ class UrlStore:
         # use lock
         with self._lock:
             # compression
-            if self.compressed is True:
+            if self.compressed:
                 self.urldict[domain].tuples = bz2.compress(  # type: ignore
                     pickle.dumps(urls, protocol=4)
                 )
             else:
                 self.urldict[domain].tuples = urls
             # adjust all_visited status
-            self.urldict[domain].all_visited = all(u.visited is True for u in urls)
+            self.urldict[domain].all_visited = all(u.visited for u in urls)
             # timestamp/backoff value
             if timestamp is not None:
                 self.urldict[domain].timestamp = timestamp
@@ -173,7 +173,7 @@ class UrlStore:
                     }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (
-                switch == 1 or (switch == 2 and known_paths[urlpath] is True)
+                switch == 1 or (switch == 2 and known_paths[urlpath])
             ):
                 del remaining_urls[url]
         # preserve input order
@@ -239,7 +239,7 @@ class UrlStore:
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
         values = self._load_urls(domain)
-        return [domain + u.urlpath for u in values if u.visited is False]
+        return [domain + u.urlpath for u in values if not u.visited]
 
     def filter_unvisited_urls(self, urls: List[str]) -> List[Union[Any, str]]:
         "Take a list of URLs and return the currently unvisited ones."
@@ -247,18 +247,18 @@ class UrlStore:
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
-        return len([d for d in self.urldict if self.urldict[d].all_visited is False])
+        return len([d for d in self.urldict if not self.urldict[d].all_visited])
 
     # DOWNLOADS
 
     def get_url(self, domain: str) -> Optional[str]:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
-        if self.urldict[domain].all_visited is False:
+        if not self.urldict[domain].all_visited:
             url_tuples = self._load_urls(domain)
             # get first non-seen url
             for url in url_tuples:
-                if url.visited is False:
+                if not url.visited:
                     url.visited = True
                     with self._lock:
                         self.urldict[domain].count += 1
@@ -273,9 +273,7 @@ class UrlStore:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
         with self._lock:
-            potential = [
-                d for d in self.urldict if self.urldict[d].all_visited is False
-            ]
+            potential = [d for d in self.urldict if not self.urldict[d].all_visited]
         if not potential:
             self.done = True
             return None
@@ -297,9 +295,7 @@ class UrlStore:
         backoff schedule (in seconds)."""
         # see which domains are free
         with self._lock:
-            potential = [
-                d for d in self.urldict if self.urldict[d].all_visited is False
-            ]
+            potential = [d for d in self.urldict if not self.urldict[d].all_visited]
             if not potential:
                 self.done = True
                 return []
@@ -318,7 +314,7 @@ class UrlStore:
                     or (len(targets) + len(urlpaths)) >= max_urls
                 ):
                     break
-                if url.visited is False:
+                if not url.visited:
                     urlpaths.append(url.urlpath)
                     url.visited = True
                     with self._lock:

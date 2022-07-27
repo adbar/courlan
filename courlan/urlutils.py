@@ -21,7 +21,7 @@ def get_tldinfo(
     url: str, fast: bool = False
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
     """Cached function to extract top-level domain info"""
-    if fast is True:
+    if fast:
         # try with regexes
         domain_match = DOMAIN_REGEX.match(url)
         if domain_match:
@@ -135,7 +135,7 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     stripped_ref, ref = get_tldinfo(reference, fast=True)
     stripped_domain, domain = get_tldinfo(url, fast=True)
     # comparison
-    if ignore_suffix is True:
+    if ignore_suffix:
         return stripped_domain != stripped_ref
     return domain != ref
 

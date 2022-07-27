@@ -150,7 +150,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
                 score = langcodes_score(language, occurrence, score)
         # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
-    if strict is True and language in LANGUAGE_MAPPINGS:
+    if strict and language in LANGUAGE_MAPPINGS:
         match = HOST_LANG_FILTER.match(url)
         if match:
             candidate = match[1].lower()
@@ -182,16 +182,15 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
             raise ValueError
         # wordpress website structure
         if WORDPRESS_CONTENT.search(url) and (
-            with_nav is not True or not is_navigation_page(url)
+            not with_nav or not is_navigation_page(url)
         ):
             raise ValueError
         # not suitable: ads, adult and embedded content
         if UNDESIRABLE.search(url):
             raise ValueError
         # type hidden in parameters + video content
-        if strict is True:
-            if FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url):
-                raise ValueError
+        if strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)):
+            raise ValueError
     except ValueError:
         return False
     # default

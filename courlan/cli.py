@@ -70,7 +70,7 @@ def parse_args(args: Any) -> Any:
 
 def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
-    if args.sample is False:
+    if not args.sample:
         with open(
             args.inputfile, "r", encoding="utf-8", errors="ignore"
         ) as inputfh, open(args.outputfile, "w", encoding="utf-8") as outputfh:
