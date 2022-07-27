@@ -14,6 +14,9 @@ from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
 
+
+LOGGER = logging.getLogger(__name__)
+
 # parsing
 PROTOCOLS = re.compile(r"https?://")
 SELECTION = re.compile(
@@ -66,16 +69,16 @@ def scrub_url(url: str) -> str:
     # double/faulty URLs
     protocols = PROTOCOLS.findall(url)
     if len(protocols) > 1 and "web.archive.org" not in url:
-        logging.debug("double url: %s %s", len(protocols), url)
+        LOGGER.debug("double url: %s %s", len(protocols), url)
         match = SELECTION.match(url)
         if match and validate_url(match[1])[0] is True:
             url = match[1]
-            logging.debug("taking url: %s", url)
+            LOGGER.debug("taking url: %s", url)
         else:
             match = MIDDLE_URL.match(url)
             if match and validate_url(match[1])[0] is True:
                 url = match[1]
-                logging.debug("taking url: %s", url)
+                LOGGER.debug("taking url: %s", url)
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
@@ -83,9 +86,7 @@ def scrub_url(url: str) -> str:
         if match:
             url = match[1]
     if len(url) > 500:
-        logging.debug(
-            "invalid-looking link %s of length %d", f"{url[:50]}...", len(url)
-        )
+        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
 
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
@@ -119,7 +120,7 @@ def clean_query(
                     or (language == "en" and found_lang not in TARGET_LANG_EN)
                     or found_lang != language
                 ):
-                    logging.debug("bad lang: %s %s %s", language, qelem, found_lang)
+                    LOGGER.info("bad lang: %s %s %s", language, qelem, found_lang)
                     raise ValueError
             # insert
             newqdict[qelem] = qdict[qelem]

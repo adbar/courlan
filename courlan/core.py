@@ -8,7 +8,6 @@ Core functions needed to make the module work.
 # import locale
 import logging
 import re
-import sys
 
 # from functools import cmp_to_key
 from random import sample
@@ -130,9 +129,9 @@ def sample_urls(
     """Sample a list of URLs by domain name, optionally using constraints on their number"""
     # logging
     if verbose is True:
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
     else:
-        logging.basicConfig(stream=sys.stdout, level=logging.ERROR)
+        LOGGER.setLevel(logging.ERROR)
     # deduplicate
     input_urls = list(dict.fromkeys(input_urls))
     # validate

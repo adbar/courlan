@@ -10,6 +10,8 @@ import logging
 import urllib3  # type: ignore
 
 
+LOGGER = logging.getLogger(__name__)
+
 RETRY_STRATEGY = urllib3.util.Retry(
     total=5,
     redirect=5,
@@ -38,11 +40,11 @@ def redirection_test(url: str) -> str:
     try:
         rhead = HTTP_POOL.request("HEAD", url)
     except Exception as err:
-        logging.error("unknown: %s %s", url, err)  # sys.exc_info()[0]
+        LOGGER.exception("unknown error: %s %s", url, err)
     else:
         # response
         if rhead.status in ACCEPTABLE_CODES:
-            logging.debug("result found: %s %s", rhead.geturl(), rhead.status)
+            LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
             return rhead.geturl()  # type: ignore
     # else:
     raise ValueError("cannot reach URL: %s", url)
