@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.8.3
+
+- fixed bug in domain name extraction
+- uniform logging parameters
+
+
 ### 0.8.2
 
 - full type hinting
