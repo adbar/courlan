@@ -17,10 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", "3.11"]
         include:
         # custom tests
-        - python-version: "3.11-dev"
+        - python-version: "3.12-dev"
           os: ubuntu-latest
           experimental: true
           allowed_failure: true
@@ -37,7 +37,7 @@ jobs:
     steps:
     # Python and pip setup
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
