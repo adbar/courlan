@@ -11,7 +11,12 @@ from urllib.parse import urlparse, ParseResult
 from tld import get_tld
 
 
-DOMAIN_REGEX = re.compile(r"(?:http|ftp)s?://(?:www[0-9]*\.)?([^/]+)")
+DOMAIN_REGEX = re.compile(
+    r"(?:http|ftp)s?://"  # protocols
+    r"(?:[^/]{,63}\.)?"  # subdomain, www, etc.
+    r"([^/.]{4,}\.[^/]{2,63})"  # domain and extension
+    r"(?:/|$)"  # slash or end of string
+)
 NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
 CLEAN_DOMAIN_REGEX = re.compile(r"^www[0-9]*\.")
 

@@ -531,18 +531,18 @@ def test_urlcheck():
             language="de",
             strict=True,
         )
-        is not None
+        is None
     )
     assert (
         check_url(
-            "https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html",
+            "https://de.nachrichten.other.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html",
             language="en",
         )
         is not None
     )
     assert (
         check_url(
-            "https://de.nachrichten.yahoo.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html",
+            "https://de.nachrichten.other.com/bundesliga-schiri-boss-fr%C3%B6hlich-f%C3%BCr-175850830.html",
             language="en",
             strict=True,
         )
@@ -556,6 +556,15 @@ def test_urlutils():
     # domain extraction
     assert extract_domain("h") is None
     assert extract_domain("https://httpbin.org/") == "httpbin.org"
+    assert extract_domain("https://www.httpbin.org/", fast=True) == "httpbin.org"
+    assert extract_domain("http://www.mkyong.com.au", fast=True) == "mkyong.com.au"
+    assert extract_domain("http://mkyong.t.t.co", fast=True) == "mkyong.t.t.co"
+    assert extract_domain("ftp://www4.httpbin.org", fast=True) == "httpbin.org"
+    assert extract_domain("http://w3.example.com", fast=True) == "example.com"
+    assert extract_domain("https://de.nachrichten.yahoo.com/", fast=True) == "yahoo.com"
+    assert (
+        extract_domain("https://test.xn--0zwm56d.com/", fast=True) == "xn--0zwm56d.com"
+    )
     # url parsing
     result = _parse("https://httpbin.org/")
     assert isinstance(result, ParseResult)
@@ -695,6 +704,14 @@ def test_extraction():
     pagecontent = "<html><a href=/contact attribute=value>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", False) == {
         "https://test.com/contact"
+    }
+    # external links with extension (here ".com")
+    pagecontent = '<html><body><a href="https://knoema.com/o/data-engineer-india"/><a href="https://knoema.recruitee.com/"/></body></html>'
+    assert extract_links(pagecontent, "https://knoema.com/", False) == {
+        "https://knoema.com/o/data-engineer-india"
+    }
+    assert extract_links(pagecontent, "https://knoema.com/", True) == {
+        "https://knoema.recruitee.com"
     }
 
 

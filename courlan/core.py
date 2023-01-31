@@ -242,7 +242,9 @@ def extract_links(
             continue
         link = checked[0]
         # external/internal links
-        if external_bool != is_external(link, reference):
+        if external_bool != is_external(
+            url=link, reference=reference, ignore_suffix=True
+        ):
             continue
         if is_known_link(link, validlinks):
             continue
