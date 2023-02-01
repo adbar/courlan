@@ -55,7 +55,9 @@ NOTCRAWLABLE = re.compile(
     re.IGNORECASE,
 )
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
-INDEX_PAGE_FILTER = re.compile(r".{0,5}/index(\.[a-z]{3,4})?/?$", re.IGNORECASE)
+INDEX_PAGE_FILTER = re.compile(
+    r".{0,5}/(default|home|index)(\.[a-z]{3,5})?/?$", re.IGNORECASE
+)
 
 # document types
 EXTENSION_REGEX = re.compile(r"\.[a-z]{2,5}$")
