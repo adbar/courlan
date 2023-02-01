@@ -562,6 +562,10 @@ def test_urlutils():
     assert extract_domain("ftp://www4.httpbin.org", fast=True) == "httpbin.org"
     assert extract_domain("http://w3.example.com", fast=True) == "example.com"
     assert extract_domain("https://de.nachrichten.yahoo.com/", fast=True) == "yahoo.com"
+    assert extract_domain("http://xn--h1aagokeh.xn--p1ai:8888", fast=True) == "xn--h1aagokeh.xn--p1ai"
+    assert extract_domain("http://user:pass@domain.test:81", fast=True) == "domain.test"
+    assert extract_domain("http://111.2.33.44/test", fast=True) == "111.2.33.44"
+    assert extract_domain("http://2001:db8::ff00:42:8329/test", fast=True) == "2001:db8::ff00:42:8329"
     assert (
         extract_domain("https://test.xn--0zwm56d.com/", fast=True) == "xn--0zwm56d.com"
     )

@@ -14,11 +14,14 @@ from tld import get_tld
 DOMAIN_REGEX = re.compile(
     r"(?:http|ftp)s?://"  # protocols
     r"(?:[^/]{,63}\.)?"  # subdomain, www, etc.
-    r"([^/.]{4,}\.[^/]{2,63})"  # domain and extension
+    r"([^/.]{4,}\.[^/]{2,63}|"  # domain and extension
+    r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|"  # IPv4
+    r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
 NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
-CLEAN_DOMAIN_REGEX = re.compile(r"^www[0-9]*\.")
+STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=[^0-9]):[0-9]+")
+CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 
 
 @lru_cache(maxsize=1024)
@@ -30,7 +33,7 @@ def get_tldinfo(
         # try with regexes
         domain_match = DOMAIN_REGEX.match(url)
         if domain_match:
-            full_domain = domain_match[1]
+            full_domain = STRIP_DOMAIN_REGEX.sub("", domain_match[1])
             clean_match = NO_EXTENSION_REGEX.match(full_domain)
             if clean_match:
                 return clean_match[0], full_domain
@@ -39,7 +42,7 @@ def get_tldinfo(
     if tldinfo is None:
         return None, None
     # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_DOMAIN_REGEX.sub("", tldinfo.fld)  # type: ignore[union-attr]
+    return tldinfo.domain, CLEAN_FLD_REGEX.sub("", tldinfo.fld)  # type: ignore[union-attr]
 
 
 def extract_domain(
