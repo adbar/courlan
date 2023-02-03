@@ -217,14 +217,10 @@ def extract_links(
             if langmatch and (
                 langmatch[1].startswith(language) or langmatch[1] == "x-default"
             ):
-                linkmatch = LINK_REGEX.search(link)
-                if linkmatch:
+                if linkmatch := LINK_REGEX.search(link):
                     candidates.add(linkmatch[1])
-        # default
-        else:
-            linkmatch = LINK_REGEX.search(link)
-            if linkmatch:
-                candidates.add(linkmatch[1])
+        elif linkmatch := LINK_REGEX.search(link):
+            candidates.add(linkmatch[1])
     # filter candidates
     for link in candidates:
         # repair using base

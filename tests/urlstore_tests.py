@@ -165,8 +165,8 @@ def test_urlstore():
     assert my_urls.has_been_visited(f"{example_domain}/999") is False
     candidates = [url1, f"{example_domain}/this", f"{example_domain}/999"]
     assert my_urls.filter_unvisited_urls(candidates) == [
-        example_domain + "/this",
-        example_domain + "/999",
+        f"{example_domain}/this",
+        f"{example_domain}/999",
     ]
     assert (
         len(my_urls.find_known_urls(example_domain))

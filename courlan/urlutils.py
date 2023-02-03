@@ -30,12 +30,9 @@ def get_tldinfo(
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
     """Cached function to extract top-level domain info"""
     if fast:
-        # try with regexes
-        domain_match = DOMAIN_REGEX.match(url)
-        if domain_match:
+        if domain_match := DOMAIN_REGEX.match(url):
             full_domain = STRIP_DOMAIN_REGEX.sub("", domain_match[1])
-            clean_match = NO_EXTENSION_REGEX.match(full_domain)
-            if clean_match:
+            if clean_match := NO_EXTENSION_REGEX.match(full_domain):
                 return clean_match[0], full_domain
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
@@ -57,10 +54,7 @@ def extract_domain(
     if full_domain is None:
         return None
     # blacklisting
-    if domain in blacklist or full_domain in blacklist:
-        return None
-    # return domain
-    return full_domain
+    return None if domain in blacklist or full_domain in blacklist else full_domain
 
 
 def _parse(url: Any) -> ParseResult:
@@ -107,15 +101,15 @@ def get_hostinfo(url: str) -> Tuple[Optional[str], str]:
 def fix_relative_urls(baseurl: str, url: str) -> str:
     "Prepend protocol and host information to relative links."
     if url.startswith("//"):
-        return "https:" + url if baseurl.startswith("https") else "http:" + url
+        return f"https:{url}" if baseurl.startswith("https") else f"http:{url}"
     if url.startswith("/"):
         # imperfect path handling
         return baseurl + url
     if url.startswith("."):
         # don't try to correct these URLs
-        return baseurl + "/" + re.sub(r"(.+/)+", "", url)
+        return f"{baseurl}/" + re.sub(r"(.+/)+", "", url)
     if not url.startswith("http") and not url.startswith("{"):
-        return baseurl + "/" + url
+        return f"{baseurl}/{url}"
     # todo: handle here
     # if url.startswith('{'):
     return url
@@ -143,9 +137,7 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     stripped_ref, ref = get_tldinfo(reference, fast=True)
     stripped_domain, domain = get_tldinfo(url, fast=True)
     # comparison
-    if ignore_suffix:
-        return stripped_domain != stripped_ref
-    return domain != ref
+    return stripped_domain != stripped_ref if ignore_suffix else domain != ref
 
 
 def is_known_link(link: str, known_links: Set[str]) -> bool:
@@ -155,7 +147,7 @@ def is_known_link(link: str, known_links: Set[str]) -> bool:
         return True
     # trailing slash
     test1 = link.rstrip("/")
-    test2 = test1 + "/"
+    test2 = f"{test1}/"
     if test1 in known_links or test2 in known_links:
         return True
     # http/https + trailing slash

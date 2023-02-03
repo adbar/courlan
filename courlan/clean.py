@@ -82,11 +82,10 @@ def scrub_url(url: str) -> str:
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
-        match = TRAILING_PARTS.match(url)
-        if match:
+        if match := TRAILING_PARTS.match(url):
             url = match[1]
     if len(url) > 500:
-        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
+        LOGGER.debug("invalid-looking link %s of length %d", f"{url[:50]}…", len(url))
 
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
