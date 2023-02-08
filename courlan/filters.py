@@ -169,10 +169,7 @@ def path_filter(urlpath: str, query: str) -> bool:
     """Filters based on URL path: index page, imprint, etc."""
     if NOTCRAWLABLE.search(urlpath):
         return False
-    if INDEX_PAGE_FILTER.match(urlpath) and len(query) == 0:
-        # print('#', urlpath, INDEX_PAGE_FILTER.match(urlpath), query)
-        return False
-    return True
+    return bool(not INDEX_PAGE_FILTER.match(urlpath) or query)
 
 
 def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:

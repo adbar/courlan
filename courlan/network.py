@@ -47,4 +47,4 @@ def redirection_test(url: str) -> str:
             LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
             return rhead.geturl()  # type: ignore
     # else:
-    raise ValueError("cannot reach URL: %s", url)
+    raise ValueError(f"cannot reach URL: ${url}")
