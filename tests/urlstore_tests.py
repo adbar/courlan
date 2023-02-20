@@ -27,11 +27,16 @@ def test_urlstore():
     my_urls.urldict["http://example.org"].rules = pickle.loads(
         b"\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub."
     )
+
+    # rules
+    assert my_urls.get_rules("http://test.org") is None
     assert my_urls.urldict["http://example.org"].rules is not None
     assert (
         my_urls.get_rules("http://example.org")
         == my_urls.urldict["http://example.org"].rules
     )
+    assert my_urls.get_crawl_delay("http://test.org", default=2) == 2
+    assert my_urls.get_crawl_delay("http://example.org") == 5
 
     # filters
     my_urls = UrlStore(language="en", strict=True)

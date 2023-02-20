@@ -343,7 +343,20 @@ class UrlStore:
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
-        return self.urldict[website].rules
+        if website in self.urldict:
+            return self.urldict[website].rules
+        return None
+
+    def get_crawl_delay(self, website: str, default: float = 5) -> float:
+        "Return the delay as extracted from robots.txt, or a given default."
+        delay = None
+        rules = self.get_rules(website)
+        try:
+            delay = rules.crawl_delay("*")  # type: ignore[union-attr]
+        except AttributeError:  # no rules or no crawl delay
+            pass
+        # backup
+        return delay or default  # type: ignore
 
     # GENERAL INFO
 
