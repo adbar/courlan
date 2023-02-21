@@ -9,6 +9,7 @@ import signal
 import sys
 
 from collections import defaultdict, deque
+from copy import deepcopy
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, DefaultDict, Deque, Dict, List, Optional, Tuple, Union
@@ -126,17 +127,34 @@ class UrlStore:
         timestamp: Optional[datetime] = None,
         to_left: Optional[Deque[UrlPathTuple]] = None,
     ) -> None:
+        # http/https switch
+        if domain.startswith("http://"):
+            candidate = "https" + domain[4:]
+            # switch
+            if candidate in self.urldict:
+                domain = candidate
+        elif domain.startswith("https://"):
+            candidate = "http" + domain[5:]
+            # replace entry
+            if candidate in self.urldict:
+                item = deepcopy(self.urldict[candidate])
+                self.urldict[domain] = item
+                del self.urldict[candidate]
+
+        # load URLs or create entry
         if domain in self.urldict:
             urls = self._load_urls(domain)
             known = {u.urlpath for u in urls}
         else:
             urls = deque()
             known = set()
+
         # check if the link or its variants are known
         if to_right is not None:
             urls.extend(t for t in to_right if not is_known_link(t.urlpath, known))
         if to_left is not None:
             urls.extendleft(t for t in to_left if not is_known_link(t.urlpath, known))
+
         # use lock
         with self._lock:
             # compression
