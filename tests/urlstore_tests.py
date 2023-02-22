@@ -19,16 +19,31 @@ def test_urlstore():
 
     # sanity checks
     my_urls = UrlStore()
-    candidates = ["123", "http://", "ftp://example.org", "https://example.org/", "http://example.org/"]
+    candidates = [
+        "123",
+        "http://",
+        "ftp://example.org",
+        "https://example.org/",
+        "http://example.org/",
+        "https://example.org/1",
+        "http://example.org/1",
+    ]
     my_urls.add_urls(candidates)
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
+    assert len(my_urls.urldict["https://example.org"].tuples) == 2
     firstelem = my_urls.urldict["https://example.org"].tuples[0]
     assert firstelem.urlpath == "/" and firstelem.visited is False
 
     my_urls = UrlStore()
-    candidates = ["http://example.org/", "https://example.org/"]
+    candidates = [
+        "http://example.org/",
+        "https://example.org/",
+        "http://example.org/1",
+        "https://example.org/1",
+    ]
     my_urls.add_urls(candidates)
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
+    assert len(my_urls.urldict["https://example.org"].tuples) == 2
 
     # rules
     my_urls.urldict["https://example.org"].rules = pickle.loads(

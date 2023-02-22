@@ -9,7 +9,6 @@ import signal
 import sys
 
 from collections import defaultdict, deque
-from copy import deepcopy
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, DefaultDict, Deque, Dict, List, Optional, Tuple, Union
@@ -137,8 +136,7 @@ class UrlStore:
             candidate = "http" + domain[5:]
             # replace entry
             if candidate in self.urldict:
-                item = deepcopy(self.urldict[candidate])
-                self.urldict[domain] = item
+                self.urldict[domain] = self.urldict[candidate]
                 del self.urldict[candidate]
 
         # load URLs or create entry
