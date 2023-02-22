@@ -13,8 +13,8 @@ from tld import get_tld
 
 DOMAIN_REGEX = re.compile(
     r"(?:http|ftp)s?://"  # protocols
-    r"(?:[^/]{,63}\.)?"  # subdomain, www, etc.
-    r"([^/.]{4,}\.[^/]{2,63}|"  # domain and extension
+    r"(?:[^/?#]{,63}\.)?"  # subdomain, www, etc.
+    r"([^/?#.]{4,63}\.[^/?#]{2,63}|"  # domain and extension
     r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|"  # IPv4
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string

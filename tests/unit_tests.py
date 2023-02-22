@@ -378,6 +378,7 @@ def test_validate():
     assert validate_url("ftps://www.test.org/test")[0] is False
     assert validate_url("http://t.g/test")[0] is False
     assert validate_url("http://test.org/test")[0] is True
+    # assert validate_url("http://sub.-mkyong.com/test")[0] is False
 
 
 def test_normalization():
@@ -576,6 +577,8 @@ def test_urlutils():
     assert (
         extract_domain("https://test.xn--0zwm56d.com/", fast=True) == "xn--0zwm56d.com"
     )
+    assert extract_domain("http://example.com?query=one", fast=True) == "example.com"
+    assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
     # url parsing
     result = _parse("https://httpbin.org/")
     assert isinstance(result, ParseResult)
