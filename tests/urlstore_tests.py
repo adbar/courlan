@@ -257,19 +257,19 @@ def test_dbdump(capsys):
 
     # database print out
     other_one = UrlStore()
-    other_one.add_urls(["http://print.org/print"])
+    other_one.add_urls(["http://test.org/this"])
     other_one.print_urls()
     captured = capsys.readouterr()
-    assert captured.out.strip() == "http://print.org/print\tFalse"
+    assert captured.out.strip() == "http://test.org/this\tFalse"
+
+    # dump unvisited, don't test it on Windows
     interrupted_one = UrlStore()
     interrupted_one.add_urls(
-        ["https://www.example.org/1", "https://www.example.org/10"]
+        ["https://www.test.org/1", "https://www.test.org/2"]
     )
-
-    # don't test it on Windows
     if os.name != "nt":
         pid = os.getpid()
         with pytest.raises(SystemExit):
             os.kill(pid, signal.SIGINT)
         captured = capsys.readouterr()
-        assert captured.err.strip().endswith("https://www.example.org/10")
+        assert captured.out.strip().endswith("https://www.test.org/2")

@@ -65,17 +65,7 @@ class UrlStore:
                 "Processing interrupted, dumping unvisited URLs from %s hosts",
                 len(self.urldict),
             )
-            for domain in self.urldict:
-                print(
-                    "\n".join(
-                        [
-                            domain + u.urlpath
-                            for u in self._load_urls(domain)
-                            if not u.visited
-                        ]
-                    ),
-                    file=sys.stderr,
-                )
+            self.print_unvisited_urls()
             sys.exit()
 
         # don't use the following on Windows
@@ -387,13 +377,18 @@ class UrlStore:
     def dump_urls(self) -> List[str]:
         "Return a list of all known URLs."
         urls = []
-        for domain in self.get_known_domains():
+        for domain in self.urldict:
             urls.extend(self.find_known_urls(domain))
         return urls
 
+    def print_unvisited_urls(self) -> None:
+        "Print all unvisited URLs in store."
+        for domain in self.urldict:
+            print("\n".join(self.find_unvisited_urls(domain)))
+
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."
-        for domain in self.get_known_domains():
+        for domain in self.urldict:
             print(
                 "\n".join(
                     [
