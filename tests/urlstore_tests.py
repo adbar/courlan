@@ -159,6 +159,14 @@ def test_urlstore():
     assert my_urls.urldict["http://tovisit.com"].all_visited is True
     assert my_urls.get_url("http://tovisit.com") is None
 
+    # known domains
+    assert my_urls.get_known_domains() == [
+        "https://www.example.org",
+        "https://test.org",
+        "https://visited.com",
+        "http://tovisit.com",
+    ]
+
     # known or not
     assert my_urls.is_known("http://tovisit.com/page") is True
     assert my_urls.is_known("https://www.other.org/1") is False
@@ -264,9 +272,7 @@ def test_dbdump(capsys):
 
     # dump unvisited, don't test it on Windows
     interrupted_one = UrlStore()
-    interrupted_one.add_urls(
-        ["https://www.test.org/1", "https://www.test.org/2"]
-    )
+    interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
     if os.name != "nt":
         pid = os.getpid()
         with pytest.raises(SystemExit):
