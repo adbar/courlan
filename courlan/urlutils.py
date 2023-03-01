@@ -97,11 +97,10 @@ def get_host_and_path(url: Any) -> Tuple[str, str]:
 
 
 def get_hostinfo(url: str) -> Tuple[Optional[str], str]:
-    "Extract domain and host info (protocol + host/domain) from a URL."
+    "Convenience function returning domain and host info (protocol + host/domain) from a URL."
     domainname = extract_domain(url, fast=True)
-    parsed_url = urlparse(url)
-    host = parsed_url._replace(path="", params="", query="", fragment="")
-    return domainname, host.geturl()
+    base_url = get_base_url(url)
+    return domainname, base_url
 
 
 def fix_relative_urls(baseurl: str, url: str) -> str:
