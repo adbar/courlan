@@ -61,22 +61,17 @@ class UrlStore:
         self._lock: Lock = Lock()
 
         def dump_unvisited_urls(num: Any, frame: Any) -> None:
-            LOGGER.warning(
+            LOGGER.debug(
                 "Processing interrupted, dumping unvisited URLs from %s hosts",
                 len(self.urldict),
             )
             self.print_unvisited_urls()
-            sys.exit()
+            sys.exit(1)
 
         # don't use the following on Windows
         if not sys.platform.startswith("win"):
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
-
-    # def _filter_urlpaths(self, domain, urls):
-    #    if self.validation or self.language is not None:
-    #        return [u for u in urls if self._filter_url(domain + u)]
-    #    return urls
 
     def _buffer_urls(
         self, data: List[str], visited: bool = False
