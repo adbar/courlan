@@ -129,6 +129,24 @@ def clean_query(
     return parsed_url
 
 
+def decode_punycode(string: str) -> str:
+    "Probe for punycode in lower-cased hostname and try to decode it."
+    if not "xn--" in string:
+        return string
+
+    parts = []
+
+    for part in string.split("."):
+        if part.lower().startswith("xn--"):
+            try:
+                part = part.encode("utf8").decode("idna")
+            except (UnicodeError, UnicodeDecodeError):
+                LOGGER.debug("invalid utf/idna string: %s", part)
+        parts.append(part)
+
+    return ".".join(parts)
+
+
 def normalize_url(
     parsed_url: Union[ParseResult, str],
     strict: bool = False,
@@ -148,10 +166,11 @@ def normalize_url(
     newpath = PATH2.sub("", newpath)
     # fragment
     newfragment = "" if strict else parsed_url.fragment
-    # lowercase + remove fragments
+    # lowercase + remove fragments + normalize punycode
+    netloc = parsed_url.netloc.lower()
     parsed_url = parsed_url._replace(
         scheme=parsed_url.scheme.lower(),
-        netloc=parsed_url.netloc.lower(),
+        netloc=decode_punycode(netloc),
         path=newpath,
         fragment=newfragment,
     )

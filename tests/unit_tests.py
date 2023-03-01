@@ -402,6 +402,10 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+    # punycode
+    assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
+    assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
+    assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
 
 
 def test_qelems():
