@@ -560,6 +560,8 @@ def test_urlcheck():
 def test_urlutils():
     """Test URL manipulation tools"""
     # domain extraction
+    assert extract_domain("") is None
+    assert extract_domain(5) is None
     assert extract_domain("h") is None
     assert extract_domain("https://httpbin.org/") == "httpbin.org"
     assert extract_domain("https://www.httpbin.org/", fast=True) == "httpbin.org"
@@ -627,6 +629,7 @@ def test_urlutils():
 
 def test_external():
     """test domain comparison"""
+    assert is_external("", "https://www.microsoft.com/") is True
     assert is_external("https://github.com/", "https://www.microsoft.com/") is True
     assert (
         is_external(

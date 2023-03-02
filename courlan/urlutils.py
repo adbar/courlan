@@ -29,6 +29,8 @@ def get_tldinfo(
     url: str, fast: bool = False
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
     """Cached function to extract top-level domain info"""
+    if not url or not isinstance(url, str):
+        return None, None
     if fast:
         # try with regexes
         domain_match = DOMAIN_REGEX.match(url)
