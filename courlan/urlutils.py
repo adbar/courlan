@@ -87,15 +87,14 @@ def get_host_and_path(url: Any) -> Tuple[str, str]:
     """Decompose URL in two parts: protocol + host/domain and path.
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
-    host = parsed_url._replace(path="", params="", query="", fragment="")
-    path = parsed_url._replace(scheme="", netloc="")
-    hostval, pathval = host.geturl(), path.geturl()
+    hostname = get_base_url(parsed_url)
+    pathval = parsed_url._replace(scheme="", netloc="").geturl()
     # correction for root/homepage
     if pathval == "":
         pathval = "/"
-    if not hostval or not pathval:
+    if not hostname or not pathval:
         raise ValueError(f"incomplete URL: {url}")
-    return hostval, pathval
+    return hostname, pathval
 
 
 def get_hostinfo(url: str) -> Tuple[Optional[str], str]:

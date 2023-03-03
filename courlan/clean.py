@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
 
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
+from .urlutils import _parse
 
 
 LOGGER = logging.getLogger(__name__)
@@ -98,12 +99,12 @@ def scrub_url(url: str) -> str:
 
 def clean_query(
     parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
-) -> ParseResult:
+) -> str:
     """Strip unwanted query elements"""
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
         newqdict = {}
-        for qelem in sorted(qdict.keys()):
+        for qelem in sorted(qdict):
             teststr = qelem.lower()
             # control param
             if (
@@ -124,9 +125,8 @@ def clean_query(
                     raise ValueError
             # insert
             newqdict[qelem] = qdict[qelem]
-        newstring = urlencode(newqdict, doseq=True)
-        parsed_url = parsed_url._replace(query=newstring)
-    return parsed_url
+        return urlencode(newqdict, doseq=True)
+    return parsed_url.query
 
 
 def decode_punycode(string: str) -> str:
@@ -153,13 +153,14 @@ def normalize_url(
     language: Optional[str] = None,
 ) -> str:
     """Takes a URL string or a parsed URL and returns a (basically) normalized URL string"""
-    if not isinstance(parsed_url, ParseResult):
-        parsed_url = urlparse(parsed_url)
-    # elif not isinstance(parsed_url, str):
-    #    raise TypeError('wrong input type: %s', type(parsed_url))
+    parsed_url = _parse(parsed_url)
     # port
-    if parsed_url.port is not None and parsed_url.port in (80, 443):
-        parsed_url = parsed_url._replace(netloc=NETLOC_RE.sub("", parsed_url.netloc))
+    if parsed_url.port and parsed_url.port in (80, 443):
+        netloc = NETLOC_RE.sub("", parsed_url.netloc)
+    else:
+        netloc = parsed_url.netloc
+    # lowercase + remove fragments + normalize punycode
+    netloc = decode_punycode(netloc.lower())
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     newpath = PATH1.sub("/", parsed_url.path)
     # Leading /../'s in the path are removed
@@ -167,14 +168,13 @@ def normalize_url(
     # fragment
     newfragment = "" if strict else parsed_url.fragment
     # lowercase + remove fragments + normalize punycode
-    netloc = parsed_url.netloc.lower()
     parsed_url = parsed_url._replace(
         scheme=parsed_url.scheme.lower(),
-        netloc=decode_punycode(netloc),
+        netloc=netloc,
         path=newpath,
         fragment=newfragment,
+        # strip unwanted query elements
+        query=clean_query(parsed_url, strict, language),
     )
-    # strip unwanted query elements
-    parsed_url = clean_query(parsed_url, strict, language)
     # rebuild
     return parsed_url.geturl()
