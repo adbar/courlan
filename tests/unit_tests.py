@@ -215,6 +215,11 @@ def test_type_filter():
         is True
     )
     # assert type_filter('http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118') is True
+    # nav
+    assert type_filter("http://www.example.org/tag/abcde/", with_nav=False) is False
+    assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
+    assert type_filter("http://www.example.org/page/10/", with_nav=False) is False
+    assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
 
 
 def test_path_filter():
@@ -692,46 +697,99 @@ def test_extraction():
     )
     # language + content
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
-    links = extract_links(pagecontent, "https://test.com/", False)
+    links = extract_links(pagecontent, "https://test.com/", external_bool=False)
     assert sorted(links) == ["https://test.com/example", "https://test.com/example2"]
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 2
+        len(
+            extract_links(
+                pagecontent, "https://test.com/", external_bool=False, language="de"
+            )
+        )
+        == 2
     )
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, with_nav=False)) == 1
+        len(
+            extract_links(
+                pagecontent, "https://test.com/", external_bool=False, with_nav=False
+            )
+        )
+        == 1
     )
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, with_nav=True)) == 2
+        len(
+            extract_links(
+                pagecontent, "https://test.com/", external_bool=False, with_nav=True
+            )
+        )
+        == 2
     )
+    # navigation
     pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
-    links = extract_links(pagecontent, "https://httpbin.org", False, with_nav=True)
+    links = extract_links(
+        pagecontent, "https://httpbin.org", external_bool=False, with_nav=True
+    )
     assert sorted(links) == [
         "https://httpbin.org/links/2/0",
         "https://httpbin.org/links/2/1",
+    ]
+    pagecontent = "<html><head><title>Pages</title></head><body><a href='/page/10'>10</a> <a href='/page/?=11'>11</a></body></html>"
+    assert (
+        extract_links(
+            pagecontent,
+            "https://example.org",
+            external_bool=False,
+            strict=False,
+            with_nav=False,
+        )
+        == set()
+    )
+    links = extract_links(
+        pagecontent,
+        "https://example.org",
+        external_bool=False,
+        strict=True,
+        with_nav=True,
+    )
+    assert sorted(links) == [
+        "https://example.org/page/",  # parameter stripped by strict filtering
+        "https://example.org/page/10",
+    ]
+    links = extract_links(
+        pagecontent,
+        "https://example.org",
+        external_bool=False,
+        strict=False,
+        with_nav=True,
+    )
+    assert sorted(links) == [
+        "https://example.org/page/10",
+        "https://example.org/page/?=11",
     ]
     # links undeveloped by CMS
     pagecontent = (
         '<html><a href="{privacy}" target="_privacy">{privacy-link}</a></html>'
     )
-    assert len(extract_links(pagecontent, "https://test.com/", False)) == 0
-    assert len(extract_links(pagecontent, "https://test.com/", True)) == 0
+    assert (
+        len(extract_links(pagecontent, "https://test.com/", external_bool=False)) == 0
+    )
+    assert len(extract_links(pagecontent, "https://test.com/", external_bool=True)) == 0
     # links without quotes
     pagecontent = "<html><a href=/contact>Link</a></html>"
-    assert extract_links(pagecontent, "https://test.com/", False) == {
+    assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
         "https://test.com/contact"
     }
-    assert extract_links(pagecontent, "https://test.com/", True) == set()
+    assert extract_links(pagecontent, "https://test.com/", external_bool=True) == set()
     pagecontent = "<html><a href=/contact attribute=value>Link</a></html>"
-    assert extract_links(pagecontent, "https://test.com/", False) == {
+    assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
         "https://test.com/contact"
     }
     # external links with extension (here ".com")
     pagecontent = '<html><body><a href="https://knoema.com/o/data-engineer-india"/><a href="https://knoema.recruitee.com/"/></body></html>'
-    assert extract_links(pagecontent, "https://knoema.com/", False) == {
+    assert extract_links(pagecontent, "https://knoema.com/", external_bool=False) == {
         "https://knoema.com/o/data-engineer-india"
     }
-    assert extract_links(pagecontent, "https://knoema.com/", True) == {
+    assert extract_links(pagecontent, "https://knoema.com/", external_bool=True) == {
         "https://knoema.recruitee.com"
     }
 
