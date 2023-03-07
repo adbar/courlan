@@ -9,7 +9,7 @@ import logging
 import re
 
 from typing import Optional, Union
-from urllib.parse import parse_qs, urlencode, urlparse, ParseResult
+from urllib.parse import parse_qs, urlencode, ParseResult
 
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN

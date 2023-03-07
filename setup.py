@@ -12,7 +12,7 @@ from setuptools import setup
 
 def get_version(package):
     "Return package version as listed in `__version__` in `init.py`"
-    initfile = Path(package, '__init__.py').read_text()  # Python >= 3.5
+    initfile = Path(package, "__init__.py").read_text(encoding="utf-8")
     return re.search("__version__ = ['\"]([^'\"]+)['\"]", initfile)[1]
 
 
@@ -38,6 +38,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
             "courlan/clean.py",
             "courlan/core.py",
             "courlan/filters.py",
+            "courlan/langinfo.py",
             "courlan/settings.py",
             "courlan/urlstore.py",
             "courlan/urlutils.py",
@@ -105,7 +106,8 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "langcodes >= 3.3.0",
-        "tld >= 0.12.6",
+        "tld == 0.12.6; python_version < '3.7'",
+        "tld >= 0.13; python_version >= '3.7'",
         "urllib3 >= 1.26, < 2",
     ],
     # extras_require=extras,

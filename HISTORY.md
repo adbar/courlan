@@ -1,6 +1,16 @@
 ## History / Changelog
 
 
+### 0.9.0
+
+- hardening of filters and URL parses (#14)
+- normalize punicode to unicode
+- methods added to `UrlStore`: `get_crawl_delay()`, `print_unvisited_urls()`
+- `UrlStore` now triggers exit code 1 when interrupted
+- argument added to `extract_links()`: `no_filter`
+- code refactoring: simplifications
+
+
 ### 0.8.3
 
 - fixed bug in domain name extraction

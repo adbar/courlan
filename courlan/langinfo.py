@@ -2,8 +2,10 @@
 Constants containing info about languages and countries.
 """
 
+from typing import Set
 
-LANGUAGE_CODES = {
+
+LANGUAGE_CODES: Set[str] = {
     "aa",
     "ab",
     "ae",
@@ -191,7 +193,7 @@ LANGUAGE_CODES = {
 }
 
 
-COUNTRY_CODES = {
+COUNTRY_CODES: Set[str] = {
     "aw",
     "af",
     "ao",
