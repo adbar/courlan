@@ -47,7 +47,7 @@ HOST_LANG_FILTER = re.compile(
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(
-    r"/(archives|auth?or|cat|category|kat|kategorie|page|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+",
+    r"/(archives|auth?or|[ck]at|category|kategorie|page|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+",
     re.IGNORECASE,
 )
 NOTCRAWLABLE = re.compile(
@@ -62,7 +62,7 @@ INDEX_PAGE_FILTER = re.compile(
 # document types
 EXTENSION_REGEX = re.compile(r"\.[a-z]{2,5}$")
 # https://en.wikipedia.org/wiki/List_of_file_formats#Web_page
-WHITELISTED_EXTENSIONS = (
+WHITELISTED_EXTENSIONS = {
     ".adp",
     ".amp",
     ".asp",
@@ -71,7 +71,7 @@ WHITELISTED_EXTENSIONS = (
     ".cgi",
     ".do",
     ".htm",
-    "html",
+    ".html",
     ".htx",
     ".jsp",
     ".mht",
@@ -87,7 +87,7 @@ WHITELISTED_EXTENSIONS = (
     ".txt",
     ".xhtml",
     ".xml",
-)
+}
 
 # territories whitelist
 # see also: https://babel.pocoo.org/en/latest/api/languages.html
@@ -106,9 +106,8 @@ def basic_filter(url: str) -> bool:
 
 def extension_filter(urlpath: str) -> bool:
     """Filter based on file extension"""
-    return bool(
-        not EXTENSION_REGEX.search(urlpath) or urlpath.endswith(WHITELISTED_EXTENSIONS)
-    )
+    extension_match = EXTENSION_REGEX.search(urlpath)
+    return bool(not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS)
 
 
 def langcodes_score(language: str, segment: str, score: int) -> int:
