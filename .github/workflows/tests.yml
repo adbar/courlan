@@ -75,7 +75,7 @@ jobs:
     - name: Type checking with mypy
       if: ${{ matrix.python-version != 'pypy3.8' }}
       run: |
-        python -m pip install --upgrade mypy
+        python -m pip install --upgrade mypy types-urllib3
         mypy -p courlan
 
     - name: Test with pytest

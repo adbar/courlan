@@ -7,7 +7,7 @@ Functions devoted to requests over the WWW.
 
 import logging
 
-import urllib3  # type: ignore
+import urllib3
 
 
 LOGGER = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def redirection_test(url: str) -> str:
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
     # })
     try:
-        rhead = HTTP_POOL.request("HEAD", url)
+        rhead = HTTP_POOL.request("HEAD", url)  # type:ignore[no-untyped-call]
     except Exception as err:
         LOGGER.exception("unknown error: %s %s", url, err)
     else:
