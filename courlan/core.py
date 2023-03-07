@@ -178,6 +178,7 @@ def extract_links(
     pagecontent: str,
     base_url: str,
     external_bool: bool,
+    no_filter: bool = False,
     language: Optional[str] = None,
     strict: bool = True,
     with_nav: bool = False,
@@ -188,8 +189,9 @@ def extract_links(
     Args:
         pagecontent: whole page in binary format
         base_url: beginning of the URL, without path, fragment and query
-        external: set to True for external links only, False for
+        external_bool: set to True for external links only, False for
                   internal links only
+        no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
         with_nav: set to True to include navigation pages instead of discarding them
@@ -210,9 +212,10 @@ def extract_links(
         reference = base_url
     # extract links
     for match in FIND_LINKS_REGEX.finditer(pagecontent):
+        # filters
         link = match[0]
         # https://en.wikipedia.org/wiki/Hreflang
-        if language is not None and "hreflang" in link:
+        if no_filter is False and language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)
             if langmatch and (
                 langmatch[1].startswith(language) or langmatch[1] == "x-default"
@@ -231,21 +234,22 @@ def extract_links(
         if not link.startswith("http"):
             link = fix_relative_urls(base_url, link)
         # check
-        checked = check_url(
-            link,
-            strict=strict,
-            with_nav=with_nav,
-            with_redirects=redirects,
-            language=language,
-        )
-        if checked is None:
-            continue
-        link = checked[0]
-        # external/internal links
-        if external_bool != is_external(
-            url=link, reference=reference, ignore_suffix=True
-        ):
-            continue
+        if no_filter is False:
+            checked = check_url(
+                link,
+                strict=strict,
+                with_nav=with_nav,
+                with_redirects=redirects,
+                language=language,
+            )
+            if checked is None:
+                continue
+            link = checked[0]
+            # external/internal links
+            if external_bool != is_external(
+                url=link, reference=reference, ignore_suffix=True
+            ):
+                continue
         if is_known_link(link, validlinks):
             continue
         validlinks.add(link)

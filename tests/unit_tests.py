@@ -792,6 +792,16 @@ def test_extraction():
     assert extract_links(pagecontent, "https://knoema.com/", external_bool=True) == {
         "https://knoema.recruitee.com"
     }
+    # return all links without filters
+    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="/page/2"/><a href="https://example.com/gallery/"/></html>'
+    result = extract_links(
+        pagecontent, "https://test.com", external_bool=True, no_filter=True
+    )
+    assert sorted(result) == [
+        "https://example.com/gallery/",
+        "https://test.com/example",
+        "https://test.com/page/2",
+    ]
 
 
 def test_cli():
