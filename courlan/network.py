@@ -37,7 +37,9 @@ RETRY_STRATEGY = urllib3.util.Retry(
     ],  # unofficial: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#Unofficial_codes
     backoff_factor=1,
 )
-HTTP_POOL = urllib3.PoolManager(retries=RETRY_STRATEGY)
+HTTP_POOL = urllib3.PoolManager(
+    cert_reqs="CERT_NONE", num_pools=100, retries=RETRY_STRATEGY, timeout=10
+)
 
 ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
 
