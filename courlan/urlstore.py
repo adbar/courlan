@@ -114,12 +114,12 @@ class UrlStore:
     ) -> None:
         # http/https switch
         if domain.startswith("http://"):
-            candidate = "https" + domain[4:]
+            candidate = f"https{domain[4:]}"
             # switch
             if candidate in self.urldict:
                 domain = candidate
         elif domain.startswith("https://"):
-            candidate = "http" + domain[5:]
+            candidate = f"http{domain[5:]}"
             # replace entry
             if candidate in self.urldict:
                 self.urldict[domain] = self.urldict[candidate]
@@ -345,9 +345,7 @@ class UrlStore:
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
-        if website in self.urldict:
-            return self.urldict[website].rules
-        return None
+        return self.urldict[website].rules if website in self.urldict else None
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
         "Return the delay as extracted from robots.txt, or a given default."
