@@ -52,7 +52,7 @@ class UrlStore:
         compressed: bool = False,
         language: Optional[str] = None,
         strict: bool = False,
-        verbose: bool = False
+        verbose: bool = False,
     ) -> None:
         self.compressed: bool = compressed
         self.done: bool = False
