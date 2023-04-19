@@ -271,9 +271,9 @@ def test_dbdump(capsys):
     assert captured.out.strip() == "http://test.org/this\tFalse"
 
     # dump unvisited, don't test it on Windows
-    interrupted_one = UrlStore()
-    interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
     if os.name != "nt":
+        interrupted_one = UrlStore(verbose=True)
+        interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
         pid = os.getpid()
         with pytest.raises(SystemExit):
             os.kill(pid, signal.SIGINT)
