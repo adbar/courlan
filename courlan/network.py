@@ -13,9 +13,29 @@ import urllib3
 LOGGER = logging.getLogger(__name__)
 
 RETRY_STRATEGY = urllib3.util.Retry(
-    total=5,
-    redirect=5,
+    total=2,
+    redirect=2,
     raise_on_redirect=False,
+    status_forcelist=[
+        429,
+        499,
+        500,
+        502,
+        503,
+        504,
+        509,
+        520,
+        521,
+        522,
+        523,
+        524,
+        525,
+        526,
+        527,
+        530,
+        598,
+    ],  # unofficial: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#Unofficial_codes
+    backoff_factor=1,
 )
 HTTP_POOL = urllib3.PoolManager(retries=RETRY_STRATEGY)
 
