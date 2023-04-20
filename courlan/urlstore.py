@@ -7,6 +7,7 @@ import logging
 import pickle
 import signal
 import sys
+import zlib
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
@@ -142,7 +143,7 @@ class UrlStore:
         with self._lock:
             # compression
             if self.compressed:
-                self.urldict[domain].tuples = bz2.compress(  # type: ignore
+                self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
                     pickle.dumps(urls, protocol=4)
                 )
             else:
@@ -342,10 +343,23 @@ class UrlStore:
         # sort by first tuple element (time in secs)
         return sorted(targets, key=lambda x: x[0])  # type: ignore[arg-type]
 
+    # CRAWLING
+
+    def store_rules(self, website: str, rules: Optional[RobotFileParser]) -> None:
+        "Store crawling rules for a given website."
+        if self.compressed:
+            rules = zlib.compress(  # type: ignore[assignment]
+                pickle.dumps(rules, protocol=4)
+            )
+        self.urldict[website].rules = rules
+
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
         if website in self.urldict:
-            return self.urldict[website].rules
+            if self.compressed:
+                return pickle.loads(zlib.decompress(self.urldict[website].rules))  # type: ignore[arg-type]
+            else:
+                return self.urldict[website].rules
         return None
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
@@ -357,7 +371,7 @@ class UrlStore:
         except AttributeError:  # no rules or no crawl delay
             pass
         # backup
-        return delay or default  # type: ignore
+        return delay or default  # type: ignore[return-value]
 
     # GENERAL INFO
 
