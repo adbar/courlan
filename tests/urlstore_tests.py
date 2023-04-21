@@ -276,7 +276,7 @@ def test_dbdump(capsys):
         # standard
         interrupted_one = UrlStore()
         interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
-        pid = os.getpid()
+        # sys.exit() since signals are not caught
         with pytest.raises(SystemExit):
             sys.exit(1)
         captured = capsys.readouterr()
@@ -284,6 +284,7 @@ def test_dbdump(capsys):
         # verbose
         interrupted_one = UrlStore(verbose=True)
         interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
+        # SIGINT + SIGTERM caught
         pid = os.getpid()
         with pytest.raises(SystemExit):
             os.kill(pid, signal.SIGINT)
