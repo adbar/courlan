@@ -52,6 +52,7 @@ class UrlStore:
         compressed: bool = False,
         language: Optional[str] = None,
         strict: bool = False,
+        verbose: bool = False,
     ) -> None:
         self.compressed: bool = compressed
         self.done: bool = False
@@ -69,7 +70,7 @@ class UrlStore:
             sys.exit(1)
 
         # don't use the following on Windows
-        if not sys.platform.startswith("win"):
+        if verbose and not sys.platform.startswith("win"):
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 

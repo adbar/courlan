@@ -5,6 +5,7 @@ Unit tests for the UrlStore class of the courlan package.
 import os
 import pickle
 import signal
+import sys
 import uuid
 
 from datetime import datetime
@@ -271,9 +272,19 @@ def test_dbdump(capsys):
     assert captured.out.strip() == "http://test.org/this\tFalse"
 
     # dump unvisited, don't test it on Windows
-    interrupted_one = UrlStore()
-    interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
     if os.name != "nt":
+        # standard
+        interrupted_one = UrlStore()
+        interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
+        # sys.exit() since signals are not caught
+        with pytest.raises(SystemExit):
+            sys.exit(1)
+        captured = capsys.readouterr()
+        assert captured.out.strip() == ""
+        # verbose
+        interrupted_one = UrlStore(verbose=True)
+        interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
+        # SIGINT + SIGTERM caught
         pid = os.getpid()
         with pytest.raises(SystemExit):
             os.kill(pid, signal.SIGINT)
