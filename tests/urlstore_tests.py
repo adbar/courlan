@@ -33,8 +33,10 @@ def test_urlstore():
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
     firstelem = my_urls.urldict["https://example.org"].tuples[0]
     assert firstelem.urlpath == "/" and firstelem.visited is False
+    # reset
+    my_urls.reset()
+    assert len(my_urls.urldict) == 0
 
-    my_urls = UrlStore()
     candidates = [
         "http://example.org/",
         "https://example.org/",

@@ -73,6 +73,11 @@ class UrlStore:
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
+    def reset(self):
+        "Re-initialize the URL store."
+        with self._lock:
+            self.__init__()
+
     def _buffer_urls(
         self, data: List[str], visited: bool = False
     ) -> DefaultDict[str, Deque[UrlPathTuple]]:
