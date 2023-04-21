@@ -3,6 +3,7 @@ Defines a URL store which holds URLs along with relevant information.
 """
 
 import bz2
+import gc
 import logging
 import pickle
 import signal
@@ -74,6 +75,13 @@ class UrlStore:
         if verbose and not sys.platform.startswith("win"):
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
+
+    def reset(self) -> None:
+        "Re-initialize the URL store."
+        with self._lock:
+            self.urldict = defaultdict(DomainEntry)
+            num = gc.collect()
+            LOGGER.debug("UrlStore reset, %s objects in GC", num)
 
     def _buffer_urls(
         self, data: List[str], visited: bool = False

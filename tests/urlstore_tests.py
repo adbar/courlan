@@ -2,6 +2,7 @@
 Unit tests for the UrlStore class of the courlan package.
 """
 
+import gc
 import os
 import pickle
 import signal
@@ -34,8 +35,13 @@ def test_urlstore():
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
     firstelem = my_urls.urldict["https://example.org"].tuples[0]
     assert firstelem.urlpath == "/" and firstelem.visited is False
+    # reset
+    num, _, _ = gc.get_count()
+    my_urls.reset()
+    num2, _, _ = gc.get_count()
+    assert len(my_urls.urldict) == 0
+    assert num2 < num
 
-    my_urls = UrlStore()
     candidates = [
         "http://example.org/",
         "https://example.org/",
