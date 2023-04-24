@@ -262,7 +262,7 @@ class UrlStore:
 
     # DOWNLOADS
 
-    def get_url(self, domain: str) -> Optional[str]:
+    def get_url(self, domain: str, as_visited: bool = True) -> Optional[str]:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
         if not self.urldict[domain].all_visited:
@@ -270,10 +270,12 @@ class UrlStore:
             # get first non-seen url
             for url in url_tuples:
                 if not url.visited:
-                    url.visited = True
-                    with self._lock:
-                        self.urldict[domain].count += 1
-                    self._store_urls(domain, url_tuples, timestamp=datetime.now())
+                    # store information
+                    if as_visited is True:
+                        url.visited = True
+                        with self._lock:
+                            self.urldict[domain].count += 1
+                        self._store_urls(domain, url_tuples, timestamp=datetime.now())
                     return domain + url.urlpath
         # nothing to draw from
         with self._lock:

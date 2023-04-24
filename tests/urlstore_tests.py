@@ -162,10 +162,23 @@ def test_urlstore():
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
     assert my_urls.urldict[example_domain].count == 0
+
     url1 = my_urls.get_url(example_domain)
+    timestamp = my_urls.urldict[example_domain].timestamp
     url2 = my_urls.get_url(example_domain)
     assert url1 != url2 and url1 == "https://www.example.org/1/10/"
     assert my_urls.urldict[example_domain].count == 2
+    assert timestamp != my_urls.urldict[example_domain].timestamp
+    assert url2 not in set(my_urls.find_unvisited_urls(example_domain))
+
+    # as_visited=False
+    timestamp = my_urls.urldict[example_domain].timestamp
+    url3 = my_urls.get_url(example_domain, as_visited=False)
+    assert url3 != url1 and url3 != url2
+    assert my_urls.urldict[example_domain].count == 2
+    assert timestamp == my_urls.urldict[example_domain].timestamp
+    assert url3 in set(my_urls.find_unvisited_urls(example_domain))
+
     url_tuples = my_urls._load_urls(example_domain)
     # positions
     assert url1.endswith(url_tuples[0].urlpath) and url2.endswith(url_tuples[1].urlpath)
