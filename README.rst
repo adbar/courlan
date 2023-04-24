@@ -255,6 +255,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``dump_urls()``: Return a list of all known URLs.
    - ``print_urls()``: Print all URLs in store (URL + TAB + visited or not).
    - ``print_unvisited_urls()``: Print all unvisited URLs in store.
+   - ``get_all_counts()``: Return all download counts for the hosts in store.
    - ``get_known_domains()``: Return all known domains as a list.
    - ``total_url_number()``: Find number of all URLs in store.
    - ``is_known(url)``: Check if the given URL has already been stored.
@@ -263,6 +264,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``filter_unvisited_urls(urls)``: Take a list of URLs and return the currently unvisited ones.
    - ``find_known_urls(domain)``: Get all already known URLs for the given domain (ex. "https://example.org").
    - ``find_unvisited_urls(domain)``: Get all unvisited URLs for the given domain.
+   - ``reset()``: Re-initialize the URL store.
 - Crawling and downloads
    - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
    - ``get_rules(domain)``: Return the stored crawling rules for the given website.
@@ -272,6 +274,12 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``download_threshold_reached(threshold)``: Find out if the download limit (in seconds) has been reached for one of the websites in store.
    - ``unvisited_websites_number()``: Return the number of websites for which there are still URLs to visit.
    - ``is_exhausted_domain(domain)``: Tell if all known URLs for the website have been visited.
+
+Optional settings:
+- ``compressed=True``: activate compression of URLs and rules
+- ``language=XX``: focus on a particular target language (two-letter code)
+- ``strict=True``: stricter URL filtering
+- ``verbose=True``: dump URLs if interrupted (requires use of ``signal``)
 
 
 Command-line
