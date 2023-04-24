@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 0.9.1
+
+- network tests: larger throughput
+- UrlStore: optional compression of rules (#21), added `reset()` (#22) and `get_all_counts()` methods
+- UrlStore fixes: `signal` in #18, `total_url_number`
+- updated Readme
+
+
 ### 0.9.0
 
 - hardening of filters and URL parses (#14)
