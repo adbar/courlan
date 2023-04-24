@@ -279,7 +279,7 @@ Optional settings:
 - ``compressed=True``: activate compression of URLs and rules
 - ``language=XX``: focus on a particular target language (two-letter code)
 - ``strict=True``: stricter URL filtering
-- ``verbose=True``: dump URLs if interrupted
+- ``verbose=True``: dump URLs if interrupted (requires use of ``signal``)
 
 
 Command-line
