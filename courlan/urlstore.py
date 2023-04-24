@@ -392,7 +392,7 @@ class UrlStore:
 
     def total_url_number(self) -> int:
         "Find number of all URLs in store."
-        return sum(len(self.urldict[d].tuples) for d in self.urldict)
+        return sum(len(self._load_urls(d)) for d in self.urldict)
 
     def download_threshold_reached(self, threshold: float) -> bool:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."

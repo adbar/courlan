@@ -101,6 +101,7 @@ def test_urlstore():
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(example_urls)
     my_urls.add_urls(example_urls)
+    assert my_urls.total_url_number() == len(example_urls)
     # necessary to pickle
     my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
@@ -109,6 +110,7 @@ def test_urlstore():
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(test_urls)
     my_urls.add_urls(test_urls)
+    assert my_urls.total_url_number() == len(test_urls)
     # necessary to pickle
     my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
