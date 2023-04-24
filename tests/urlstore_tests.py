@@ -122,6 +122,7 @@ def test_urlstore():
         urls
     )
     assert my_urls.total_url_number() == len(urls)
+    assert my_urls.get_all_counts() == [0, 0]
 
     if my_urls.compressed is False:
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
@@ -170,6 +171,7 @@ def test_urlstore():
     assert my_urls.urldict[example_domain].count == 2
     assert timestamp != my_urls.urldict[example_domain].timestamp
     assert url2 not in set(my_urls.find_unvisited_urls(example_domain))
+    assert my_urls.get_all_counts() == [2, 0, 0]
 
     # as_visited=False
     timestamp = my_urls.urldict[example_domain].timestamp

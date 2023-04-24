@@ -386,6 +386,10 @@ class UrlStore:
 
     # GENERAL INFO
 
+    def get_all_counts(self) -> List[int]:
+        "Return all download counts for the hosts in store."
+        return [self.urldict[d].count for d in self.urldict]
+
     def total_url_number(self) -> int:
         "Find number of all URLs in store."
         return sum(len(self.urldict[d].tuples) for d in self.urldict)
