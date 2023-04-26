@@ -18,7 +18,6 @@ from typing import (
     DefaultDict,
     Deque,
     Dict,
-    Generator,
     List,
     Optional,
     Tuple,
@@ -118,17 +117,10 @@ class UrlStore:
                 LOGGER.warning("Discarding URL: %s", url)
         return inputdict
 
-    def _yield_urls(self, domain: str) -> Generator[UrlPathTuple, None, None]:
-        if self.compressed is False:
-            yield from self.urldict[domain].tuples
-        else:
-            yield from pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore[arg-type]
-
     def _load_urls(self, domain: str) -> Deque[UrlPathTuple]:
-        value = self.urldict[domain].tuples
-        if isinstance(value, bytes):
-            return pickle.loads(bz2.decompress(value))
-        return value
+        if self.compressed:
+            return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
+        return self.urldict[domain].tuples
 
     def _store_urls(
         self,
@@ -193,12 +185,10 @@ class UrlStore:
             if hostinfo != last_domain:
                 last_domain = hostinfo
                 if switch == 1:
-                    known_paths = dict.fromkeys(
-                        u.urlpath for u in self._yield_urls(hostinfo)
-                    )
+                    known_paths = {u.urlpath: None for u in self._load_urls(hostinfo)}
                 elif switch == 2:
                     known_paths = {
-                        u.urlpath: u.visited for u in self._yield_urls(hostinfo)
+                        u.urlpath: u.visited for u in self._load_urls(hostinfo)
                     }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (
@@ -233,11 +223,11 @@ class UrlStore:
         "Check if the given URL has already been stored."
         hostinfo, urlpath = get_host_and_path(url)
         # returns False if domain or URL is new
-        return urlpath in {u.urlpath for u in self._yield_urls(hostinfo)}
+        return urlpath in {u.urlpath for u in self._load_urls(hostinfo)}
 
     def find_known_urls(self, domain: str) -> List[str]:
         """Get all already known URLs for the given domain (ex. "https://example.org")."""
-        return [domain + u.urlpath for u in self._yield_urls(domain)]
+        return [domain + u.urlpath for u in self._load_urls(domain)]
 
     def filter_unknown_urls(self, urls: List[str]) -> List[str]:
         "Take a list of URLs and return the currently unknown ones."
@@ -258,13 +248,13 @@ class UrlStore:
     def has_been_visited(self, url: str) -> bool:
         "Check if the given URL has already been visited.."
         hostinfo, urlpath = get_host_and_path(url)
-        known_urlpaths = {u.urlpath: u.visited for u in self._yield_urls(hostinfo)}
+        known_urlpaths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
         # defaults to None, thus False
         return known_urlpaths.get(urlpath) or False
 
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
-        return [domain + u.urlpath for u in self._yield_urls(domain) if not u.visited]
+        return [domain + u.urlpath for u in self._load_urls(domain) if not u.visited]
 
     def filter_unvisited_urls(self, urls: List[str]) -> List[Union[Any, str]]:
         "Take a list of URLs and return the currently unvisited ones."
@@ -431,7 +421,7 @@ class UrlStore:
                 "\n".join(
                     [
                         domain + u.urlpath + "\t" + str(u.visited)
-                        for u in self._yield_urls(domain)
+                        for u in self._load_urls(domain)
                     ]
                 )
             )
