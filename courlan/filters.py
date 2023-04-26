@@ -107,7 +107,7 @@ def basic_filter(url: str) -> bool:
 def extension_filter(urlpath: str) -> bool:
     """Filter based on file extension"""
     extension_match = EXTENSION_REGEX.search(urlpath)
-    return bool(not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS)
+    return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
 def langcodes_score(language: str, segment: str, score: int) -> int:
