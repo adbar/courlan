@@ -107,7 +107,7 @@ def basic_filter(url: str) -> bool:
 def extension_filter(urlpath: str) -> bool:
     """Filter based on file extension"""
     extension_match = EXTENSION_REGEX.search(urlpath)
-    return bool(not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS)
+    return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
 def langcodes_score(language: str, segment: str, score: int) -> int:
@@ -139,9 +139,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         return True
     # init score
     score = 0
-    # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.match(url)
-    if match:
+    if match := PATH_LANG_FILTER.match(url):
         # look for other occurrences
         occurrences = ALL_PATH_LANGS.findall(url)
         if len(occurrences) == 1:
@@ -149,11 +147,9 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         elif len(occurrences) == 2:
             for occurrence in occurrences:
                 score = langcodes_score(language, occurrence, score)
-        # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
     if strict and language in LANGUAGE_MAPPINGS:
-        match = HOST_LANG_FILTER.match(url)
-        if match:
+        if match := HOST_LANG_FILTER.match(url):
             candidate = match[1].lower()
             LOGGER.debug("candidate lang %s found in URL", candidate)
             if candidate in LANGUAGE_MAPPINGS[language]:

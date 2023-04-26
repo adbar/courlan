@@ -83,11 +83,10 @@ def scrub_url(url: str) -> str:
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     if len(url) > 500:  # arbitrary choice
-        match = TRAILING_PARTS.match(url)
-        if match:
+        if match := TRAILING_PARTS.match(url):
             url = match[1]
     if len(url) > 500:
-        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
+        LOGGER.debug("invalid-looking link %s of length %d", f"{url[:50]}…", len(url))
 
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
@@ -101,37 +100,37 @@ def clean_query(
     parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
 ) -> str:
     """Strip unwanted query elements"""
-    if len(parsed_url.query) > 0:
-        qdict = parse_qs(parsed_url.query)
-        newqdict = {}
-        for qelem in sorted(qdict):
-            teststr = qelem.lower()
-            # control param
+    if len(parsed_url.query) <= 0:
+        return parsed_url.query
+    qdict = parse_qs(parsed_url.query)
+    newqdict = {}
+    for qelem in sorted(qdict):
+        teststr = qelem.lower()
+        # control param
+        if (
+            strict
+            and teststr not in ALLOWED_PARAMS
+            and teststr not in CONTROL_PARAMS
+        ):
+            continue
+        # control language
+        if language is not None and teststr in CONTROL_PARAMS:
+            found_lang = str(qdict[qelem][0])
             if (
-                strict
-                and teststr not in ALLOWED_PARAMS
-                and teststr not in CONTROL_PARAMS
+                (language == "de" and found_lang not in TARGET_LANG_DE)
+                or (language == "en" and found_lang not in TARGET_LANG_EN)
+                or found_lang != language
             ):
-                continue
-            # control language
-            if language is not None and teststr in CONTROL_PARAMS:
-                found_lang = str(qdict[qelem][0])
-                if (
-                    (language == "de" and found_lang not in TARGET_LANG_DE)
-                    or (language == "en" and found_lang not in TARGET_LANG_EN)
-                    or found_lang != language
-                ):
-                    LOGGER.info("bad lang: %s %s %s", language, qelem, found_lang)
-                    raise ValueError
-            # insert
-            newqdict[qelem] = qdict[qelem]
-        return urlencode(newqdict, doseq=True)
-    return parsed_url.query
+                LOGGER.info("bad lang: %s %s %s", language, qelem, found_lang)
+                raise ValueError
+        # insert
+        newqdict[qelem] = qdict[qelem]
+    return urlencode(newqdict, doseq=True)
 
 
 def decode_punycode(string: str) -> str:
     "Probe for punycode in lower-cased hostname and try to decode it."
-    if not "xn--" in string:
+    if "xn--" not in string:
         return string
 
     parts = []
@@ -140,7 +139,7 @@ def decode_punycode(string: str) -> str:
         if part.lower().startswith("xn--"):
             try:
                 part = part.encode("utf8").decode("idna")
-            except (UnicodeError, UnicodeDecodeError):
+            except UnicodeError:
                 LOGGER.debug("invalid utf/idna string: %s", part)
         parts.append(part)
 

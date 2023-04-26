@@ -126,7 +126,7 @@ def test_urlstore():
     assert my_urls.total_url_number() == len(urls)
     assert my_urls.get_all_counts() == [0, 0]
 
-    if my_urls.compressed is False:
+    if not my_urls.compressed:
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
     assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
@@ -178,7 +178,7 @@ def test_urlstore():
     # as_visited=False
     timestamp = my_urls.urldict[example_domain].timestamp
     url3 = my_urls.get_url(example_domain, as_visited=False)
-    assert url3 != url1 and url3 != url2
+    assert url3 not in [url1, url2]
     assert my_urls.urldict[example_domain].count == 2
     assert timestamp == my_urls.urldict[example_domain].timestamp
     assert url3 in set(my_urls.find_unvisited_urls(example_domain))
@@ -234,8 +234,8 @@ def test_urlstore():
     assert my_urls.has_been_visited(f"{example_domain}/999") is False
     candidates = [url1, f"{example_domain}/this", f"{example_domain}/999"]
     assert my_urls.filter_unvisited_urls(candidates) == [
-        example_domain + "/this",
-        example_domain + "/999",
+        f"{example_domain}/this",
+        f"{example_domain}/999",
     ]
     assert (
         len(my_urls.find_known_urls(example_domain))

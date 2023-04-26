@@ -123,12 +123,12 @@ class UrlStore:
     ) -> None:
         # http/https switch
         if domain.startswith("http://"):
-            candidate = "https" + domain[4:]
+            candidate = f"https{domain[4:]}"
             # switch
             if candidate in self.urldict:
                 domain = candidate
         elif domain.startswith("https://"):
-            candidate = "http" + domain[5:]
+            candidate = f"http{domain[5:]}"
             # replace entry
             if candidate in self.urldict:
                 self.urldict[domain] = self.urldict[candidate]
@@ -271,7 +271,7 @@ class UrlStore:
             for url in url_tuples:
                 if not url.visited:
                     # store information
-                    if as_visited is True:
+                    if as_visited:
                         url.visited = True
                         with self._lock:
                             self.urldict[domain].count += 1
