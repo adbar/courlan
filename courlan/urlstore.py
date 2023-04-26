@@ -13,7 +13,17 @@ import zlib
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, DefaultDict, Deque, Dict, Generator, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    DefaultDict,
+    Deque,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from urllib.robotparser import RobotFileParser
 
@@ -120,7 +130,6 @@ class UrlStore:
             return pickle.loads(bz2.decompress(value))
         return value
 
-
     def _store_urls(
         self,
         domain: str,
@@ -184,7 +193,9 @@ class UrlStore:
             if hostinfo != last_domain:
                 last_domain = hostinfo
                 if switch == 1:
-                    known_paths = dict.fromkeys(u.urlpath for u in self._yield_urls(hostinfo))
+                    known_paths = dict.fromkeys(
+                        u.urlpath for u in self._yield_urls(hostinfo)
+                    )
                 elif switch == 2:
                     known_paths = {
                         u.urlpath: u.visited for u in self._yield_urls(hostinfo)
