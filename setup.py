@@ -108,7 +108,7 @@ setup(
         "langcodes >= 3.3.0",
         "tld == 0.12.6; python_version < '3.7'",
         "tld >= 0.13; python_version >= '3.7'",
-        "urllib3 >= 1.26, < 2",
+        "urllib3 >= 1.26, < 3",
     ],
     # extras_require=extras,
     entry_points={
