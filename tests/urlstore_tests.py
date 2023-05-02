@@ -260,7 +260,7 @@ def test_urlstore():
     assert len(downloadable_urls) == 0
     other_store = UrlStore()
     downloadable_urls = other_store.get_download_urls()
-    assert downloadable_urls is None and other_store.done is True
+    assert downloadable_urls == [] and other_store.done is True
 
     # schedule
     schedule = other_store.establish_download_schedule()

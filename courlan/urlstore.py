@@ -13,7 +13,16 @@ import zlib
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, DefaultDict, Deque, Dict, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    DefaultDict,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from urllib.robotparser import RobotFileParser
 
@@ -109,10 +118,9 @@ class UrlStore:
         return inputdict
 
     def _load_urls(self, domain: str) -> Deque[UrlPathTuple]:
-        value = self.urldict[domain].tuples
-        if isinstance(value, bytes):
-            return pickle.loads(bz2.decompress(value))
-        return value
+        if self.compressed:
+            return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
+        return self.urldict[domain].tuples
 
     def _store_urls(
         self,
@@ -214,14 +222,12 @@ class UrlStore:
     def is_known(self, url: str) -> bool:
         "Check if the given URL has already been stored."
         hostinfo, urlpath = get_host_and_path(url)
-        values = self._load_urls(hostinfo)
         # returns False if domain or URL is new
-        return urlpath in {u.urlpath for u in values}
+        return urlpath in {u.urlpath for u in self._load_urls(hostinfo)}
 
     def find_known_urls(self, domain: str) -> List[str]:
         """Get all already known URLs for the given domain (ex. "https://example.org")."""
-        values = self._load_urls(domain)
-        return [domain + u.urlpath for u in values]
+        return [domain + u.urlpath for u in self._load_urls(domain)]
 
     def filter_unknown_urls(self, urls: List[str]) -> List[str]:
         "Take a list of URLs and return the currently unknown ones."
@@ -242,15 +248,13 @@ class UrlStore:
     def has_been_visited(self, url: str) -> bool:
         "Check if the given URL has already been visited.."
         hostinfo, urlpath = get_host_and_path(url)
-        values = self._load_urls(hostinfo)
-        known_urlpaths = {u.urlpath: u.visited for u in values}
+        known_urlpaths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
         # defaults to None, thus False
         return known_urlpaths.get(urlpath) or False
 
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
-        values = self._load_urls(domain)
-        return [domain + u.urlpath for u in values if not u.visited]
+        return [domain + u.urlpath for u in self._load_urls(domain) if not u.visited]
 
     def filter_unvisited_urls(self, urls: List[str]) -> List[Union[Any, str]]:
         "Take a list of URLs and return the currently unvisited ones."
@@ -271,7 +275,7 @@ class UrlStore:
             for url in url_tuples:
                 if not url.visited:
                     # store information
-                    if as_visited is True:
+                    if as_visited:
                         url.visited = True
                         with self._lock:
                             self.urldict[domain].count += 1
@@ -289,7 +293,7 @@ class UrlStore:
             potential = [d for d in self.urldict if not self.urldict[d].all_visited]
         if not potential:
             self.done = True
-            return None
+            return []
         targets = []
         for domain in potential:
             timestamp = self._timestamp(domain)
@@ -317,8 +321,8 @@ class UrlStore:
         targets: List[Tuple[float, str]] = []
         # iterate potential domains
         for domain in potential:
-            url_tuples = self._load_urls(domain)
             # load urls
+            url_tuples = self._load_urls(domain)
             urlpaths: List[str] = []
             # get first non-seen urls
             for url in url_tuples:
@@ -368,9 +372,8 @@ class UrlStore:
         "Return the stored crawling rules for the given website."
         if website in self.urldict:
             if self.compressed:
-                return pickle.loads(zlib.decompress(self.urldict[website].rules))  # type: ignore[arg-type]
-            else:
-                return self.urldict[website].rules
+                return pickle.loads(zlib.decompress(self.urldict[website].rules))  # type: ignore
+            return self.urldict[website].rules
         return None
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
@@ -407,8 +410,9 @@ class UrlStore:
 
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
-        for domain in self.urldict:
-            print("\n".join(self.find_unvisited_urls(domain)))
+        with self._lock:
+            for domain in self.urldict:
+                print("\n".join(self.find_unvisited_urls(domain)))
 
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."

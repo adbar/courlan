@@ -131,7 +131,7 @@ def clean_query(
 
 def decode_punycode(string: str) -> str:
     "Probe for punycode in lower-cased hostname and try to decode it."
-    if not "xn--" in string:
+    if "xn--" not in string:
         return string
 
     parts = []
@@ -140,7 +140,7 @@ def decode_punycode(string: str) -> str:
         if part.lower().startswith("xn--"):
             try:
                 part = part.encode("utf8").decode("idna")
-            except (UnicodeError, UnicodeDecodeError):
+            except UnicodeError:
                 LOGGER.debug("invalid utf/idna string: %s", part)
         parts.append(part)
 
