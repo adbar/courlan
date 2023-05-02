@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 0.9.2
+
+- add blogspot archives to type filter
+- maintenance: upgrade ``urllib3`` and review code
+
+
 ### 0.9.1
 
 - network tests: larger throughput
