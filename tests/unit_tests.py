@@ -461,9 +461,9 @@ def test_urlcheck():
     assert check_url("http://example.com/test.js") is None
     assert check_url("http://twitter.com/", strict=True) is None
     assert check_url("http://twitter.com/", strict=False) is not None
-    assert check_url("https://www.httpbin.org/status/200", with_redirects=True) == (
-        "https://www.httpbin.org/status/200",
-        "httpbin.org",
+    assert check_url("https://www.httpbun.org/status/200", with_redirects=True) == (
+        "https://httpbun.org",
+        "httpbun.org",
     )
     # assert check_url('https://www.httpbin.org/status/302', with_redirects=True) == ('https://www.httpbin.org/status/302', 'httpbin.org')
     assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
