@@ -11,6 +11,8 @@ import urllib3
 
 
 LOGGER = logging.getLogger(__name__)
+urllib3.disable_warnings()
+
 
 RETRY_STRATEGY = urllib3.util.Retry(
     total=2,
