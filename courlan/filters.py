@@ -20,8 +20,8 @@ from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 LOGGER = logging.getLogger(__name__)
 
 # content filters
-WORDPRESS_CONTENT = re.compile(
-    r"/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$",
+SITE_STRUCTURE = re.compile(
+    r"/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$|/[0-9]+/[0-9]+/$|/[0-9]{4}/$|_archive\.html$",
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
@@ -179,9 +179,7 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
         if url.endswith(("/feed", "/rss")):
             raise ValueError
         # wordpress website structure
-        if WORDPRESS_CONTENT.search(url) and (
-            not with_nav or not is_navigation_page(url)
-        ):
+        if SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)):
             raise ValueError
         # not suitable: ads, adult and embedded content
         if UNDESIRABLE.search(url):

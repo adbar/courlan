@@ -209,12 +209,21 @@ def test_type_filter():
     # author
     assert type_filter("http://www.example.org/author/abcde") is False
     assert type_filter("http://www.example.org/autor/abcde/") is False
+    # archives
+    assert type_filter("http://www.example.org/2011/11/") is False
+    assert type_filter("http://www.example.org/2011/") is False
+    assert type_filter("http://www.example.org/2011_archive.html") is False
     # misc
     assert (
         type_filter("http://www.bmbwk.gv.at/forschung/fps/gsk/befragung.xml?style=text")
         is True
     )
-    # assert type_filter('http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118') is True
+    assert (
+        type_filter(
+            "http://www.aec.at/de/archives/prix_archive/prix_projekt.asp?iProjectID=11118"
+        )
+        is False
+    )
     # nav
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=False) is False
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
