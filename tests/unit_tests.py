@@ -244,6 +244,9 @@ def test_path_filter():
     assert check_url("http://www.case-modder.de/default/", strict=True) is None
     assert path_filter("/contact/", "") is False
     assert path_filter("/Datenschutzerklaerung", "") is False
+    # img
+    assert path_filter("/logo_800_web-jpg/", "") is False
+    assert path_filter("/img_2020-03-03_25/", "") is False
     # assert path_filter("/", "") is False
 
 

@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 
 # content filters
 SITE_STRUCTURE = re.compile(
-    r"/(?:page|seite|user|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or)/[^/]+/?$|/[0-9]+/[0-9]+/$|/[0-9]{4}/$|_archive\.html$",
+    r"/(?:paged?|seite|user|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment|cgi-bin|wp-admin|wp-includes)/|/(?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or)/[^/]+/?$|/[0-9]+/[0-9]+/$|/[0-9]{4}/$|_archive\.html$",
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
@@ -51,7 +51,7 @@ NAVIGATION_FILTER = re.compile(
     re.IGNORECASE,
 )
 NOTCRAWLABLE = re.compile(
-    r"/([ck]onta[ck]t|datenschutzerkl.{1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)",
+    r"/([ck]onta[ck]t|datenschutzerkl.{1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)|[/-](img|jpg|png)(\b|_)",
     re.IGNORECASE,
 )
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
