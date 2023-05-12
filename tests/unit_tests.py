@@ -238,8 +238,13 @@ def test_path_filter():
         )
         is not None
     )
+    assert path_filter("/index.php", "") is False
     assert check_url("http://www.case-modder.de/index.php", strict=True) is None
+    assert path_filter("/default/", "") is False
     assert check_url("http://www.case-modder.de/default/", strict=True) is None
+    assert path_filter("/contact/", "") is False
+    assert path_filter("/Datenschutzerklaerung", "") is False
+    # assert path_filter("/", "") is False
 
 
 def test_lang_filter():
@@ -784,14 +789,14 @@ def test_extraction():
     )
     assert len(extract_links(pagecontent, "https://test.com/", external_bool=True)) == 0
     # links without quotes
-    pagecontent = "<html><a href=/contact>Link</a></html>"
+    pagecontent = "<html><a href=/link>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
-        "https://test.com/contact"
+        "https://test.com/link"
     }
     assert extract_links(pagecontent, "https://test.com/", external_bool=True) == set()
-    pagecontent = "<html><a href=/contact attribute=value>Link</a></html>"
+    pagecontent = "<html><a href=/link attribute=value>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
-        "https://test.com/contact"
+        "https://test.com/link"
     }
     # external links with extension (here ".com")
     pagecontent = '<html><body><a href="https://knoema.com/o/data-engineer-india"/><a href="https://knoema.recruitee.com/"/></body></html>'
