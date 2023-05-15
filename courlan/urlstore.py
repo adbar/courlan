@@ -96,7 +96,7 @@ class UrlStore:
         self, data: List[str], visited: bool = False
     ) -> DefaultDict[str, Deque[UrlPathTuple]]:
         inputdict: DefaultDict[str, Deque[UrlPathTuple]] = defaultdict(deque)
-        for url in list(dict.fromkeys(data)):
+        for url in dict.fromkeys(data):
             # segment URL and add to domain dictionary
             try:
                 # validate
