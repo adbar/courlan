@@ -134,9 +134,9 @@ def sample_urls(
         LOGGER.setLevel(logging.ERROR)
     # store
     output_urls = []
-    is_compressed = len(input_urls) > 10**6
+    use_compression = len(input_urls) > 10**6
     urlstore = UrlStore(
-        compressed=is_compressed, language=None, strict=strict, verbose=verbose
+        compressed=use_compression, language=None, strict=strict, verbose=verbose
     )
     urlstore.add_urls(sorted(input_urls))
     # iterate
@@ -151,13 +151,11 @@ def sample_urls(
         ):
             LOGGER.warning("discarded (size): %s\t\turls: %s", domain, len(urlpaths))
             continue
-        # copy all URLs
-        if len(urlpaths) <= samplesize:
-            output_urls.extend([domain + p for p in urlpaths])
-            LOGGER.info("%s\t\turls: %s", domain, len(urlpaths))
-            continue
         # sample
-        mysample = sorted(sample(urlpaths, k=samplesize))
+        if len(urlpaths) > samplesize:
+            mysample = sorted(sample(urlpaths, k=samplesize))
+        else:
+            mysample = urlpaths
         output_urls.extend([domain + p for p in mysample])
         LOGGER.debug(
             "%s\t\turls: %s\tprop.: %s",
