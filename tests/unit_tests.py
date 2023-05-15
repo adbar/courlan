@@ -103,6 +103,7 @@ def test_scrub():
     # clean: scrub + normalize
     assert clean_url(5) is None
     assert clean_url("ø\xaa") == "øª"
+    assert clean_url("https://example.org/?p=100") == "https://example.org/?p=100"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
     assert scrub_url("<![CDATA[https://www.dwds.de]]>") == "https://www.dwds.de"

@@ -176,5 +176,8 @@ def normalize_url(
     newquery = clean_query(parsed_url, strict, language) or ""
     if newquery:
         newquery = "?" + newquery
+        # correction for root/homepage
+        if newpath == "":
+            newpath = "/"
     # rebuild
     return "".join([scheme, netloc, newpath, newfragment, newquery])
