@@ -80,7 +80,11 @@ def get_base_url(url: Any) -> str:
     """Strip URL of some of its parts to get base URL.
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
-    return parsed_url._replace(path="", params="", query="", fragment="").geturl()
+    if parsed_url.scheme:
+        scheme = parsed_url.scheme + "://"
+    else:
+        scheme = ""
+    return scheme + parsed_url.netloc
 
 
 def get_host_and_path(url: Any) -> Tuple[str, str]:

@@ -132,18 +132,13 @@ def sample_urls(
         LOGGER.setLevel(logging.DEBUG)
     else:
         LOGGER.setLevel(logging.ERROR)
-    # deduplicate
-    input_urls = list(dict.fromkeys(input_urls))
-    # validate
-    input_urls = [
-        u
-        for u in input_urls
-        if check_url(u, strict=strict, with_redirects=False) is not None
-    ]
     # store
     output_urls = []
-    urlstore = UrlStore(compressed=False, language=None, strict=strict)
-    urlstore.add_urls(input_urls)
+    use_compression = len(input_urls) > 10**6
+    urlstore = UrlStore(
+        compressed=use_compression, language=None, strict=strict, verbose=verbose
+    )
+    urlstore.add_urls(sorted(input_urls))
     # iterate
     for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
         urlpaths = [p.urlpath for p in urlstore._load_urls(domain)]
@@ -154,17 +149,15 @@ def sample_urls(
             or exclude_max is not None
             and len(urlpaths) > exclude_max
         ):
-            LOGGER.info("discarded (size): %s\t\turls: %s", domain, len(urlpaths))
-            continue
-        # copy all URLs
-        if len(urlpaths) <= samplesize:
-            output_urls.extend([domain + p for p in urlpaths])
-            LOGGER.info("%s\t\turls: %s", domain, len(urlpaths))
+            LOGGER.warning("discarded (size): %s\t\turls: %s", domain, len(urlpaths))
             continue
         # sample
-        mysample = sorted(sample(urlpaths, k=samplesize))
+        if len(urlpaths) > samplesize:
+            mysample = sorted(sample(urlpaths, k=samplesize))
+        else:
+            mysample = urlpaths
         output_urls.extend([domain + p for p in mysample])
-        LOGGER.info(
+        LOGGER.debug(
             "%s\t\turls: %s\tprop.: %s",
             domain,
             len(mysample),
