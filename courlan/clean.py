@@ -162,19 +162,19 @@ def normalize_url(
     # lowercase + remove fragments + normalize punycode
     netloc = decode_punycode(netloc.lower())
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
-    newpath = PATH1.sub("/", parsed_url.path)
-    # Leading /../'s in the path are removed
-    newpath = PATH2.sub("", newpath)
+    # leading /../'s in the path are removed
+    newpath = PATH2.sub("", PATH1.sub("/", parsed_url.path))
     # fragment
     newfragment = "" if strict else parsed_url.fragment
+    if newfragment:
+        newfragment = "#" + newfragment
     # lowercase + remove fragments + normalize punycode
-    parsed_url = parsed_url._replace(
-        scheme=parsed_url.scheme.lower(),
-        netloc=netloc,
-        path=newpath,
-        fragment=newfragment,
-        # strip unwanted query elements
-        query=clean_query(parsed_url, strict, language),
-    )
+    scheme = parsed_url.scheme.lower()
+    if scheme:
+        scheme = scheme + "://"
+    # strip unwanted query elements
+    newquery = clean_query(parsed_url, strict, language) or ""
+    if newquery:
+        newquery = "?" + newquery
     # rebuild
-    return parsed_url.geturl()
+    return "".join([scheme, netloc, newpath, newfragment, newquery])
