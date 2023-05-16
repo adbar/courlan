@@ -6,7 +6,7 @@ import re
 
 from functools import lru_cache
 from typing import Any, List, Optional, Set, Tuple, Union
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import urlparse, urlunsplit, ParseResult
 
 from tld import get_tld
 
@@ -22,6 +22,7 @@ DOMAIN_REGEX = re.compile(
 NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
 STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=[^0-9]):[0-9]+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
+INNER_SLASH_REGEX = re.compile(r"(.+/)+")
 
 
 @lru_cache(maxsize=1024)
@@ -92,7 +93,9 @@ def get_host_and_path(url: Any) -> Tuple[str, str]:
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
     hostname = get_base_url(parsed_url)
-    pathval = parsed_url._replace(scheme="", netloc="").geturl()
+    pathval = urlunsplit(
+        ["", "", parsed_url.path, parsed_url.query, parsed_url.fragment]
+    )
     # correction for root/homepage
     if pathval == "":
         pathval = "/"
@@ -117,28 +120,23 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
         return baseurl + url
     if url.startswith("."):
         # don't try to correct these URLs
-        return baseurl + "/" + re.sub(r"(.+/)+", "", url)
-    if not url.startswith("http") and not url.startswith("{"):
+        return baseurl + "/" + INNER_SLASH_REGEX.sub("", url)
+    if not url.startswith(("http", "{")):
         return baseurl + "/" + url
     # todo: handle here
     # if url.startswith('{'):
     return url
 
 
-def filter_urls(linklist: List[str], urlfilter: Optional[str]) -> List[str]:
+def filter_urls(link_list: List[str], urlfilter: Optional[str]) -> List[str]:
     "Return a list of links corresponding to the given substring pattern."
     if urlfilter is None:
-        return sorted(set(linklist))
-    # filter links
-    newlist = [l for l in linklist if urlfilter in l]
-    # feedburner option: filter and wildcards for feeds
-    if not newlist:
-        newlist = [
-            l
-            for l in linklist
-            if urlfilter in l or "feedburner" in l or "feedproxy" in l
-        ]
-    return sorted(set(newlist))
+        return sorted(set(link_list))
+    # filter links, feedburner option: filter and wildcards for feeds
+    filtered_list = [
+        l for l in link_list if urlfilter in l or "feedburner" in l or "feedproxy" in l
+    ]
+    return sorted(set(filtered_list))
 
 
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
@@ -154,20 +152,25 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
 
 def is_known_link(link: str, known_links: Set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
-    # easy check
+    # check exact link
     if link in known_links:
         return True
-    # trailing slash
-    test1 = link.rstrip("/")
-    test2 = test1 + "/"
-    if test1 in known_links or test2 in known_links:
+
+    # check link and variants with trailing slashes
+    test_links = [link.rstrip("/"), link.rstrip("/") + "/"]
+    if any(test_link in known_links for test_link in test_links):
         return True
-    # http/https + trailing slash
+
+    # check link and variants with modified protocol
     if link.startswith("http"):
         if link.startswith("https"):
             testlink = link[:4] + link[5:]
         else:
             testlink = "".join([link[:4], "s", link[4:]])
-        test1, test2 = testlink.rstrip("/"), testlink.rstrip("/") + "/"
-        return testlink in known_links or test1 in known_links or test2 in known_links
+        if any(
+            test in known_links
+            for test in [testlink, testlink.rstrip("/"), testlink.rstrip("/") + "/"]
+        ):
+            return True
+
     return False
