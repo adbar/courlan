@@ -21,20 +21,25 @@ LOGGER = logging.getLogger(__name__)
 
 # content filters
 SITE_STRUCTURE = re.compile(
-    r"/(?:page|seite|user|search|gallery|gall?erie|labels|archives|uploads|modules|attachment)/|/(?:tags?|schlagwort|category|cat|kategorie|kat|auth?or)/[^/]+/?$|/[0-9]+/[0-9]+/$|/[0-9]{4}/$|_archive\.html$",
+    # wordpress
+    r"/(?:paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment|wp-admin|wp-content|wp-includes|wp-json|wp-themes|oembed)/|"
+    # wordpress + short URL
+    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$|"
+    # mixed/blogspot
+    r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$|"
+    # blogspot
+    r"_archive\.html$",
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
-    r"\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b",
+    r"\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b|"
+    r"[/-](img|jpg|png)(\b|_)",
     re.IGNORECASE,
 )  # (?=[&?])
-UNDESIRABLE = re.compile(
-    r"\b(?:add?s?|banner|doubleclick|livestream|tradedoubler)\b|/oembed\b"
-)
 ADULT_AND_VIDEOS = re.compile(
-    r"\b(?:live|videos?|adult|amateur|arsch|cams?|cash|fick|gangbang|incest|porn|sexyeroti[ck]|sexcam|swinger|xxx|bild\-?kontakte)\b",
+    r"[/_-](?:bild\-?kontakte|fick|gangbang|incest|live-?chat|live-?cams?|porno?|sexyeroti[ck]|sexcam|swinger|xxx)\b",
     re.IGNORECASE,
-)  # ass|orgasm ?
+)
 
 # language filter
 PATH_LANG_FILTER = re.compile(
@@ -47,11 +52,12 @@ HOST_LANG_FILTER = re.compile(
 
 # navigation/crawls
 NAVIGATION_FILTER = re.compile(
-    r"/(archives|auth?or|[ck]at|category|kategorie|page|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+",
+    r"[/_-](archives|auth?or|[ck]at|category|kategorie|paged?|schlagwort|seite|tags?|topics?|user)/|\?p=[0-9]+",
     re.IGNORECASE,
 )
 NOTCRAWLABLE = re.compile(
-    r"/(login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|/(javascript:|mailto:|tel\.?:|whatsapp:)",
+    r"/([ck]onta[ck]t|datenschutzerkl.{1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|"
+    r"/(javascript:|mailto:|tel\.?:|whatsapp:)",
     re.IGNORECASE,
 )
 # |/(www\.)?(facebook\.com|google\.com|instagram\.com|twitter\.com)/
@@ -178,13 +184,10 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
         # feeds
         if url.endswith(("/feed", "/rss")):
             raise ValueError
-        # wordpress website structure
+        # website structure
         if SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)):
             raise ValueError
-        # not suitable: ads, adult and embedded content
-        if UNDESIRABLE.search(url):
-            raise ValueError
-        # type hidden in parameters + video content
+        # type (also hidden in parameters), videos, adult content
         if strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)):
             raise ValueError
     except ValueError:

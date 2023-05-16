@@ -181,8 +181,8 @@ def test_extension_filter():
 
 
 def test_spam_filter():
-    assert type_filter("http://www.example.org/cams/test.html", strict=False) is True
-    assert type_filter("http://www.example.org/cams/test.html", strict=True) is False
+    assert type_filter("http://www.example.org/livecams/test.html", strict=False) is True
+    assert type_filter("http://www.example.org/livecams/test.html", strict=True) is False
     assert type_filter("http://www.example.org/test.html") is True
 
 
@@ -190,19 +190,19 @@ def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
     # straight category
     assert type_filter("http://www.example.org/category/123") is False
+    assert type_filter("http://www.example.org/product-category/123") is False
     # post simply filed under a category
     assert type_filter("http://www.example.org/category/tropes/time-travel") is True
     assert (
         type_filter("http://www.example.org/test.xml?param=test", strict=True) is False
     )
     assert type_filter("http://www.example.org/test.asp") is True
-    assert type_filter("http://ads.example.org/") is False
     # -video- vs. /video/
-    assert type_filter("http://my-videos.com/") is True
-    assert type_filter("http://my-videos.com/", strict=True) is False
-    assert type_filter("http://example.com/video/1", strict=True) is False
-    assert type_filter("http://example.com/new-video-release") is True
-    assert type_filter("http://example.com/new-video-release", strict=True) is False
+    assert type_filter("http://my-livechat.com/") is True
+    assert type_filter("http://my-livechat.com/", strict=True) is False
+    assert type_filter("http://example.com/livechat/1", strict=True) is False
+    assert type_filter("http://example.com/new-sexcam") is True
+    assert type_filter("http://example.com/new-sexcam", strict=True) is False
     # tags
     assert type_filter("https://de.thecitizen.de/tag/anonymity/") is False
     assert type_filter("https://de.thecitizen.de/tags/anonymity/") is False
@@ -213,6 +213,7 @@ def test_type_filter():
     assert type_filter("http://www.example.org/2011/11/") is False
     assert type_filter("http://www.example.org/2011/") is False
     assert type_filter("http://www.example.org/2011_archive.html") is False
+    assert type_filter("http://www.example.org/2020/02/06/1859/") is True
     # misc
     assert (
         type_filter("http://www.bmbwk.gv.at/forschung/fps/gsk/befragung.xml?style=text")
@@ -229,6 +230,9 @@ def test_type_filter():
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
     assert type_filter("http://www.example.org/page/10/", with_nav=False) is False
     assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
+    # img
+    assert type_filter("http://www.example.org/logo_800_web-jpg/", strict=True) is False
+    assert type_filter("http://www.example.org/img_2020-03-03_25/", strict=True) is False
 
 
 def test_path_filter():
@@ -238,8 +242,13 @@ def test_path_filter():
         )
         is not None
     )
+    assert path_filter("/index.php", "") is False
     assert check_url("http://www.case-modder.de/index.php", strict=True) is None
+    assert path_filter("/default/", "") is False
     assert check_url("http://www.case-modder.de/default/", strict=True) is None
+    assert path_filter("/contact/", "") is False
+    assert path_filter("/Datenschutzerklaerung", "") is False
+    # assert path_filter("/", "") is False
 
 
 def test_lang_filter():
@@ -478,12 +487,12 @@ def test_urlcheck():
     assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
     assert check_url("https://www.ht.or", with_redirects=True) is None
     # recheck type and spam filters
-    assert check_url("http://example.org/code/oembed/") is None
-    assert check_url("http://cams.com/", strict=False) == (
-        "http://cams.com",
-        "cams.com",
+    assert check_url("http://example.org/wp-json/oembed/") is None
+    assert check_url("http://livecams.com/", strict=False) == (
+        "http://livecams.com",
+        "livecams.com",
     )
-    assert check_url("http://cams.com/", strict=True) is None
+    assert check_url("http://livecams.com/", strict=True) is None
     assert check_url("https://denkiterm.wordpress.com/impressum/", strict=True) is None
     assert (
         check_url(
@@ -784,14 +793,14 @@ def test_extraction():
     )
     assert len(extract_links(pagecontent, "https://test.com/", external_bool=True)) == 0
     # links without quotes
-    pagecontent = "<html><a href=/contact>Link</a></html>"
+    pagecontent = "<html><a href=/link>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
-        "https://test.com/contact"
+        "https://test.com/link"
     }
     assert extract_links(pagecontent, "https://test.com/", external_bool=True) == set()
-    pagecontent = "<html><a href=/contact attribute=value>Link</a></html>"
+    pagecontent = "<html><a href=/link attribute=value>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
-        "https://test.com/contact"
+        "https://test.com/link"
     }
     # external links with extension (here ".com")
     pagecontent = '<html><body><a href="https://knoema.com/o/data-engineer-india"/><a href="https://knoema.recruitee.com/"/></body></html>'
