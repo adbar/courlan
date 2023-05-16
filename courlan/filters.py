@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 # content filters
 SITE_STRUCTURE = re.compile(
     # wordpress
-    r"/(?:paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment|cgi-bin|wp-admin|wp-includes|wp-json|themes|oembed)/|"
+    r"/(?:paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment|wp-admin|wp-content|wp-includes|wp-json|wp-themes|oembed)/|"
     # wordpress + short URL
     r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$|"
     # mixed/blogspot
@@ -37,7 +37,7 @@ FILE_TYPE = re.compile(
     re.IGNORECASE,
 )  # (?=[&?])
 ADULT_AND_VIDEOS = re.compile(
-    r"[/_-](?:bild\-?kontakte|fick|gangbang|incest|live-?chat|live-?cams?|porn|sexyeroti[ck]|sexcam|swinger|xxx)\b",
+    r"[/_-](?:bild\-?kontakte|fick|gangbang|incest|live-?chat|live-?cams?|porno?|sexyeroti[ck]|sexcam|swinger|xxx)\b",
     re.IGNORECASE,
 )
 
