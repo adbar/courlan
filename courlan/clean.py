@@ -9,7 +9,7 @@ import logging
 import re
 
 from typing import Optional, Union
-from urllib.parse import parse_qs, urlencode, ParseResult
+from urllib.parse import parse_qs, urlencode, urlunsplit, ParseResult
 
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
@@ -154,6 +154,8 @@ def normalize_url(
 ) -> str:
     """Takes a URL string or a parsed URL and returns a (basically) normalized URL string"""
     parsed_url = _parse(parsed_url)
+    # lowercase + remove fragments + normalize punycode
+    scheme = parsed_url.scheme.lower()
     # port
     if parsed_url.port and parsed_url.port in (80, 443):
         netloc = NETLOC_RE.sub("", parsed_url.netloc)
@@ -164,20 +166,11 @@ def normalize_url(
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
     newpath = PATH2.sub("", PATH1.sub("/", parsed_url.path))
-    # fragment
-    newfragment = "" if strict else parsed_url.fragment
-    if newfragment:
-        newfragment = "#" + newfragment
-    # lowercase + remove fragments + normalize punycode
-    scheme = parsed_url.scheme.lower()
-    if scheme:
-        scheme = scheme + "://"
     # strip unwanted query elements
     newquery = clean_query(parsed_url, strict, language) or ""
-    if newquery:
-        newquery = "?" + newquery
-        # correction for root/homepage
-        if newpath == "":
-            newpath = "/"
+    if newquery and newpath == "":
+        newpath = "/"
+    # fragment
+    newfragment = "" if strict else parsed_url.fragment
     # rebuild
-    return "".join([scheme, netloc, newpath, newfragment, newquery])
+    return urlunsplit([scheme, netloc, newpath, newquery, newfragment])
