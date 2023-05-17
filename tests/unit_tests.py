@@ -968,12 +968,13 @@ def test_meta():
     url = "https://example.net/123/abc"
     _ = get_tldinfo(url)
     _ = _parse(url)
-    old_tld_values = get_tldinfo.cache_info()
+    assert get_tldinfo.cache_info().currsize == 1
     try:
-        old_urllib_values = urlsplit.cache_info()
+        urlsplit_lrucache = True
+        assert urlsplit.cache_info().currsize == 1
     except AttributeError:  # newer Python versions only
-        old_urllib_values = None
+        urlsplit_lrucache = False
     clear_caches()
-    assert get_tldinfo.cache_info() != old_tld_values
-    if old_urllib_values is not None:
-        assert urlsplit.cache_info() != old_urllib_values
+    assert get_tldinfo.cache_info().currsize == 0
+    if urlsplit_lrucache:
+        assert urlsplit.cache_info().currsize == 0
