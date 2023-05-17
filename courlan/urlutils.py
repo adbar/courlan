@@ -23,6 +23,7 @@ NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
 STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=[^0-9]):[0-9]+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 INNER_SLASH_REGEX = re.compile(r"(.+/)+")
+FEED_WHITELIST_REGEX = re.compile(r"(feedburner|feedproxy)", re.I)
 
 
 @lru_cache(maxsize=1024)
@@ -132,10 +133,11 @@ def filter_urls(link_list: List[str], urlfilter: Optional[str]) -> List[str]:
     "Return a list of links corresponding to the given substring pattern."
     if urlfilter is None:
         return sorted(set(link_list))
-    # filter links, feedburner option: filter and wildcards for feeds
-    filtered_list = [
-        l for l in link_list if urlfilter in l or "feedburner" in l or "feedproxy" in l
-    ]
+    # filter links
+    filtered_list = [l for l in link_list if urlfilter in l]
+    # feedburner option: filter and wildcards for feeds
+    if not filtered_list:
+        filtered_list = [l for l in link_list if FEED_WHITELIST_REGEX.search(l)]
     return sorted(set(filtered_list))
 
 
