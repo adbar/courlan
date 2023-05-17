@@ -27,6 +27,7 @@ from typing import (
 from urllib.robotparser import RobotFileParser
 
 from .filters import lang_filter, validate_url
+from .meta import clear_caches
 from .urlutils import get_host_and_path, is_known_link
 
 
@@ -89,6 +90,7 @@ class UrlStore:
         "Re-initialize the URL store."
         with self._lock:
             self.urldict = defaultdict(DomainEntry)
+            clear_caches()
             num = gc.collect()
             LOGGER.debug("UrlStore reset, %s objects in GC", num)
 
