@@ -14,7 +14,7 @@ import tempfile
 
 from contextlib import redirect_stdout
 from unittest.mock import patch
-from urllib.parse import ParseResult
+from urllib.parse import ParseResult, urlsplit
 
 import pytest
 
@@ -39,7 +39,8 @@ from courlan import (
     lang_filter,
 )
 from courlan.filters import extension_filter, path_filter, type_filter
-from courlan.urlutils import _parse, is_known_link
+from courlan.meta import clear_caches
+from courlan.urlutils import _parse, get_tldinfo, is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -186,8 +187,12 @@ def test_extension_filter():
 
 
 def test_spam_filter():
-    assert type_filter("http://www.example.org/livecams/test.html", strict=False) is True
-    assert type_filter("http://www.example.org/livecams/test.html", strict=True) is False
+    assert (
+        type_filter("http://www.example.org/livecams/test.html", strict=False) is True
+    )
+    assert (
+        type_filter("http://www.example.org/livecams/test.html", strict=True) is False
+    )
     assert type_filter("http://www.example.org/test.html") is True
 
 
@@ -237,7 +242,9 @@ def test_type_filter():
     assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
     # img
     assert type_filter("http://www.example.org/logo_800_web-jpg/", strict=True) is False
-    assert type_filter("http://www.example.org/img_2020-03-03_25/", strict=True) is False
+    assert (
+        type_filter("http://www.example.org/img_2020-03-03_25/", strict=True) is False
+    )
 
 
 def test_path_filter():
@@ -954,3 +961,19 @@ def test_examples():
         )
         == "http://test.net/foo.html?page=2&post=abc"
     )
+
+
+def test_meta():
+    "Test package meta functions."
+    url = "https://example.net/123/abc"
+    _ = get_tldinfo(url)
+    _ = _parse(url)
+    old_tld_values = get_tldinfo.cache_info()
+    try:
+        old_urllib_values = urlsplit.cache_info()
+    except AttributeError:  # newer Python versions only
+        old_urllib_values = None
+    clear_caches()
+    assert get_tldinfo.cache_info() != old_tld_values
+    if old_urllib_values is not None:
+        assert urlsplit.cache_info() != old_urllib_values
