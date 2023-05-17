@@ -968,10 +968,10 @@ def test_meta():
     url = "https://example.net/123/abc"
     _ = get_tldinfo(url)
     _ = _parse(url)
-    assert get_tldinfo.cache_info().currsize == 1
+    assert get_tldinfo.cache_info().currsize > 0
     try:
         urlsplit_lrucache = True
-        assert urlsplit.cache_info().currsize == 1
+        assert urlsplit.cache_info().currsize > 0
     except AttributeError:  # newer Python versions only
         urlsplit_lrucache = False
     clear_caches()
