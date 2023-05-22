@@ -916,6 +916,7 @@ def test_cli():
 def test_sample():
     """test URL sampling"""
     assert not list(sample_urls(["http://test.org/test1", "http://test.org/test2"], 0))
+    assert not list(sample_urls(["http://test.org/", "http://test.org"], 10))
 
     # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = [

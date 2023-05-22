@@ -141,10 +141,15 @@ def sample_urls(
     urlstore.add_urls(sorted(input_urls))
     # iterate
     for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
-        urlpaths = [p.urlpath for p in urlstore._load_urls(domain)]
+        urlpaths = [
+            p.urlpath
+            for p in urlstore._load_urls(domain)
+            if p.urlpath not in ("/", None)
+        ]
         # too few or too many URLs
         if (
-            exclude_min is not None
+            not urlpaths
+            or exclude_min is not None
             and len(urlpaths) < exclude_min
             or exclude_max is not None
             and len(urlpaths) > exclude_max
