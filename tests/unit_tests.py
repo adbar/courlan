@@ -705,6 +705,9 @@ def test_extraction():
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
     assert len(extract_links(pagecontent, "https://test.org", False)) == 1
+    # nofollow
+    pagecontent = '<html><a href="https://test.com/example" rel="nofollow ugc"/></html>'
+    assert len(extract_links(pagecontent, "https://test.com/", False)) == 0
     # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
