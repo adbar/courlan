@@ -145,11 +145,13 @@ def test_scrub():
     assert scrub_url("\x19https://www.test.com/\x06") == "https://www.test.com"
     # markup
     assert scrub_url("https://www.test.com/</a>") == "https://www.test.com"
+    assert scrub_url("https://www.test.com/1</div>") == "https://www.test.com/1"
+    assert scrub_url("https://www.test.com/{user_name}") == "https://www.test.com"
     # garbled URLs e.g. due to quotes
     assert (
         scrub_url('https://www.test.com/"' + "<p></p>" * 100) == "https://www.test.com"
     )
-    assert scrub_url('https://www.test.com/"' * 50) != "https://www.test.com"
+    assert scrub_url('https://www.test.com/"' * 50) == "https://www.test.com"
     # simply too long, left untouched
     my_url = "https://www.test.com/" + "abcdefg" * 100
     assert scrub_url(my_url) == my_url
@@ -705,6 +707,9 @@ def test_extraction():
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
     assert len(extract_links(pagecontent, "https://test.org", False)) == 1
+    # nofollow
+    pagecontent = '<html><a href="https://test.com/example" rel="nofollow ugc"/></html>'
+    assert len(extract_links(pagecontent, "https://test.com/", False)) == 0
     # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, "https://test.com/", False)) == 1

@@ -203,15 +203,14 @@ def extract_links(
         Nothing.
     """
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
-    if pagecontent is None or not pagecontent:
+    if not pagecontent:
         return validlinks
     # define host reference
-    if reference is None:
-        reference = base_url
+    reference = reference or base_url
     # extract links
-    for match in FIND_LINKS_REGEX.finditer(pagecontent):
-        # filters
-        link = match[0]
+    for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
+        if "rel" in link and "nofollow" in link:
+            continue
         # https://en.wikipedia.org/wiki/Hreflang
         if no_filter is False and language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)

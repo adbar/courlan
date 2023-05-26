@@ -31,7 +31,7 @@ PATH1 = re.compile(r"/+")
 PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
 
 # scrub
-LINK_TAG = re.compile(r"</?a>")
+REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
@@ -60,7 +60,7 @@ def scrub_url(url: str) -> str:
         url = url.replace("<![CDATA[", "")  # url = re.sub(r'^<!\[CDATA\[', '', url)
         url = url.replace("]]>", "")  # url = re.sub(r'\]\]>$', '', url)
     # markup rests
-    url = LINK_TAG.sub("", url)
+    url = REMAINING_MARKUP.sub("", url)
     # & and &amp;
     if "&amp;" in url:
         url = url.replace("&amp;", "&")
@@ -82,10 +82,10 @@ def scrub_url(url: str) -> str:
                 LOGGER.debug("taking url: %s", url)
     # too long and garbled URLs e.g. due to quotes URLs
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
-    if len(url) > 500:  # arbitrary choice
-        match = TRAILING_PARTS.match(url)
-        if match:
-            url = match[1]
+    # if len(url) > 500:  # arbitrary choice
+    match = TRAILING_PARTS.match(url)
+    if match:
+        url = match[1]
     if len(url) > 500:
         LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
 
