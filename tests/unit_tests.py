@@ -145,6 +145,7 @@ def test_scrub():
     assert scrub_url("\x19https://www.test.com/\x06") == "https://www.test.com"
     # markup
     assert scrub_url("https://www.test.com/</a>") == "https://www.test.com"
+    assert scrub_url("https://www.test.com/{user_name}") == "https://www.test.com"
     # garbled URLs e.g. due to quotes
     assert (
         scrub_url('https://www.test.com/"' + "<p></p>" * 100) == "https://www.test.com"
