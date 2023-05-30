@@ -245,6 +245,18 @@ Basic URL validation only:
     (True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
 
 
+Troubleshooting
+~~~~~~~~~~~~~~~
+
+Courlan uses an internal cache to speed up URL parsing. It can be reset as follows:
+
+.. code-block:: python
+
+    >>> from courlan.meta import clear_caches
+    >>> clear_caches()
+
+
+
 UrlStore class
 ~~~~~~~~~~~~~~
 
@@ -310,6 +322,8 @@ I/O:
   -d DISCARDEDFILE, --discardedfile DISCARDEDFILE
                         name of file to store discarded URLs (optional)
   -v, --verbose         increase output verbosity
+  -p PARALLEL, --parallel PARALLEL
+                        number of parallel threads (not used for sampling)
 
 Filtering:
   Configure URL filters

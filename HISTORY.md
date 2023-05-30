@@ -1,5 +1,14 @@
 ## History / Changelog
 
+### 0.9.3
+
+- more efficient URL parsing (#33)
+- refined link extraction and link filters (#30, #36)
+- more efficient normalization (#32)
+- more efficient sampling strategy (#31, #35)
+- added meta function to clear LRU caches (34)
+- added parallel option in command-line interface (#37)
+
 
 ### 0.9.2
 
