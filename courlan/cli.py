@@ -8,7 +8,8 @@ Implements a basic command-line interface.
 import argparse
 import sys
 
-from typing import Any, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, List, Optional, Tuple
 
 from .core import check_url, sample_urls
 
@@ -42,6 +43,13 @@ def parse_args(args: Any) -> Any:
     group1.add_argument(
         "-v", "--verbose", help="increase output verbosity", action="store_true"
     )
+    group1.add_argument(
+        "-p",
+        "--parallel",
+        help="number of parallel threads (not used for sampling)",
+        type=int,
+        default=4,
+    )
     group2 = argsparser.add_argument_group("Filtering", "Configure URL filters")
     group2.add_argument(
         "--strict", help="perform more restrictive tests", action="store_true"
@@ -68,25 +76,53 @@ def parse_args(args: Any) -> Any:
     return argsparser.parse_args()
 
 
+def _cli_check_url(
+    url: str,
+    strict: bool = False,
+    with_redirects: bool = False,
+    language: Optional[str] = None,
+    with_nav: bool = False,
+) -> Tuple[bool, str]:
+    "Internal function to be used with CLI multiprocessing."
+    result = check_url(
+        url,
+        strict=strict,
+        with_redirects=with_redirects,
+        language=language,
+        with_nav=with_nav,
+    )
+    if result is not None:
+        return (True, result[0])
+    return (False, url)
+
+
 def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
     if not args.sample:
-        with open(
-            args.inputfile, "r", encoding="utf-8", errors="ignore"
-        ) as inputfh, open(args.outputfile, "w", encoding="utf-8") as outputfh:
-            for line in inputfh:
-                result = check_url(
-                    line,
-                    strict=args.strict,
-                    with_redirects=args.redirects,
-                    language=args.language,
+        with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+            with open(
+                args.inputfile, "r", encoding="utf-8", errors="ignore"
+            ) as inputfh, open(args.outputfile, "w", encoding="utf-8") as outputfh:
+                futures = (
+                    executor.submit(
+                        _cli_check_url,
+                        line,
+                        strict=args.strict,
+                        with_redirects=args.redirects,
+                        language=args.language,
+                    )
+                    for line in inputfh
                 )
-                if result is not None:
-                    outputfh.write(result[0] + "\n")
-                # proceed with discarded URLs. to be rewritten
-                elif args.discardedfile is not None:
-                    with open(args.discardedfile, "a", encoding="utf-8") as discardfh:
-                        discardfh.write(line)
+                for future in as_completed(futures):
+                    valid, url = future.result()
+                    if valid:
+                        outputfh.write(url + "\n")
+                    # proceed with discarded URLs. to be rewritten
+                    elif args.discardedfile is not None:
+                        with open(
+                            args.discardedfile, "a", encoding="utf-8"
+                        ) as discardfh:
+                            discardfh.write(url)
     else:
         urllist: List[str] = []
         with open(args.inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
