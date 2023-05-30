@@ -856,6 +856,8 @@ def test_cli():
         "-v",
         "--language",
         "en",
+        "--parallel",
+        "2",
     ]
     with patch.object(sys, "argv", testargs):
         args = cli.parse_args(testargs)
@@ -864,6 +866,7 @@ def test_cli():
     assert args.outputfile == "output.txt"
     assert args.verbose is True
     assert args.language == "en"
+    assert args.parallel == 2
     assert os.system("courlan --help") == 0  # exit status
 
     # testfile
