@@ -47,7 +47,7 @@ def parse_args(args: Any) -> Any:
     group1.add_argument(
         "-p",
         "--parallel",
-        help="number of parallel threads (not used for sampling)",
+        help="number of parallel processes (not used for sampling)",
         type=int,
         default=4,
     )

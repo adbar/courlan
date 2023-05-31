@@ -245,6 +245,18 @@ Basic URL validation only:
     (True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
 
 
+Troubleshooting
+~~~~~~~~~~~~~~~
+
+Courlan uses an internal cache to speed up URL parsing. It can be reset as follows:
+
+.. code-block:: python
+
+    >>> from courlan.meta import clear_caches
+    >>> clear_caches()
+
+
+
 UrlStore class
 ~~~~~~~~~~~~~~
 
@@ -264,6 +276,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``filter_unvisited_urls(urls)``: Take a list of URLs and return the currently unvisited ones.
    - ``find_known_urls(domain)``: Get all already known URLs for the given domain (ex. "https://example.org").
    - ``find_unvisited_urls(domain)``: Get all unvisited URLs for the given domain.
+   - ``get_unvisited_domains()``: Return all domains which have not been all visited.
    - ``reset()``: Re-initialize the URL store.
 - Crawling and downloads
    - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
@@ -310,6 +323,8 @@ I/O:
   -d DISCARDEDFILE, --discardedfile DISCARDEDFILE
                         name of file to store discarded URLs (optional)
   -v, --verbose         increase output verbosity
+  -p PARALLEL, --parallel PARALLEL
+                        number of parallel processes (not used for sampling)
 
 Filtering:
   Configure URL filters
@@ -336,7 +351,7 @@ License
 
 *coURLan* is distributed under the `GNU General Public License v3.0 <https://github.com/adbar/courlan/blob/master/LICENSE>`_. If you wish to redistribute this library but feel bounded by the license conditions please try interacting `at arms length <https://www.gnu.org/licenses/gpl-faq.html#GPLInProprietarySystem>`_, `multi-licensing <https://en.wikipedia.org/wiki/Multi-licensing>`_ with `compatible licenses <https://en.wikipedia.org/wiki/GNU_General_Public_License#Compatibility_and_multi-licensing>`_, or `contacting me <https://github.com/adbar/courlan#author>`_.
 
-See also `GPL and free software licensing: What's in it for business? <https://www.techrepublic.com/blog/cio-insights/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
+See also `GPL and free software licensing: What's in it for business? <https://web.archive.org/web/20230127221311/https://www.techrepublic.com/article/gpl-and-free-software-licensing-whats-in-it-for-business/>`_
 
 
 
