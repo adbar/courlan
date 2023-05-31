@@ -276,6 +276,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``filter_unvisited_urls(urls)``: Take a list of URLs and return the currently unvisited ones.
    - ``find_known_urls(domain)``: Get all already known URLs for the given domain (ex. "https://example.org").
    - ``find_unvisited_urls(domain)``: Get all unvisited URLs for the given domain.
+   - ``get_unvisited_domains()``: Return all domains which have not been all visited.
    - ``reset()``: Re-initialize the URL store.
 - Crawling and downloads
    - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
