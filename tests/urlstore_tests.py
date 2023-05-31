@@ -10,6 +10,7 @@ import sys
 import uuid
 
 from datetime import datetime
+from time import sleep
 
 import pytest
 
@@ -168,6 +169,7 @@ def test_urlstore():
 
     url1 = my_urls.get_url(example_domain)
     timestamp = my_urls.urldict[example_domain].timestamp
+    sleep(0.1)
     url2 = my_urls.get_url(example_domain)
     assert url1 != url2 and url1 == "https://www.example.org/1/10/"
     assert my_urls.urldict[example_domain].count == 2
@@ -178,7 +180,7 @@ def test_urlstore():
     # as_visited=False
     timestamp = my_urls.urldict[example_domain].timestamp
     url3 = my_urls.get_url(example_domain, as_visited=False)
-    assert url3 != url1 and url3 != url2
+    assert url3 not in (url1, url2)
     assert my_urls.urldict[example_domain].count == 2
     assert timestamp == my_urls.urldict[example_domain].timestamp
     assert url3 in set(my_urls.find_unvisited_urls(example_domain))
@@ -224,7 +226,7 @@ def test_urlstore():
     )
     assert my_urls.has_been_visited("http://tovisit.com/page") is True
     assert my_urls.urldict["http://tovisit.com"].all_visited is True
-    assert my_urls.filter_unvisited_urls(["http://tovisit.com/page"]) == []
+    assert not my_urls.filter_unvisited_urls(["http://tovisit.com/page"])
     assert my_urls.filter_unvisited_urls(["http://tovisit.com/otherpage"]) == [
         "http://tovisit.com/otherpage"
     ]
@@ -243,7 +245,10 @@ def test_urlstore():
         == 10011
     )
     assert len(my_urls.find_unvisited_urls(example_domain)) == 10009
-    assert my_urls.unvisited_websites_number() == 4
+    assert (
+        my_urls.unvisited_websites_number() == len(my_urls.get_unvisited_domains()) == 4
+    )
+    assert my_urls.total_url_number() == 20013
 
     # get download URLs
     downloadable_urls = my_urls.get_download_urls(timelimit=0)
@@ -260,11 +265,11 @@ def test_urlstore():
     assert len(downloadable_urls) == 0
     other_store = UrlStore()
     downloadable_urls = other_store.get_download_urls()
-    assert downloadable_urls == [] and other_store.done is True
+    assert not downloadable_urls and other_store.done is True
 
     # schedule
     schedule = other_store.establish_download_schedule()
-    assert schedule == []
+    assert not schedule
     # store exhaustion
     other_store = UrlStore()
     other_store.add_urls(

@@ -235,6 +235,8 @@ class UrlStore:
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
 
+    # DOMAINS / HOSTNAMES
+
     def get_known_domains(self) -> List[str]:
         "Return all known domains as a list."
         return list(self.urldict)
@@ -244,6 +246,10 @@ class UrlStore:
         if domain in self.urldict:
             return self.urldict[domain].all_visited
         raise KeyError("website not in store")
+
+    def get_unvisited_domains(self) -> List[str]:
+        "Return all domains which have not been all visited."
+        return [d for d in self.urldict if not self.urldict[d].all_visited]
 
     # URL-BASED QUERIES
 
@@ -264,7 +270,7 @@ class UrlStore:
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
-        return len([d for d in self.urldict if not self.urldict[d].all_visited])
+        return len(self.get_unvisited_domains())
 
     # DOWNLOADS
 
