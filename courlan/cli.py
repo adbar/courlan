@@ -114,28 +114,29 @@ def _get_line_batches(filename: str, size: int = 1000) -> Iterator[List[str]]:
 def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
     if not args.sample:
-        with ProcessPoolExecutor(max_workers=args.parallel) as executor:
-            with open(args.outputfile, "w", encoding="utf-8") as outputfh:
-                futures = (
-                    executor.submit(
-                        _cli_check_urls,
-                        batch,
-                        strict=args.strict,
-                        with_redirects=args.redirects,
-                        language=args.language,
-                    )
-                    for batch in _get_line_batches(args.inputfile)
+        with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
+            args.outputfile, "w", encoding="utf-8"
+        ) as outputfh:
+            futures = (
+                executor.submit(
+                    _cli_check_urls,
+                    batch,
+                    strict=args.strict,
+                    with_redirects=args.redirects,
+                    language=args.language,
                 )
-                for future in as_completed(futures):
-                    for valid, url in future.result():
-                        if valid:
-                            outputfh.write(url + "\n")
-                        # proceed with discarded URLs. to be rewritten
-                        elif args.discardedfile is not None:
-                            with open(
-                                args.discardedfile, "a", encoding="utf-8"
-                            ) as discardfh:
-                                discardfh.write(url)
+                for batch in _get_line_batches(args.inputfile)
+            )
+            for future in as_completed(futures):
+                for valid, url in future.result():
+                    if valid:
+                        outputfh.write(url + "\n")
+                    # proceed with discarded URLs. to be rewritten
+                    elif args.discardedfile is not None:
+                        with open(
+                            args.discardedfile, "a", encoding="utf-8"
+                        ) as discardfh:
+                            discardfh.write(url)
     else:
         urllist: List[str] = []
         with open(args.inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
