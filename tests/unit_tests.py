@@ -869,6 +869,12 @@ def test_cli():
     assert args.parallel == 2
     assert os.system("courlan --help") == 0  # exit status
 
+    # _cli_check_urls
+    assert cli._cli_check_urls(["123", "https://example.org"]) == [
+        (False, "123"),
+        (True, "https://example.org"),
+    ]
+
     # testfile
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")
     os_handle, temp_outputfile = tempfile.mkstemp(suffix=".txt", text=True)
@@ -882,7 +888,7 @@ def test_cli():
     # test for Windows and the rest
     assert (
         subprocess.run(
-            [courlan_bin, "-i", inputfile, "-o", temp_outputfile], env=env
+            [courlan_bin, "-i", inputfile, "-o", temp_outputfile, "-p", "1"], env=env
         ).returncode
         == 0
     )
@@ -901,6 +907,8 @@ def test_cli():
             "--language",
             "en",
             "--strict",
+            "-p",
+            "1",
         ]
         f = io.StringIO()
         with patch.object(sys, "argv", testargs):
