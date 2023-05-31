@@ -323,7 +323,7 @@ I/O:
                         name of file to store discarded URLs (optional)
   -v, --verbose         increase output verbosity
   -p PARALLEL, --parallel PARALLEL
-                        number of parallel threads (not used for sampling)
+                        number of parallel processes (not used for sampling)
 
 Filtering:
   Configure URL filters
