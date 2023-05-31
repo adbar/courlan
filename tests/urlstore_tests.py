@@ -10,6 +10,7 @@ import sys
 import uuid
 
 from datetime import datetime
+from time import sleep
 
 import pytest
 
@@ -168,6 +169,7 @@ def test_urlstore():
 
     url1 = my_urls.get_url(example_domain)
     timestamp = my_urls.urldict[example_domain].timestamp
+    sleep(0.1)
     url2 = my_urls.get_url(example_domain)
     assert url1 != url2 and url1 == "https://www.example.org/1/10/"
     assert my_urls.urldict[example_domain].count == 2
