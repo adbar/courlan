@@ -172,6 +172,9 @@ class UrlStore:
             # timestamp/backoff value
             if timestamp is not None:
                 self.urldict[domain].timestamp = timestamp
+            # adjust general state
+            if self.done and not self.urldict[domain].all_visited:
+                self.done = False
 
     def _search_urls(
         self, urls: List[str], switch: Optional[int] = None
@@ -248,8 +251,13 @@ class UrlStore:
         raise KeyError("website not in store")
 
     def get_unvisited_domains(self) -> List[str]:
-        "Return all domains which have not been all visited."
-        return [d for d in self.urldict if not self.urldict[d].all_visited]
+        """Find all domains for which there are unvisited URLs
+        and potentially adjust done meta-information."""
+        with self._lock:
+            unvisited = [d for d in self.urldict if not self.urldict[d].all_visited]
+            if not unvisited:
+                self.done = True
+            return unvisited
 
     # URL-BASED QUERIES
 
@@ -297,10 +305,8 @@ class UrlStore:
     def get_download_urls(self, timelimit: int = 10) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
-        with self._lock:
-            potential = [d for d in self.urldict if not self.urldict[d].all_visited]
+        potential = self.get_unvisited_domains()
         if not potential:
-            self.done = True
             return []
         targets = []
         for domain in potential:
@@ -319,11 +325,9 @@ class UrlStore:
         """Get up to the specified number of URLs along with a suitable
         backoff schedule (in seconds)."""
         # see which domains are free
-        with self._lock:
-            potential = [d for d in self.urldict if not self.urldict[d].all_visited]
-            if not potential:
-                self.done = True
-                return []
+        potential = self.get_unvisited_domains()
+        if not potential:
+            return []
         # variables init
         per_domain = max_urls // len(potential) or 1
         targets: List[Tuple[float, str]] = []
