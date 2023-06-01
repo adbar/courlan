@@ -253,11 +253,13 @@ class UrlStore:
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
         and potentially adjust done meta-information."""
+        unvisited = []
         with self._lock:
-            unvisited = [d for d in self.urldict if not self.urldict[d].all_visited]
-            if not unvisited:
-                self.done = True
-            return unvisited
+            if not self.done:
+                unvisited = [d for d in self.urldict if not self.urldict[d].all_visited]
+                if not unvisited:
+                    self.done = True
+        return unvisited
 
     # URL-BASED QUERIES
 
@@ -270,7 +272,11 @@ class UrlStore:
 
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
-        return [domain + u.urlpath for u in self._load_urls(domain) if not u.visited]
+        if not self.is_exhausted_domain(domain):
+            return [
+                domain + u.urlpath for u in self._load_urls(domain) if not u.visited
+            ]
+        return []
 
     def filter_unvisited_urls(self, urls: List[str]) -> List[Union[Any, str]]:
         "Take a list of URLs and return the currently unvisited ones."
@@ -285,7 +291,7 @@ class UrlStore:
     def get_url(self, domain: str, as_visited: bool = True) -> Optional[str]:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
-        if not self.urldict[domain].all_visited:
+        if not self.is_exhausted_domain(domain):
             url_tuples = self._load_urls(domain)
             # get first non-seen url
             for url in url_tuples:
