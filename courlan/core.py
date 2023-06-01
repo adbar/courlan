@@ -12,11 +12,14 @@ import re
 # from functools import cmp_to_key
 from random import sample
 from typing import List, Optional, Set, Tuple
+from urllib.robotparser import RobotFileParser
 
 from .clean import normalize_url, scrub_url
 from .filters import (
     basic_filter,
     extension_filter,
+    is_navigation_page,
+    is_not_crawlable,
     lang_filter,
     path_filter,
     type_filter,
@@ -253,3 +256,34 @@ def extract_links(
     # return
     LOGGER.info("%s links found – %s valid links", len(candidates), len(validlinks))
     return validlinks
+
+
+def filter_links(
+    htmlstring: str,
+    base_url: str,
+    lang: Optional[str] = None,
+    rules: Optional[RobotFileParser] = None,
+    external: bool = False,
+    with_nav: bool = True,
+) -> Tuple[List[str], List[str]]:
+    "Find links in a HTML document, filter them and add them to the data store."
+    links, links_priority = [], []
+    for link in extract_links(
+        pagecontent=htmlstring,
+        base_url=base_url,
+        external_bool=external,
+        language=lang,
+        with_nav=with_nav,
+    ):
+        # check robots.txt rules
+        if rules is not None and not rules.can_fetch("*", link):
+            continue
+        # sanity check
+        if is_not_crawlable(link):
+            continue
+        # store
+        if is_navigation_page(link):
+            links_priority.append(link)
+        else:
+            links.append(link)
+    return links, links_priority

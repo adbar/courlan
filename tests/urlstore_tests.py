@@ -15,6 +15,7 @@ from time import sleep
 import pytest
 
 from courlan import UrlStore
+from courlan.core import filter_links
 
 
 def test_urlstore():
@@ -330,3 +331,35 @@ def test_dbdump(capsys):
             os.kill(pid, signal.SIGINT)
         captured = capsys.readouterr()
         assert captured.out.strip().endswith("https://www.test.org/2")
+
+
+def test_from_html():
+    "Test link extraction procedures."
+    # url_store = UrlStore()
+    # base_url = 'https://example.org'
+    # htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
+    # 1 internal link in total
+    # url_store.add_from_html(htmlstring, base_url)
+    # assert len(url_store.find_known_urls(base_url)) == 1
+    # assert len(url_store.find_unvisited_urls(base_url)) == 1
+    # same with content already seen
+    # url_store.add_from_html(htmlstring, base_url)
+    # assert len(url_store.find_unvisited_urls(base_url)) == 1 and len(url_store.find_known_urls(base_url)) == 1
+    # test navigation links
+    # htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/></body></html>'
+    # url_store.add_from_html(htmlstring, base_url)
+    # todo = url_store.find_unvisited_urls(base_url)
+    # known_links = url_store.find_known_urls(base_url)
+    # assert todo[0] == 'https://example.org/tag/number1' and len(known_links) == 3
+    # test cleaning and language
+    # htmlstring = '<html><body><a href="https://example.org/en/page1/?"/></body></html>'
+    # url_store.add_from_html(htmlstring, base_url, language='en')
+    # todo = url_store.find_unvisited_urls(base_url)
+    # known_links = url_store.find_known_urls(base_url)
+    # assert 'https://example.org/en/page1/' in todo and len(known_links) == 4
+    # wrong language
+    # htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
+    # url_store.add_from_html(htmlstring, base_url, language='de')
+    # todo = url_store.find_unvisited_urls(base_url)
+    # known_links = url_store.find_known_urls(base_url)
+    # assert 'https://example.org/en/page2' not in todo and len(known_links) == 4

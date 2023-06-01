@@ -1,5 +1,5 @@
 """
-Defines a URL store which holds URLs along with relevant information.
+Defines a URL store which holds URLs along with relevant information and entails crawling helpers.
 """
 
 import bz2
@@ -26,6 +26,7 @@ from typing import (
 
 from urllib.robotparser import RobotFileParser
 
+# from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
 from .urlutils import get_host_and_path, is_known_link
@@ -220,6 +221,19 @@ class UrlStore:
         if appendleft:
             for host, urltuples in self._buffer_urls(appendleft, visited).items():
                 self._store_urls(host, to_left=urltuples)
+
+    # def add_from_html(
+    #    self,
+    #    htmlstring: str,
+    #    base_url: str,
+    #    external: bool = False,
+    #    lang: str = self.language,
+    #    with_nav: bool = True
+    # ) -> None:
+    #    "Find links in a HTML document, filter them and add them to the data store."
+    #    rules = self.get_rules(base_url)
+    #    links, links_priority = filter_links(htmlstring=htmlstring, base_url=base_url, external=external, lang=lang, rule#s=rules, with_nav=with_nav)
+    #    self.add_urls(urls=links, appendleft=links_priority)
 
     def is_known(self, url: str) -> bool:
         "Check if the given URL has already been stored."
