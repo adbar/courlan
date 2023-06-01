@@ -335,31 +335,34 @@ def test_dbdump(capsys):
 
 def test_from_html():
     "Test link extraction procedures."
-    # url_store = UrlStore()
-    # base_url = 'https://example.org'
-    # htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
+    url_store = UrlStore()
+    base_url = "https://example.org"
+    htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     # 1 internal link in total
-    # url_store.add_from_html(htmlstring, base_url)
-    # assert len(url_store.find_known_urls(base_url)) == 1
-    # assert len(url_store.find_unvisited_urls(base_url)) == 1
+    url_store.add_from_html(htmlstring, base_url)
+    assert len(url_store.find_known_urls(base_url)) == 1
+    assert len(url_store.find_unvisited_urls(base_url)) == 1
     # same with content already seen
-    # url_store.add_from_html(htmlstring, base_url)
-    # assert len(url_store.find_unvisited_urls(base_url)) == 1 and len(url_store.find_known_urls(base_url)) == 1
+    url_store.add_from_html(htmlstring, base_url)
+    assert (
+        len(url_store.find_unvisited_urls(base_url)) == 1
+        and len(url_store.find_known_urls(base_url)) == 1
+    )
     # test navigation links
-    # htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/></body></html>'
-    # url_store.add_from_html(htmlstring, base_url)
-    # todo = url_store.find_unvisited_urls(base_url)
-    # known_links = url_store.find_known_urls(base_url)
-    # assert todo[0] == 'https://example.org/tag/number1' and len(known_links) == 3
+    htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/></body></html>'
+    url_store.add_from_html(htmlstring, base_url)
+    todo = url_store.find_unvisited_urls(base_url)
+    known_links = url_store.find_known_urls(base_url)
+    assert todo[0] == "https://example.org/tag/number1" and len(known_links) == 3
     # test cleaning and language
-    # htmlstring = '<html><body><a href="https://example.org/en/page1/?"/></body></html>'
-    # url_store.add_from_html(htmlstring, base_url, language='en')
-    # todo = url_store.find_unvisited_urls(base_url)
-    # known_links = url_store.find_known_urls(base_url)
-    # assert 'https://example.org/en/page1/' in todo and len(known_links) == 4
+    htmlstring = '<html><body><a href="https://example.org/en/page1/?"/></body></html>'
+    url_store.add_from_html(htmlstring, base_url, lang="en")
+    todo = url_store.find_unvisited_urls(base_url)
+    known_links = url_store.find_known_urls(base_url)
+    assert "https://example.org/en/page1/" in todo and len(known_links) == 4
     # wrong language
-    # htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
-    # url_store.add_from_html(htmlstring, base_url, language='de')
-    # todo = url_store.find_unvisited_urls(base_url)
-    # known_links = url_store.find_known_urls(base_url)
-    # assert 'https://example.org/en/page2' not in todo and len(known_links) == 4
+    htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
+    url_store.add_from_html(htmlstring, base_url, lang="de")
+    todo = url_store.find_unvisited_urls(base_url)
+    known_links = url_store.find_known_urls(base_url)
+    assert "https://example.org/en/page2" not in todo and len(known_links) == 4

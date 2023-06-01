@@ -12,7 +12,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
 from typing import Any, Iterator, List, Optional, Tuple
 
-from .core import check_url, sample_urls
+from .core import check_url
+from .sampling import sample_urls
 
 
 def parse_args(args: Any) -> Any:
