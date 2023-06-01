@@ -132,6 +132,7 @@ def test_urlstore():
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
     assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
     assert my_urls.urldict["https://visited.com"].all_visited is True
+    assert not my_urls.find_unvisited_urls("https://visited.com")
     assert my_urls.is_exhausted_domain("https://visited.com") is True
     # new unvisited URLs
     my_urls.add_urls(["https://visited.com/1"], visited=False)
