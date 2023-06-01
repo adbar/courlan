@@ -271,6 +271,8 @@ def test_urlstore():
     schedule = other_store.establish_download_schedule()
     assert not schedule
     # store exhaustion
+    other_store.add_urls(["https://www.test.org/1"])
+    assert other_store.done is False
     other_store = UrlStore()
     other_store.add_urls(
         ["http://domain.fi/page1", "http://domain.fi/page2", "http://domain.no/0"]
