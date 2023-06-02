@@ -337,9 +337,13 @@ def test_from_html():
     "Test link extraction procedures."
     url_store = UrlStore()
     base_url = "https://example.org"
-    htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
+    htmlstring = '<html><body><a href="https://example.com/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     # 1 internal link in total
     url_store.add_from_html(htmlstring, base_url)
+    rules = pickle.loads(
+        b"\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub."
+    )
+    url_store.store_rules("https://example.org", rules)
     assert len(url_store.find_known_urls(base_url)) == 1
     assert len(url_store.find_unvisited_urls(base_url)) == 1
     # same with content already seen
@@ -349,7 +353,7 @@ def test_from_html():
         and len(url_store.find_known_urls(base_url)) == 1
     )
     # test navigation links
-    htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/></body></html>'
+    htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/><a href="https://example.org/login"/></body></html>'
     url_store.add_from_html(htmlstring, base_url)
     todo = url_store.find_unvisited_urls(base_url)
     known_links = url_store.find_known_urls(base_url)

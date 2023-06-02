@@ -218,11 +218,10 @@ def filter_links(
         language=lang,
         with_nav=with_nav,
     ):
-        # check robots.txt rules
-        if rules is not None and not rules.can_fetch("*", link):
-            continue
         # sanity check
-        if is_not_crawlable(link):
+        if is_not_crawlable(link) or (
+            rules is not None and not rules.can_fetch("*", link)
+        ):
             continue
         # store
         if is_navigation_page(link):
