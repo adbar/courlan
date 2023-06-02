@@ -9,14 +9,15 @@ Core functions needed to make the module work.
 import logging
 import re
 
-# from functools import cmp_to_key
-from random import sample
 from typing import List, Optional, Set, Tuple
+from urllib.robotparser import RobotFileParser
 
 from .clean import normalize_url, scrub_url
 from .filters import (
     basic_filter,
     extension_filter,
+    is_navigation_page,
+    is_not_crawlable,
     lang_filter,
     path_filter,
     type_filter,
@@ -24,7 +25,6 @@ from .filters import (
 )
 from .network import redirection_test
 from .settings import BLACKLIST
-from .urlstore import UrlStore
 from .urlutils import extract_domain, fix_relative_urls, is_external, is_known_link
 
 
@@ -118,60 +118,6 @@ def check_url(
     return url, domain
 
 
-def sample_urls(
-    input_urls: List[str],
-    samplesize: int,
-    exclude_min: Optional[int] = None,
-    exclude_max: Optional[int] = None,
-    strict: bool = False,
-    verbose: bool = False,
-) -> List[str]:
-    """Sample a list of URLs by domain name, optionally using constraints on their number"""
-    # logging
-    if verbose:
-        LOGGER.setLevel(logging.DEBUG)
-    else:
-        LOGGER.setLevel(logging.ERROR)
-    # store
-    output_urls = []
-    use_compression = len(input_urls) > 10**6
-    urlstore = UrlStore(
-        compressed=use_compression, language=None, strict=strict, verbose=verbose
-    )
-    urlstore.add_urls(sorted(input_urls))
-    # iterate
-    for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
-        urlpaths = [
-            p.urlpath
-            for p in urlstore._load_urls(domain)
-            if p.urlpath not in ("/", None)
-        ]
-        # too few or too many URLs
-        if (
-            not urlpaths
-            or exclude_min is not None
-            and len(urlpaths) < exclude_min
-            or exclude_max is not None
-            and len(urlpaths) > exclude_max
-        ):
-            LOGGER.warning("discarded (size): %s\t\turls: %s", domain, len(urlpaths))
-            continue
-        # sample
-        if len(urlpaths) > samplesize:
-            mysample = sorted(sample(urlpaths, k=samplesize))
-        else:
-            mysample = urlpaths
-        output_urls.extend([domain + p for p in mysample])
-        LOGGER.debug(
-            "%s\t\turls: %s\tprop.: %s",
-            domain,
-            len(mysample),
-            len(mysample) / len(urlpaths),
-        )
-    # return gathered URLs
-    return output_urls
-
-
 def extract_links(
     pagecontent: str,
     base_url: str,
@@ -253,3 +199,35 @@ def extract_links(
     # return
     LOGGER.info("%s links found – %s valid links", len(candidates), len(validlinks))
     return validlinks
+
+
+def filter_links(
+    htmlstring: str,
+    base_url: str,
+    lang: Optional[str] = None,
+    rules: Optional[RobotFileParser] = None,
+    external: bool = False,
+    strict: bool = False,
+    with_nav: bool = True,
+) -> Tuple[List[str], List[str]]:
+    "Find links in a HTML document, filter them and add them to the data store."
+    links, links_priority = [], []
+    for link in extract_links(
+        pagecontent=htmlstring,
+        base_url=base_url,
+        external_bool=external,
+        language=lang,
+        strict=strict,
+        with_nav=with_nav,
+    ):
+        # sanity check
+        if is_not_crawlable(link) or (
+            rules is not None and not rules.can_fetch("*", link)
+        ):
+            continue
+        # store
+        if is_navigation_page(link):
+            links_priority.append(link)
+        else:
+            links.append(link)
+    return links, links_priority

@@ -38,6 +38,7 @@ from courlan import (
     is_not_crawlable,
     lang_filter,
 )
+from courlan.core import filter_links
 from courlan.filters import extension_filter, path_filter, type_filter
 from courlan.meta import clear_caches
 from courlan.urlutils import _parse, get_tldinfo, is_known_link
@@ -841,6 +842,12 @@ def test_extraction():
         "https://test.com/example",
         "https://test.com/page/2",
     ]
+    # link filtering
+    base_url = "https://example.org"
+    htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
+    links, links_priority = filter_links(htmlstring, base_url)
+    assert len(links) == 1
+    assert not links_priority
 
 
 def test_cli():
