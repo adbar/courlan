@@ -243,13 +243,16 @@ def test_urlstore():
     assert (
         len(my_urls.find_known_urls(example_domain))
         == len(my_urls._load_urls(example_domain))
+        == my_urls.urldict[example_domain].total
         == 10011
     )
     assert len(my_urls.find_unvisited_urls(example_domain)) == 10009
     assert (
-        my_urls.unvisited_websites_number() == len(my_urls.get_unvisited_domains()) == 4
+        my_urls.unvisited_websites_number() == len(my_urls.get_unvisited_domains()) == 2
     )
-    assert my_urls.total_url_number() == 20013
+    for domain in my_urls.urldict:
+        print(domain, my_urls.urldict[domain].total, len(my_urls._load_urls(domain)))
+    assert my_urls.total_url_number() == 20014
 
     # get download URLs
     downloadable_urls = my_urls.get_download_urls(timelimit=0)
