@@ -36,14 +36,15 @@ LOGGER = logging.getLogger(__name__)
 
 class DomainEntry:
     "Class to record host-related information and URL paths."
-    __slots__ = ("all_visited", "count", "rules", "timestamp", "tuples")
+    __slots__ = ("all_visited", "count", "rules", "timestamp", "total", "tuples")
 
     def __init__(self) -> None:
         self.all_visited: bool = False
         self.count: int = 0
         self.rules: Optional[RobotFileParser] = None
-        self.tuples: Deque[UrlPathTuple] = deque()
         self.timestamp: Optional[Any] = None
+        self.total: int = 0
+        self.tuples: Deque[UrlPathTuple] = deque()
 
 
 class UrlPathTuple:
@@ -120,9 +121,11 @@ class UrlStore:
         return inputdict
 
     def _load_urls(self, domain: str) -> Deque[UrlPathTuple]:
-        if self.compressed:
-            return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
-        return self.urldict[domain].tuples
+        if domain in self.urldict:
+            if self.compressed:
+                return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
+            return self.urldict[domain].tuples
+        return deque()
 
     def _store_urls(
         self,
@@ -160,6 +163,7 @@ class UrlStore:
 
         # use lock
         with self._lock:
+            self.urldict[domain].total = len(urls)
             # compression
             if self.compressed:
                 self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
@@ -413,7 +417,7 @@ class UrlStore:
 
     def total_url_number(self) -> int:
         "Find number of all URLs in store."
-        return sum(len(self._load_urls(d)) for d in self.urldict)
+        return sum(self.urldict[d].total for d in self.urldict)
 
     def download_threshold_reached(self, threshold: float) -> bool:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."
