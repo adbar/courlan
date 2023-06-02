@@ -353,7 +353,7 @@ def test_from_html():
         and len(url_store.find_known_urls(base_url)) == 1
     )
     # test navigation links
-    htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/><a href="https://example.org/login"/></body></html>'
+    htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/><a href="https://example.org/login"/><a href="https://example.org/imprint.html"/></body></html>'
     url_store.add_from_html(htmlstring, base_url)
     todo = url_store.find_unvisited_urls(base_url)
     known_links = url_store.find_known_urls(base_url)

@@ -216,6 +216,7 @@ def filter_links(
         base_url=base_url,
         external_bool=external,
         language=lang,
+        strict=False,
         with_nav=with_nav,
     ):
         # sanity check
