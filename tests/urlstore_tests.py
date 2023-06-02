@@ -250,8 +250,6 @@ def test_urlstore():
     assert (
         my_urls.unvisited_websites_number() == len(my_urls.get_unvisited_domains()) == 2
     )
-    for domain in my_urls.urldict:
-        print(domain, my_urls.urldict[domain].total, len(my_urls._load_urls(domain)))
     assert my_urls.total_url_number() == 20014
 
     # get download URLs
