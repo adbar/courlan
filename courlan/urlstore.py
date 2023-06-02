@@ -237,8 +237,9 @@ class UrlStore:
             htmlstring=htmlstring,
             base_url=base_url,
             external=external,
-            lang=lang,
+            lang=lang or self.language,
             rules=rules,
+            strict=self.strict,
             with_nav=with_nav,
         )
         self.add_urls(urls=links, appendleft=links_priority)

@@ -207,6 +207,7 @@ def filter_links(
     lang: Optional[str] = None,
     rules: Optional[RobotFileParser] = None,
     external: bool = False,
+    strict: bool = False,
     with_nav: bool = True,
 ) -> Tuple[List[str], List[str]]:
     "Find links in a HTML document, filter them and add them to the data store."
@@ -216,7 +217,7 @@ def filter_links(
         base_url=base_url,
         external_bool=external,
         language=lang,
-        strict=False,
+        strict=strict,
         with_nav=with_nav,
     ):
         # sanity check

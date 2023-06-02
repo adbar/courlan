@@ -370,3 +370,10 @@ def test_from_html():
     todo = url_store.find_unvisited_urls(base_url)
     known_links = url_store.find_known_urls(base_url)
     assert "https://example.org/en/page2" not in todo and len(known_links) == 4
+
+    # strict + language as URL store parameters
+    url_store = UrlStore(strict=True, language="de")
+    base_url = "https://example.org"
+    htmlstring = '<html><body><a href="https://example.org/en/page2"/><a href="https://example.org/imprint.html"/></body></html>'
+    url_store.add_from_html(htmlstring, base_url)
+    assert not url_store.find_known_urls(base_url)
