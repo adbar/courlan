@@ -92,9 +92,9 @@ class UrlStore:
         "Re-initialize the URL store."
         with self._lock:
             self.urldict = defaultdict(DomainEntry)
-            clear_caches()
-            num = gc.collect()
-            LOGGER.debug("UrlStore reset, %s objects in GC", num)
+        clear_caches()
+        num = gc.collect()
+        LOGGER.debug("UrlStore reset, %s objects in GC", num)
 
     def _buffer_urls(
         self, data: List[str], visited: bool = False
@@ -252,6 +252,12 @@ class UrlStore:
         )
         self.add_urls(urls=links, appendleft=links_priority)
 
+    def discard(self, domains: List[str]) -> None:
+        "Declare domains void and prune the store."
+        for d in domains:
+            self.urldict[d].all_visited = True
+        self.prune()
+
     def is_known(self, url: str) -> bool:
         "Check if the given URL has already been stored."
         hostinfo, urlpath = get_host_and_path(url)
@@ -268,12 +274,11 @@ class UrlStore:
 
     def prune(self) -> None:
         "Delete unnecessary information to save space."
-        with self._lock:
-            for host in [d for d in self.urldict if self.urldict[d].all_visited]:
-                self._store_tuples(host, deque())
-                self.urldict[host].total = 0
-            num = gc.collect()
-            LOGGER.debug("UrlStore pruned, %s objects in GC", num)
+        for host in [d for d in self.urldict if self.urldict[d].all_visited]:
+            self._store_tuples(host, deque())
+            self.urldict[host].total = 0
+        num = gc.collect()
+        LOGGER.debug("UrlStore pruned, %s objects in GC", num)
 
     # DOMAINS / HOSTNAMES
 

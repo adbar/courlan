@@ -124,6 +124,15 @@ def test_urlstore():
     # test loading
     url_buffer = UrlStore()._buffer_urls(urls)
     assert sum(len(v) for _, v in url_buffer.items()) == len(urls)
+    # test discard + prune
+    ref_num_domains = my_urls.get_known_domains()
+    assert my_urls.total_url_number() != 0
+    my_urls.discard(my_urls.get_known_domains())
+    assert (
+        my_urls.total_url_number() == 0
+        and my_urls.get_known_domains() == ref_num_domains
+    )
+
     my_urls = UrlStore()
     my_urls.add_urls(urls)
     assert sum(len(my_urls._load_urls(k)) for k, _ in my_urls.urldict.items()) == len(
