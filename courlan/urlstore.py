@@ -128,6 +128,14 @@ class UrlStore:
             return self.urldict[domain].tuples
         return deque()
 
+    def _store_tuples(self, domain: str, tuples: Deque[UrlPathTuple]) -> None:
+        if self.compressed:
+            self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
+                pickle.dumps(tuples, protocol=4)
+            )
+        else:
+            self.urldict[domain].tuples = tuples
+
     def _store_urls(
         self,
         domain: str,
@@ -162,16 +170,9 @@ class UrlStore:
         if to_left is not None:
             urls.extendleft(t for t in to_left if not is_known_link(t.urlpath, known))
 
-        # use lock
         with self._lock:
             self.urldict[domain].total = len(urls)
-            # compression
-            if self.compressed:
-                self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
-                    pickle.dumps(urls, protocol=4)
-                )
-            else:
-                self.urldict[domain].tuples = urls
+            self._store_tuples(domain, urls)
             # adjust all_visited status
             self.urldict[domain].all_visited = all(u.visited for u in urls)
             # timestamp/backoff value
@@ -264,6 +265,15 @@ class UrlStore:
     def filter_unknown_urls(self, urls: List[str]) -> List[str]:
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
+
+    def prune(self) -> None:
+        "Delete unnecessary information to save space."
+        with self._lock:
+            for host in [d for d in self.urldict if self.urldict[d].all_visited]:
+                self._store_tuples(host, deque())
+                self.urldict[host].total = 0
+            num = gc.collect()
+            LOGGER.debug("UrlStore pruned, %s objects in GC", num)
 
     # DOMAINS / HOSTNAMES
 

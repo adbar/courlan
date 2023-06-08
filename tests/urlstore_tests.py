@@ -92,6 +92,10 @@ def test_urlstore():
         ["https://www.sitemaps.org/es/1"], appendleft=["https://www.sitemaps.org/fi/2"]
     )
     assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 1
+    # pruning
+    my_urls.urldict["https://www.sitemaps.org"].all_visited = True
+    my_urls.prune()
+    assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 0
 
     # try example URLs
     example_domain = "https://www.example.org"
