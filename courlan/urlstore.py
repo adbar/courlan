@@ -137,12 +137,14 @@ class UrlStore:
         return deque()
 
     def _store_tuples(self, domain: str, tuples: Deque[UrlPathTuple]) -> None:
-        if self.compressed:
-            self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
-                pickle.dumps(tuples, protocol=4)
-            )
-        else:
-            self.urldict[domain].tuples = tuples
+        with self._lock:
+            if self.compressed:
+                self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
+                    pickle.dumps(tuples, protocol=4)
+                )
+            else:
+                self.urldict[domain].tuples = tuples
+            self.urldict[domain].total = len(tuples)
 
     def _store_urls(
         self,
@@ -166,6 +168,9 @@ class UrlStore:
 
         # load URLs or create entry
         if domain in self.urldict:
+            # discard if busted
+            if self.urldict[domain].state is State.BUSTED:
+                return
             urls = self._load_urls(domain)
             known = {u.urlpath for u in urls}
         else:
@@ -178,9 +183,8 @@ class UrlStore:
         if to_left is not None:
             urls.extendleft(t for t in to_left if not is_known_link(t.urlpath, known))
 
+        self._store_tuples(domain, urls)
         with self._lock:
-            self.urldict[domain].total = len(urls)
-            self._store_tuples(domain, urls)
             # timestamp/backoff value
             if timestamp is not None:
                 self.urldict[domain].timestamp = timestamp
@@ -266,8 +270,12 @@ class UrlStore:
     def discard(self, domains: List[str]) -> None:
         "Declare domains void and prune the store."
         for d in domains:
-            self.urldict[d].state = State.ALL_VISITED
-        self.prune()
+            with self._lock:
+                self.urldict[d].state = State.BUSTED
+            self._store_tuples(d, deque())
+        if all(self.is_exhausted_domain(d) for d in self.urldict):
+            with self._lock:
+                self.done = True
 
     def is_known(self, url: str) -> bool:
         "Check if the given URL has already been stored."
@@ -285,11 +293,8 @@ class UrlStore:
 
     def prune(self) -> None:
         "Delete unnecessary information to save space."
-        for host in [
-            d for d in self.urldict if self.urldict[d].state is State.ALL_VISITED
-        ]:
+        for host in [d for d in self.urldict if self.is_exhausted_domain(d)]:
             self._store_tuples(host, deque())
-            self.urldict[host].total = 0
         num = gc.collect()
         LOGGER.debug("UrlStore pruned, %s objects in GC", num)
 
@@ -302,23 +307,17 @@ class UrlStore:
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
-            state = self.urldict[domain].state
-            return state is State.ALL_VISITED or state is State.BUSTED
+            return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
         raise KeyError("website not in store")
 
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
         and potentially adjust done meta-information."""
         unvisited = []
-        with self._lock:
-            if not self.done:
-                unvisited = [
-                    d
-                    for d in self.urldict
-                    if not self.urldict[d].state is State.ALL_VISITED
-                ]
-                if not unvisited:
-                    self.done = True
+        if not self.done:
+            unvisited = [d for d in self.urldict if not self.is_exhausted_domain(d)]
+            if not unvisited:
+                self.done = True
         return unvisited
 
     # URL-BASED QUERIES
@@ -488,9 +487,8 @@ class UrlStore:
 
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
-        with self._lock:
-            for domain in self.urldict:
-                print("\n".join(self.find_unvisited_urls(domain)))
+        for domain in self.urldict:
+            print("\n".join(self.find_unvisited_urls(domain)))
 
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."

@@ -104,6 +104,10 @@ def test_urlstore():
     test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(10000)]
     urls = example_urls + test_urls
 
+    # test loading
+    url_buffer = UrlStore()._buffer_urls(urls)
+    assert sum(len(v) for _, v in url_buffer.items()) == len(urls)
+
     # compression 1
     my_urls = UrlStore(compressed=True)
     url_buffer = UrlStore()._buffer_urls(example_urls)
@@ -122,16 +126,27 @@ def test_urlstore():
     my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
 
-    # test loading
-    url_buffer = UrlStore()._buffer_urls(urls)
-    assert sum(len(v) for _, v in url_buffer.items()) == len(urls)
     # test discard + prune
+    my_urls = UrlStore()
+    my_urls.add_urls(urls)
     ref_num_domains = my_urls.get_known_domains()
+
     assert my_urls.total_url_number() != 0
     my_urls.discard(my_urls.get_known_domains())
     assert (
         my_urls.total_url_number() == 0
         and my_urls.get_known_domains() == ref_num_domains
+        and not my_urls.get_unvisited_domains()
+        and my_urls.done is True
+    )
+    my_urls.add_urls(
+        ["https://www.example.org/1", "https://test.org/1", "https://www.other.org/1"]
+    )
+    assert (
+        my_urls.total_url_number() == 1
+        and len(my_urls.get_known_domains()) == 3
+        and my_urls.get_unvisited_domains() == ["https://www.other.org"]
+        and my_urls.done is False
     )
 
     my_urls = UrlStore()
