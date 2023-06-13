@@ -94,9 +94,10 @@ def test_urlstore():
     )
     assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 1
     # pruning
+    assert not my_urls.done
     my_urls.urldict["https://www.sitemaps.org"].state = State.ALL_VISITED
-    my_urls.prune()
-    assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 0
+    my_urls._set_done()
+    assert my_urls.done
 
     # try example URLs
     example_domain = "https://www.example.org"
@@ -126,7 +127,7 @@ def test_urlstore():
     my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
 
-    # test discard + prune
+    # test discard
     my_urls = UrlStore()
     my_urls.add_urls(urls)
     ref_num_domains = my_urls.get_known_domains()
