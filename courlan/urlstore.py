@@ -96,14 +96,6 @@ class UrlStore:
             signal.signal(signal.SIGINT, dump_unvisited_urls)
             signal.signal(signal.SIGTERM, dump_unvisited_urls)
 
-    def reset(self) -> None:
-        "Re-initialize the URL store."
-        with self._lock:
-            self.urldict = defaultdict(DomainEntry)
-        clear_caches()
-        num = gc.collect()
-        LOGGER.debug("UrlStore reset, %s objects in GC", num)
-
     def _buffer_urls(
         self, data: List[str], visited: bool = False
     ) -> DefaultDict[str, Deque[UrlPathTuple]]:
@@ -222,7 +214,7 @@ class UrlStore:
     def _timestamp(self, domain: str) -> Optional[datetime]:
         return self.urldict[domain].timestamp
 
-    # URL MANIPULATION AND INFO
+    # ADDITIONS AND DELETIONS
 
     def add_urls(
         self,
@@ -272,31 +264,19 @@ class UrlStore:
         num = gc.collect()
         LOGGER.debug("%s objects in GC after UrlStore.discard", num)
 
-    def is_known(self, url: str) -> bool:
-        "Check if the given URL has already been stored."
-        hostinfo, urlpath = get_host_and_path(url)
-        # returns False if domain or URL is new
-        return urlpath in {u.urlpath for u in self._load_urls(hostinfo)}
-
-    def find_known_urls(self, domain: str) -> List[str]:
-        """Get all already known URLs for the given domain (ex. "https://example.org")."""
-        return [domain + u.urlpath for u in self._load_urls(domain)]
-
-    def filter_unknown_urls(self, urls: List[str]) -> List[str]:
-        "Take a list of URLs and return the currently unknown ones."
-        return self._search_urls(urls, switch=1)
+    def reset(self) -> None:
+        "Re-initialize the URL store."
+        with self._lock:
+            self.urldict = defaultdict(DomainEntry)
+        clear_caches()
+        num = gc.collect()
+        LOGGER.debug("UrlStore reset, %s objects in GC", num)
 
     # DOMAINS / HOSTNAMES
 
     def get_known_domains(self) -> List[str]:
         "Return all known domains as a list."
         return list(self.urldict)
-
-    def is_exhausted_domain(self, domain: str) -> bool:
-        "Tell if all known URLs for the website have been visited."
-        if domain in self.urldict:
-            return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
-        raise KeyError("website not in store")
 
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
@@ -308,18 +288,21 @@ class UrlStore:
                 self._set_done()
         return unvisited
 
+    def is_exhausted_domain(self, domain: str) -> bool:
+        "Tell if all known URLs for the website have been visited."
+        if domain in self.urldict:
+            return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
+        raise KeyError("website not in store")
+
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
         return len(self.get_unvisited_domains())
 
     # URL-BASED QUERIES
 
-    def has_been_visited(self, url: str) -> bool:
-        "Check if the given URL has already been visited."
-        hostinfo, urlpath = get_host_and_path(url)
-        known_urlpaths = {u.urlpath: u.visited for u in self._load_urls(hostinfo)}
-        return known_urlpaths.get(urlpath) or False
-        # return bool(self.filter_unvisited_urls([url]))
+    def find_known_urls(self, domain: str) -> List[str]:
+        """Get all already known URLs for the given domain (ex. "https://example.org")."""
+        return [domain + u.urlpath for u in self._load_urls(domain)]
 
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
@@ -329,9 +312,23 @@ class UrlStore:
             ]
         return []
 
+    def filter_unknown_urls(self, urls: List[str]) -> List[str]:
+        "Take a list of URLs and return the currently unknown ones."
+        return self._search_urls(urls, switch=1)
+
     def filter_unvisited_urls(self, urls: List[str]) -> List[Union[Any, str]]:
         "Take a list of URLs and return the currently unvisited ones."
         return self._search_urls(urls, switch=2)
+
+    def has_been_visited(self, url: str) -> bool:
+        "Check if the given URL has already been visited."
+        return not bool(self.filter_unvisited_urls([url]))
+
+    def is_known(self, url: str) -> bool:
+        "Check if the given URL has already been stored."
+        hostinfo, urlpath = get_host_and_path(url)
+        # returns False if domain or URL is new
+        return urlpath in {u.urlpath for u in self._load_urls(hostinfo)}
 
     # DOWNLOADS
 
