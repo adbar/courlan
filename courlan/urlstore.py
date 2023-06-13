@@ -12,6 +12,7 @@ import zlib
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
+from enum import Enum
 from threading import Lock
 from typing import (
     Any,
@@ -35,14 +36,21 @@ from .urlutils import get_host_and_path, is_known_link
 LOGGER = logging.getLogger(__name__)
 
 
+class State(Enum):
+    "Record state information about a domain or host."
+    OPEN = 1
+    ALL_VISITED = 2
+    BUSTED = 3
+
+
 class DomainEntry:
     "Class to record host-related information and URL paths."
-    __slots__ = ("all_visited", "count", "rules", "timestamp", "total", "tuples")
+    __slots__ = ("count", "rules", "state", "timestamp", "total", "tuples")
 
     def __init__(self) -> None:
-        self.all_visited: bool = False
         self.count: int = 0
         self.rules: Optional[RobotFileParser] = None
+        self.state: State = State.OPEN
         self.timestamp: Optional[Any] = None
         self.total: int = 0
         self.tuples: Deque[UrlPathTuple] = deque()
@@ -173,14 +181,17 @@ class UrlStore:
         with self._lock:
             self.urldict[domain].total = len(urls)
             self._store_tuples(domain, urls)
-            # adjust all_visited status
-            self.urldict[domain].all_visited = all(u.visited for u in urls)
             # timestamp/backoff value
             if timestamp is not None:
                 self.urldict[domain].timestamp = timestamp
-            # adjust general state
-            if self.done and not self.urldict[domain].all_visited:
-                self.done = False
+            # adjust all_visited status
+            if all(u.visited for u in urls):
+                self.urldict[domain].state = State.ALL_VISITED
+            else:
+                self.urldict[domain].state = State.OPEN
+                # adjust general state
+                if self.done:
+                    self.done = False
 
     def _search_urls(
         self, urls: List[str], switch: Optional[int] = None
@@ -255,7 +266,7 @@ class UrlStore:
     def discard(self, domains: List[str]) -> None:
         "Declare domains void and prune the store."
         for d in domains:
-            self.urldict[d].all_visited = True
+            self.urldict[d].state = State.ALL_VISITED
         self.prune()
 
     def is_known(self, url: str) -> bool:
@@ -274,7 +285,9 @@ class UrlStore:
 
     def prune(self) -> None:
         "Delete unnecessary information to save space."
-        for host in [d for d in self.urldict if self.urldict[d].all_visited]:
+        for host in [
+            d for d in self.urldict if self.urldict[d].state is State.ALL_VISITED
+        ]:
             self._store_tuples(host, deque())
             self.urldict[host].total = 0
         num = gc.collect()
@@ -289,7 +302,8 @@ class UrlStore:
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
-            return self.urldict[domain].all_visited
+            state = self.urldict[domain].state
+            return state is State.ALL_VISITED or state is State.BUSTED
         raise KeyError("website not in store")
 
     def get_unvisited_domains(self) -> List[str]:
@@ -298,7 +312,11 @@ class UrlStore:
         unvisited = []
         with self._lock:
             if not self.done:
-                unvisited = [d for d in self.urldict if not self.urldict[d].all_visited]
+                unvisited = [
+                    d
+                    for d in self.urldict
+                    if not self.urldict[d].state is State.ALL_VISITED
+                ]
                 if not unvisited:
                     self.done = True
         return unvisited
@@ -347,7 +365,7 @@ class UrlStore:
                     return domain + url.urlpath
         # nothing to draw from
         with self._lock:
-            self.urldict[domain].all_visited = True
+            self.urldict[domain].state = State.ALL_VISITED
         return None
 
     def get_download_urls(self, timelimit: int = 10) -> Optional[List[str]]:

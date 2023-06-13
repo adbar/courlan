@@ -16,6 +16,7 @@ import pytest
 
 from courlan import UrlStore
 from courlan.core import filter_links
+from courlan.urlstore import State
 
 
 def test_urlstore():
@@ -93,7 +94,7 @@ def test_urlstore():
     )
     assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 1
     # pruning
-    my_urls.urldict["https://www.sitemaps.org"].all_visited = True
+    my_urls.urldict["https://www.sitemaps.org"].state = State.ALL_VISITED
     my_urls.prune()
     assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 0
 
@@ -145,19 +146,19 @@ def test_urlstore():
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
     assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
-    assert my_urls.urldict["https://visited.com"].all_visited is True
+    assert my_urls.urldict["https://visited.com"].state is State.ALL_VISITED
     assert not my_urls.find_unvisited_urls("https://visited.com")
     assert my_urls.is_exhausted_domain("https://visited.com") is True
     # new unvisited URLs
     my_urls.add_urls(["https://visited.com/1"], visited=False)
     assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
-    assert my_urls.urldict["https://visited.com"].all_visited is False
+    assert my_urls.urldict["https://visited.com"].state is State.OPEN
     assert my_urls.is_exhausted_domain("https://visited.com") is False
     with pytest.raises(KeyError):
         assert my_urls.is_exhausted_domain("https://visited2.com") is True
     # revert changes for further tests
     del my_urls.urldict["https://visited.com"].tuples[1]
-    my_urls.urldict["https://visited.com"].all_visited = True
+    my_urls.urldict["https://visited.com"].state = State.ALL_VISITED
 
     # test extension
     extension_urls = [f"{example_domain}/1/{str(a)}" for a in range(10)]
@@ -206,10 +207,10 @@ def test_urlstore():
     # timestamp
     assert my_urls.urldict[example_domain].timestamp is not None
     # nothing left
-    assert my_urls.urldict[example_domain].all_visited is False
+    assert my_urls.urldict[example_domain].state is State.OPEN
     my_urls.add_urls(["http://tovisit.com/page"])
     assert my_urls.get_url("http://tovisit.com") == "http://tovisit.com/page"
-    assert my_urls.urldict["http://tovisit.com"].all_visited is True
+    assert my_urls.urldict["http://tovisit.com"].state is State.ALL_VISITED
     assert my_urls.get_url("http://tovisit.com") is None
 
     # known domains
@@ -240,7 +241,7 @@ def test_urlstore():
         and url_tuples[2].visited is False
     )
     assert my_urls.has_been_visited("http://tovisit.com/page") is True
-    assert my_urls.urldict["http://tovisit.com"].all_visited is True
+    assert my_urls.urldict["http://tovisit.com"].state is State.ALL_VISITED
     assert not my_urls.filter_unvisited_urls(["http://tovisit.com/page"])
     assert my_urls.filter_unvisited_urls(["http://tovisit.com/otherpage"]) == [
         "http://tovisit.com/otherpage"
