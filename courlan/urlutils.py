@@ -6,7 +6,7 @@ import re
 
 from functools import lru_cache
 from typing import Any, List, Optional, Set, Tuple, Union
-from urllib.parse import urljoin, urlparse, urlunparse, urlunsplit, ParseResult
+from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit, ParseResult
 
 from tld import get_tld
 
@@ -116,12 +116,12 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     "Prepend protocol and host information to relative links."
     if url.startswith("{"):
         return url
-    base_p = urlparse(baseurl)
-    url_p = urlparse(url)
-    if url_p.netloc not in [base_p.netloc, ""]:
-        if url_p.scheme:
+    base_netloc = urlsplit(baseurl).netloc
+    split_url = urlsplit(url)
+    if split_url.netloc not in (base_netloc, ""):
+        if split_url.scheme:
             return url
-        return urlunparse(url_p._replace(scheme="http"))
+        return urlunsplit(split_url._replace(scheme="http"))
     return urljoin(baseurl, url)
 
 
