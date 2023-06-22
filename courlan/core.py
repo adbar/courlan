@@ -25,7 +25,7 @@ from .filters import (
 )
 from .network import redirection_test
 from .settings import BLACKLIST
-from .urlutils import extract_domain, fix_relative_urls, is_external, is_known_link
+from .urlutils import extract_domain, get_base_url, fix_relative_urls, is_external, is_known_link
 
 
 LOGGER = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ def check_url(
 
 def extract_links(
     pagecontent: str,
-    base_url: str,
+    full_url: str,
     external_bool: bool,
     no_filter: bool = False,
     language: Optional[str] = None,
@@ -132,7 +132,7 @@ def extract_links(
     """Filter links in a HTML document using a series of heuristics
     Args:
         pagecontent: whole page in binary format
-        base_url: beginning of the URL, without path, fragment and query
+        full_url: full URL of the page
         external_bool: set to True for external links only, False for
                   internal links only
         no_filter: override settings and bypass checks to return all possible URLs
@@ -148,6 +148,7 @@ def extract_links(
     Raises:
         Nothing.
     """
+    base_url = get_base_url(full_url)
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
     if not pagecontent:
         return validlinks
@@ -175,7 +176,7 @@ def extract_links(
     for link in candidates:
         # repair using base
         if not link.startswith("http"):
-            link = fix_relative_urls(base_url, link)
+            link = fix_relative_urls(full_url, link)
         # check
         if no_filter is False:
             checked = check_url(
@@ -203,7 +204,7 @@ def extract_links(
 
 def filter_links(
     htmlstring: str,
-    base_url: str,
+    full_url: str,
     lang: Optional[str] = None,
     rules: Optional[RobotFileParser] = None,
     external: bool = False,
@@ -214,7 +215,7 @@ def filter_links(
     links, links_priority = [], []
     for link in extract_links(
         pagecontent=htmlstring,
-        base_url=base_url,
+        full_url=full_url,
         external_bool=external,
         language=lang,
         strict=strict,
