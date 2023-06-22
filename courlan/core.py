@@ -25,7 +25,13 @@ from .filters import (
 )
 from .network import redirection_test
 from .settings import BLACKLIST
-from .urlutils import extract_domain, get_base_url, fix_relative_urls, is_external, is_known_link
+from .urlutils import (
+    extract_domain,
+    get_base_url,
+    fix_relative_urls,
+    is_external,
+    is_known_link,
+)
 
 
 LOGGER = logging.getLogger(__name__)
