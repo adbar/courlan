@@ -6,7 +6,7 @@ import re
 
 from functools import lru_cache
 from typing import Any, List, Optional, Set, Tuple, Union
-from urllib.parse import urlparse, urlunsplit, ParseResult
+from urllib.parse import urljoin, urlparse, urlunparse, urlunsplit, ParseResult
 
 from tld import get_tld
 
@@ -114,19 +114,15 @@ def get_hostinfo(url: str) -> Tuple[Optional[str], str]:
 
 def fix_relative_urls(baseurl: str, url: str) -> str:
     "Prepend protocol and host information to relative links."
-    if url.startswith("//"):
-        return "https:" + url if baseurl.startswith("https") else "http:" + url
-    if url.startswith("/"):
-        # imperfect path handling
-        return baseurl + url
-    if url.startswith("."):
-        # don't try to correct these URLs
-        return baseurl + "/" + INNER_SLASH_REGEX.sub("", url)
-    if not url.startswith(("http", "{")):
-        return baseurl + "/" + url
-    # todo: handle here
-    # if url.startswith('{'):
-    return url
+    if url.startswith("{"):
+        return url
+    base_p = urlparse(baseurl)
+    url_p = urlparse(url)
+    if url_p.netloc not in [base_p.netloc, ""]:
+        if url_p.scheme:
+            return url
+        return urlunparse(url_p._replace(scheme="http"))
+    return urljoin(baseurl, url)
 
 
 def filter_urls(link_list: List[str], urlfilter: Optional[str]) -> List[str]:
