@@ -130,6 +130,19 @@ def test_fix_relative():
         fix_relative_urls("https://example.org", "www.eff.org")
         == "https://example.org/www.eff.org"
     )
+    # misc
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "./this:that")
+        == "https://www.example.org/dir/subdir/this:that"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org/test.html?q=test#frag", "foo.html?q=bar#baz")
+        == "https://www.example.org/foo.html?q=bar#baz"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org", "{privacy}")
+        == "{privacy}"
+    )
 
 
 def test_scrub():
