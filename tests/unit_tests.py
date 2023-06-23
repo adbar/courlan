@@ -99,6 +99,50 @@ def test_fix_relative():
         fix_relative_urls("https://example.org", "../../test.html")
         == "https://example.org/test.html"
     )
+    # sub-directories
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "/absolute")
+        == "https://www.example.org/absolute"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "relative")
+        == "https://www.example.org/dir/subdir/relative"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir/", "relative")
+        == "https://www.example.org/dir/subdir/relative"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir", "relative")
+        == "https://www.example.org/dir/relative"
+    )
+    # non-relative URLs
+    assert (
+        fix_relative_urls("https://example.org", "https://www.eff.org")
+        == "https://www.eff.org"
+    )
+    assert (
+        fix_relative_urls("https://example.org", "//www.eff.org")
+        == "http://www.eff.org"
+    )
+    # looks like an absolute URL but is actually a valid relative URL
+    assert (
+        fix_relative_urls("https://example.org", "www.eff.org")
+        == "https://example.org/www.eff.org"
+    )
+    # misc
+    assert (
+        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "./this:that")
+        == "https://www.example.org/dir/subdir/this:that"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org/test.html?q=test#frag", "foo.html?q=bar#baz")
+        == "https://www.example.org/foo.html?q=bar#baz"
+    )
+    assert (
+        fix_relative_urls("https://www.example.org", "{privacy}")
+        == "{privacy}"
+    )
 
 
 def test_scrub():
