@@ -136,13 +136,12 @@ def test_fix_relative():
         == "https://www.example.org/dir/subdir/this:that"
     )
     assert (
-        fix_relative_urls("https://www.example.org/test.html?q=test#frag", "foo.html?q=bar#baz")
+        fix_relative_urls(
+            "https://www.example.org/test.html?q=test#frag", "foo.html?q=bar#baz"
+        )
         == "https://www.example.org/foo.html?q=bar#baz"
     )
-    assert (
-        fix_relative_urls("https://www.example.org", "{privacy}")
-        == "{privacy}"
-    )
+    assert fix_relative_urls("https://www.example.org", "{privacy}") == "{privacy}"
 
 
 def test_scrub():
@@ -921,10 +920,9 @@ def test_cli():
     assert os.system("courlan --help") == 0  # exit status
 
     # _cli_check_urls
-    assert cli._cli_check_urls(["123", "https://example.org"]) == [
-        (False, "123"),
-        (True, "https://example.org"),
-    ]
+
+    assert cli._cli_check_url("123") == (False, "123")
+    assert cli._cli_check_url("https://example.org") == (True, "https://example.org")
 
     # testfile
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")

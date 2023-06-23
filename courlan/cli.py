@@ -8,7 +8,8 @@ Implements a basic command-line interface.
 import argparse
 import sys
 
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from itertools import islice
 from typing import Any, Iterator, List, Optional, Tuple
 
@@ -78,28 +79,24 @@ def parse_args(args: Any) -> Any:
     return argsparser.parse_args()
 
 
-def _cli_check_urls(
-    urls: List[str],
+def _cli_check_url(
+    url: str,
     strict: bool = False,
     with_redirects: bool = False,
     language: Optional[str] = None,
     with_nav: bool = False,
-) -> List[Tuple[bool, str]]:
+) -> Tuple[bool, str]:
     "Internal function to be used with CLI multiprocessing."
-    results = []
-    for url in urls:
-        result = check_url(
-            url,
-            strict=strict,
-            with_redirects=with_redirects,
-            language=language,
-            with_nav=with_nav,
-        )
-        if result is not None:
-            results.append((True, result[0]))
-        else:
-            results.append((False, url))
-    return results
+    result = check_url(
+        url,
+        strict=strict,
+        with_redirects=with_redirects,
+        language=language,
+        with_nav=with_nav,
+    )
+    if result is not None:
+        return (True, result[0])
+    return (False, url)
 
 
 def _get_line_batches(filename: str, size: int = 1000) -> Iterator[List[str]]:
@@ -118,18 +115,17 @@ def process_args(args: Any) -> None:
         with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
             args.outputfile, "w", encoding="utf-8"
         ) as outputfh:
-            futures = (
-                executor.submit(
-                    _cli_check_urls,
+            for batch in _get_line_batches(args.inputfile):
+                results = executor.map(
+                    partial(
+                        _cli_check_url,
+                        strict=args.strict,
+                        with_redirects=args.redirects,
+                        language=args.language,
+                    ),
                     batch,
-                    strict=args.strict,
-                    with_redirects=args.redirects,
-                    language=args.language,
                 )
-                for batch in _get_line_batches(args.inputfile)
-            )
-            for future in as_completed(futures):
-                for valid, url in future.result():
+                for valid, url in results:
                     if valid:
                         outputfh.write(url + "\n")
                     # proceed with discarded URLs. to be rewritten
