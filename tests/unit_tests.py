@@ -920,9 +920,7 @@ def test_cli():
     assert os.system("courlan --help") == 0  # exit status
 
     # _cli_check_urls
-
-    assert cli._cli_check_url("123") == (False, "123")
-    assert cli._cli_check_url("https://example.org") == (True, "https://example.org")
+    assert cli._cli_check_urls(["123", "https://example.org"]) == [(False, "123"), (True, "https://example.org")]
 
     # testfile
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")
