@@ -474,7 +474,7 @@ class UrlStore:
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
         for domain in self.urldict:
-            print("\n".join(self.find_unvisited_urls(domain)))
+            print("\n".join(self.find_unvisited_urls(domain)), flush=True)
 
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."
@@ -485,5 +485,6 @@ class UrlStore:
                         domain + u.urlpath + "\t" + str(u.visited)
                         for u in self._load_urls(domain)
                     ]
-                )
+                ),
+                flush=True,
             )

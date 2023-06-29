@@ -10,7 +10,7 @@ import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
-from typing import Any, Iterator, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from .core import check_url
 from .sampling import sample_urls
@@ -102,56 +102,74 @@ def _cli_check_urls(
     return results
 
 
-def _get_line_batches(filename: str, size: int = 1000) -> Iterator[List[str]]:
-    "Iterate over a file and returns series of line batches."
-    with open(filename, "r", encoding="utf-8", errors="ignore") as inputfh:
+def _cli_sample(args: Any) -> None:
+    "Sample URLs on the CLI."
+    urllist: List[str] = []
+
+    with open(args.inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
+        urllist.extend(line.strip() for line in inputfh)
+
+    with open(args.outputfile, "w", encoding="utf-8") as outputfh:
+        for url in sample_urls(
+            urllist,
+            args.samplesize,
+            exclude_min=args.exclude_min,
+            exclude_max=args.exclude_max,
+            strict=args.strict,
+            verbose=args.verbose,
+        ):
+            outputfh.write(url + "\n")
+
+
+def _cli_process(args: Any) -> None:
+    "Read input file bit by bit and process URLs in batches."
+    with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
+        args.outputfile, "w", encoding="utf-8"
+    ) as outputfh, open(
+        args.inputfile, "r", encoding="utf-8", errors="ignore"
+    ) as inputfh:
         while True:
-            line_batch = list(islice(inputfh, size))
-            if not line_batch:
+            batches = []  # type: List[List[str]]
+            while len(batches) < 1000:
+                line_batch = list(islice(inputfh, 1000))
+                if not line_batch:
+                    break
+                batches.append(line_batch)
+
+            if batches:
+                futures = (
+                    executor.submit(
+                        _cli_check_urls,
+                        batch,
+                        strict=args.strict,
+                        with_redirects=args.redirects,
+                        language=args.language,
+                    )
+                    for batch in batches
+                )
+
+                for future in as_completed(futures):
+                    for valid, url in future.result():
+                        if valid:
+                            outputfh.write(url + "\n")
+                        # proceed with discarded URLs. to be rewritten
+                        elif args.discardedfile is not None:
+                            with open(
+                                args.discardedfile, "a", encoding="utf-8"
+                            ) as discardfh:
+                                discardfh.write(url)
+
+                batches = []
+            else:
                 break
-            yield line_batch
 
 
 def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
-    if not args.sample:
-        with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
-            args.outputfile, "w", encoding="utf-8"
-        ) as outputfh:
-            futures = (
-                executor.submit(
-                    _cli_check_urls,
-                    batch,
-                    strict=args.strict,
-                    with_redirects=args.redirects,
-                    language=args.language,
-                )
-                for batch in _get_line_batches(args.inputfile)
-            )
-            for future in as_completed(futures):
-                for valid, url in future.result():
-                    if valid:
-                        outputfh.write(url + "\n")
-                    # proceed with discarded URLs. to be rewritten
-                    elif args.discardedfile is not None:
-                        with open(
-                            args.discardedfile, "a", encoding="utf-8"
-                        ) as discardfh:
-                            discardfh.write(url)
+    if args.sample:
+        _cli_sample(args)
     else:
-        urllist: List[str] = []
-        with open(args.inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
-            urllist.extend(line.strip() for line in inputfh)
-        with open(args.outputfile, "w", encoding="utf-8") as outputfh:
-            for url in sample_urls(
-                urllist,
-                args.samplesize,
-                exclude_min=args.exclude_min,
-                exclude_max=args.exclude_max,
-                strict=args.strict,
-                verbose=args.verbose,
-            ):
-                outputfh.write(url + "\n")
+        _cli_process(args)
 
 
 def main() -> None:
