@@ -6,7 +6,7 @@ import re
 
 from functools import lru_cache
 from typing import Any, List, Optional, Set, Tuple, Union
-from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit, ParseResult
+from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
 
 from tld import get_tld
 
@@ -67,11 +67,11 @@ def extract_domain(
     return full_domain
 
 
-def _parse(url: Any) -> ParseResult:
+def _parse(url: Any) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
-        parsed_url = urlparse(url)
-    elif isinstance(url, ParseResult):
+        parsed_url = urlsplit(url)
+    elif isinstance(url, SplitResult):
         parsed_url = url
     else:
         raise TypeError("wrong input type:", type(url))
