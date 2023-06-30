@@ -14,7 +14,7 @@ import tempfile
 
 from contextlib import redirect_stdout
 from unittest.mock import patch
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 import pytest
 
@@ -672,9 +672,9 @@ def test_urlutils():
     assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
     # url parsing
     result = _parse("https://httpbin.org/")
-    assert isinstance(result, ParseResult)
+    assert isinstance(result, SplitResult)
     newresult = _parse(result)
-    assert isinstance(result, ParseResult)
+    assert isinstance(result, SplitResult)
     with pytest.raises(TypeError):
         result = _parse(1.23)
 

@@ -9,7 +9,7 @@ import logging
 import re
 
 from typing import Optional, Union
-from urllib.parse import parse_qs, urlencode, urlunsplit, ParseResult
+from urllib.parse import parse_qs, urlencode, urlunsplit, SplitResult
 
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
@@ -98,7 +98,7 @@ def scrub_url(url: str) -> str:
 
 
 def clean_query(
-    parsed_url: ParseResult, strict: bool = False, language: Optional[str] = None
+    parsed_url: SplitResult, strict: bool = False, language: Optional[str] = None
 ) -> str:
     """Strip unwanted query elements"""
     if len(parsed_url.query) > 0:
@@ -148,7 +148,7 @@ def decode_punycode(string: str) -> str:
 
 
 def normalize_url(
-    parsed_url: Union[ParseResult, str],
+    parsed_url: Union[SplitResult, str],
     strict: bool = False,
     language: Optional[str] = None,
 ) -> str:

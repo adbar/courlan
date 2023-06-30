@@ -10,7 +10,7 @@ import logging
 import re
 
 from typing import Any, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from langcodes import Language, tag_is_valid
 
@@ -199,7 +199,7 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
 def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
     """Parse and validate the input"""
     try:
-        parsed_url = urlparse(url)
+        parsed_url = urlsplit(url)
     except ValueError:
         return False, None
     if not bool(parsed_url.scheme) or parsed_url.scheme not in (
