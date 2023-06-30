@@ -108,14 +108,13 @@ def _cli_check_urls(
 
 
 def _batch_lines(inputfile: str) -> Iterator[List[str]]:
-    batch = []
+    "Read input line in batches"
     with open(inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
-        for line in inputfh:
-            batch.append(line.strip())
-            if len(batch) > 1000:
-                yield batch
-                batch = []
-    yield batch
+        while True:
+            batch = list(islice(inputfh, 10**5))
+            if not batch:
+                return
+            yield batch
 
 
 def _cli_sample(args: Any) -> None:
