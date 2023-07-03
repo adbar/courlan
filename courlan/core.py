@@ -135,7 +135,6 @@ def extract_links(
     with_nav: bool = False,
     redirects: bool = False,
     reference: Optional[str] = None,
-
 ) -> Set[str]:
     """Filter links in a HTML document using a series of heuristics
     Args:
@@ -215,6 +214,7 @@ def extract_links(
 def filter_links(
     htmlstring: str,
     url: Optional[str],
+    base_url: Optional[str] = None,
     lang: Optional[str] = None,
     rules: Optional[RobotFileParser] = None,
     external: bool = False,

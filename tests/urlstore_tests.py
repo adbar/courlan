@@ -397,7 +397,7 @@ def test_from_html():
     url_store.add_from_html(htmlstring, base_url, lang="en")
     todo = url_store.find_unvisited_urls(base_url)
     known_links = url_store.find_known_urls(base_url)
-    assert "https://example.org/en/page1/" in todo and len(known_links) == 4
+    assert "https://example.org/en/page1" in todo and len(known_links) == 4
     # wrong language
     htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
     url_store.add_from_html(htmlstring, base_url, lang="de")
