@@ -111,7 +111,7 @@ def _batch_lines(inputfile: str) -> Iterator[List[str]]:
     "Read input line in batches"
     with open(inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
         while True:
-            batch = list(islice(inputfh, 10**5))
+            batch = [line.strip() for line in islice(inputfh, 10**5)]
             if not batch:
                 return
             yield batch
