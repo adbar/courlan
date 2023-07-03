@@ -126,19 +126,22 @@ def check_url(
 
 def extract_links(
     pagecontent: str,
-    full_url: str,
-    external_bool: bool,
+    url: Optional[str] = None,
+    base_url: Optional[str] = None,
+    external_bool: bool = False,
     no_filter: bool = False,
     language: Optional[str] = None,
     strict: bool = True,
     with_nav: bool = False,
     redirects: bool = False,
     reference: Optional[str] = None,
+
 ) -> Set[str]:
     """Filter links in a HTML document using a series of heuristics
     Args:
         pagecontent: whole page in binary format
-        full_url: full URL of the page
+        url: full URL of the original page
+        base_url: deprecated, legacy only
         external_bool: set to True for external links only, False for
                   internal links only
         no_filter: override settings and bypass checks to return all possible URLs
@@ -154,7 +157,8 @@ def extract_links(
     Raises:
         Nothing.
     """
-    base_url = get_base_url(full_url)
+    base_url = base_url or get_base_url(url)
+    url = url or base_url
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
     if not pagecontent:
         return validlinks
@@ -182,7 +186,7 @@ def extract_links(
     for link in candidates:
         # repair using base
         if not link.startswith("http"):
-            link = fix_relative_urls(full_url, link)
+            link = fix_relative_urls(url, link)
         # check
         if no_filter is False:
             checked = check_url(
@@ -194,7 +198,7 @@ def extract_links(
             )
             if checked is None:
                 continue
-            link = checked[0]
+            link = checked[0].rstrip("/")
             # external/internal links
             if external_bool != is_external(
                 url=link, reference=reference, ignore_suffix=True
@@ -210,7 +214,7 @@ def extract_links(
 
 def filter_links(
     htmlstring: str,
-    full_url: str,
+    url: Optional[str],
     lang: Optional[str] = None,
     rules: Optional[RobotFileParser] = None,
     external: bool = False,
@@ -219,9 +223,10 @@ def filter_links(
 ) -> Tuple[List[str], List[str]]:
     "Find links in a HTML document, filter them and add them to the data store."
     links, links_priority = [], []
+    url = url or base_url
     for link in extract_links(
         pagecontent=htmlstring,
-        full_url=full_url,
+        url=url,
         external_bool=external,
         language=lang,
         strict=strict,

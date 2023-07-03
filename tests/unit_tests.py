@@ -816,6 +816,21 @@ def test_extraction():
         "https://httpbin.org/links/2/0",
         "https://httpbin.org/links/2/1",
     ]
+    links = extract_links(
+        pagecontent, base_url="https://httpbin.org", external_bool=False, with_nav=True
+    )
+    assert sorted(links) == [
+        "https://httpbin.org/links/2/0",
+        "https://httpbin.org/links/2/1",
+    ]
+    pagecontent = "<html><head><title>Links</title></head><body><a href='links/2/0'>0</a> <a href='links/2/1'>1</a> </body></html>"
+    links = extract_links(
+        pagecontent, url="https://httpbin.org/page1/", external_bool=False, with_nav=True
+    )
+    assert sorted(links) == [
+        "https://httpbin.org/page1/links/2/0",
+        "https://httpbin.org/page1/links/2/1",
+    ]
     pagecontent = "<html><head><title>Pages</title></head><body><a href='/page/10'>10</a> <a href='/page/?=11'>11</a></body></html>"
     assert (
         extract_links(
@@ -835,7 +850,7 @@ def test_extraction():
         with_nav=True,
     )
     assert sorted(links) == [
-        "https://example.org/page/",  # parameter stripped by strict filtering
+        "https://example.org/page",  # parameter stripped by strict filtering
         "https://example.org/page/10",
     ]
     links = extract_links(
@@ -889,8 +904,12 @@ def test_extraction():
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     links, links_priority = filter_links(htmlstring, base_url)
-    assert len(links) == 1
-    assert not links_priority
+    assert links == ['https://example.org/page1'] and not links_priority
+    # link filtering with relative URLs
+    url = "https://example.org/page1.html"
+    htmlstring = '<html><body><a href="/subpage1"/><a href="/subpage1/"/><a href="https://test.org/page1"/></body></html>'
+    links, links_priority = filter_links(htmlstring, url=url)
+    assert links == ['https://example.org/subpage1'] and not links_priority
 
 
 def test_cli():
