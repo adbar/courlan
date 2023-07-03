@@ -920,7 +920,10 @@ def test_cli():
     assert os.system("courlan --help") == 0  # exit status
 
     # _cli_check_urls
-    assert cli._cli_check_urls(["123", "https://example.org"]) == [(False, "123"), (True, "https://example.org")]
+    assert cli._cli_check_urls(["123", "https://example.org"]) == [
+        (False, "123"),
+        (True, "https://example.org"),
+    ]
 
     # testfile
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")
@@ -963,9 +966,14 @@ def test_cli():
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0
+
         testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample"]
         with patch.object(sys, "argv", testargs):
             args = cli.parse_args(testargs)
+        with redirect_stdout(f):
+            cli.process_args(args)
+        assert len(f.getvalue()) == 0
+        args.verbose = True
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0

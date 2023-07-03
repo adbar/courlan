@@ -6,14 +6,19 @@ Implements a basic command-line interface.
 ## under GNU GPL v3 license
 
 import argparse
+import logging
 import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterator, List, Optional, Tuple
 
 from .core import check_url
-from .sampling import sample_urls
+from .sampling import _make_sample
+from .urlstore import UrlStore
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def parse_args(args: Any) -> Any:
@@ -102,21 +107,35 @@ def _cli_check_urls(
     return results
 
 
+def _batch_lines(inputfile: str) -> Iterator[List[str]]:
+    "Read input line in batches"
+    with open(inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
+        while True:
+            batch = list(islice(inputfh, 10**5))
+            if not batch:
+                return
+            yield batch
+
+
 def _cli_sample(args: Any) -> None:
     "Sample URLs on the CLI."
-    urllist: List[str] = []
+    if args.verbose:
+        LOGGER.setLevel(logging.DEBUG)
+    else:
+        LOGGER.setLevel(logging.ERROR)
 
-    with open(args.inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
-        urllist.extend(line.strip() for line in inputfh)
+    urlstore = UrlStore(
+        compressed=True, language=None, strict=args.strict, verbose=args.verbose
+    )
+    for batch in _batch_lines(args.inputfile):
+        urlstore.add_urls(batch)
 
     with open(args.outputfile, "w", encoding="utf-8") as outputfh:
-        for url in sample_urls(
-            urllist,
+        for url in _make_sample(
+            urlstore,
             args.samplesize,
             exclude_min=args.exclude_min,
             exclude_max=args.exclude_max,
-            strict=args.strict,
-            verbose=args.verbose,
         ):
             outputfh.write(url + "\n")
 
