@@ -170,8 +170,9 @@ def test_urlstore():
     assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
     assert my_urls.urldict["https://visited.com"].state is State.OPEN
     assert my_urls.is_exhausted_domain("https://visited.com") is False
-    with pytest.raises(KeyError):
-        assert my_urls.is_exhausted_domain("https://visited2.com") is True
+    #with pytest.raises(KeyError):
+    #    assert my_urls.is_exhausted_domain("https://visited2.com") is True
+    assert my_urls.is_exhausted_domain("https://visited2.com") is False
     # revert changes for further tests
     del my_urls.urldict["https://visited.com"].tuples[1]
     my_urls.urldict["https://visited.com"].state = State.ALL_VISITED

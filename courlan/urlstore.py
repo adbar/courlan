@@ -293,7 +293,8 @@ class UrlStore:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
             return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
-        raise KeyError("website not in store")
+        return False
+        # raise KeyError("website not in store")
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
