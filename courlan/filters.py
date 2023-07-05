@@ -19,6 +19,10 @@ from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
 LOGGER = logging.getLogger(__name__)
 
+
+# domain/host names
+UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\.(.|[0-9]+|[^.]{25,})$")
+
 # content filters
 SITE_STRUCTURE = re.compile(
     # wordpress
@@ -32,7 +36,7 @@ SITE_STRUCTURE = re.compile(
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
-    r"\.(atom|json|css|xml|js|jpg|jpeg|png|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|webm|flv|ico|pls|zip|tar|gz|iso|swf)\b|"
+    r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b|"
     r"[/-](img|jpg|png)(\b|_)",
     re.IGNORECASE,
 )  # (?=[&?])
@@ -108,6 +112,22 @@ LANGUAGE_MAPPINGS = {
 def basic_filter(url: str) -> bool:
     """Filter URLs based on basic formal characteristics"""
     return bool(url.startswith("http") and 10 <= len(url) < 500)
+
+
+def domain_filter(domain: str) -> bool:
+    "Find invalid domain/host names"
+
+    if UNSUITABLE_DOMAIN.search(domain):
+        return False
+
+    if FILE_TYPE.search(domain):
+        return False
+
+    extension_match = EXTENSION_REGEX.search(domain)
+    if extension_match and extension_match[0] in WHITELISTED_EXTENSIONS:
+        return False
+
+    return True
 
 
 def extension_filter(urlpath: str) -> bool:

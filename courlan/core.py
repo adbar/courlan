@@ -15,6 +15,7 @@ from urllib.robotparser import RobotFileParser
 from .clean import normalize_url, scrub_url
 from .filters import (
     basic_filter,
+    domain_filter,
     extension_filter,
     is_navigation_page,
     is_not_crawlable,
@@ -97,6 +98,11 @@ def check_url(
         # content filter based on extensions
         if extension_filter(parsed_url.path) is False:
             LOGGER.debug("rejected, extension filter: %s", url)
+            raise ValueError
+
+        # unsuitable domain/host name
+        if domain_filter(parsed_url.netloc) is False:
+            LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
 
         # strict content filtering

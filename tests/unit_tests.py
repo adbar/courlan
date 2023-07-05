@@ -541,13 +541,7 @@ def test_urlcheck():
     assert check_url("http://example.com/test.js") is None
     assert check_url("http://twitter.com/", strict=True) is None
     assert check_url("http://twitter.com/", strict=False) is not None
-    assert check_url("https://www.httpbun.org/status/200", with_redirects=True) == (
-        "https://httpbun.org",
-        "httpbun.org",
-    )
-    # assert check_url('https://www.httpbin.org/status/302', with_redirects=True) == ('https://www.httpbin.org/status/302', 'httpbin.org')
-    assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
-    assert check_url("https://www.ht.or", with_redirects=True) is None
+
     # recheck type and spam filters
     assert check_url("http://example.org/wp-json/oembed/") is None
     assert check_url("http://livecams.com/", strict=False) == (
@@ -640,6 +634,24 @@ def test_urlcheck():
         is None
     )
     # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
+
+    # domain name
+    assert check_url("http://`$smarty.server.server_name`") is None
+    assert check_url("http://$`)}if(a.tryconvertencoding)trycatch(e)const") is None
+    assert check_url("http://00x200.jpg,") is None
+    assert check_url("http://-100x100.webp") is None
+    assert check_url("http://0.gravata.html") is None
+    assert check_url("http://https:") is None
+
+
+def test_urlcheck_redirects():
+    "Test redirection checks."
+    assert check_url("https://www.httpbun.org/status/200", with_redirects=True) == (
+        "https://httpbun.org",
+        "httpbun.org",
+    )
+    assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
+    assert check_url("https://www.ht.or", with_redirects=True) is None
 
 
 def test_urlutils():
