@@ -310,6 +310,10 @@ def test_path_filter():
 
 
 def test_lang_filter():
+    assert lang_filter("http://test.com/az", "de") is False
+    assert lang_filter("http://test.com/az/", "de") is False
+    assert lang_filter("http://test.com/de", "de") is True
+    assert lang_filter("http://test.com/de/", "de") is True
     assert (
         lang_filter(
             "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
