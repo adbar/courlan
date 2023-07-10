@@ -37,7 +37,7 @@ TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
 
 def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
-    """Helper function: chained scrubbing and normalization"""
+    "Helper function: chained scrubbing and normalization"
     try:
         return normalize_url(scrub_url(url), False, language)
     except (AttributeError, ValueError):
@@ -45,7 +45,7 @@ def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
 
 
 def scrub_url(url: str) -> str:
-    """Strip unnecessary parts and make sure only one URL is considered"""
+    "Strip unnecessary parts and make sure only one URL is considered"
     # trim
     # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
     # remove leading and trailing white space and unescaped control chars
@@ -100,7 +100,7 @@ def scrub_url(url: str) -> str:
 def clean_query(
     parsed_url: SplitResult, strict: bool = False, language: Optional[str] = None
 ) -> str:
-    """Strip unwanted query elements"""
+    "Strip unwanted query elements"
     if len(parsed_url.query) > 0:
         qdict = parse_qs(parsed_url.query)
         newqdict = {}
@@ -152,7 +152,7 @@ def normalize_url(
     strict: bool = False,
     language: Optional[str] = None,
 ) -> str:
-    """Takes a URL string or a parsed URL and returns a (basically) normalized URL string"""
+    "Takes a URL string or a parsed URL and returns a normalized URL string"
     parsed_url = _parse(parsed_url)
     # lowercase + remove fragments + normalize punycode
     scheme = parsed_url.scheme.lower()
@@ -170,6 +170,8 @@ def normalize_url(
     newquery = clean_query(parsed_url, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
+    elif not newquery and len(newpath) > 1 and newpath.endswith("/"):
+        newpath = newpath.rstrip("/")
     # fragment
     newfragment = "" if strict else parsed_url.fragment
     # rebuild

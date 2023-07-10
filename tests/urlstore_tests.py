@@ -170,7 +170,7 @@ def test_urlstore():
     assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
     assert my_urls.urldict["https://visited.com"].state is State.OPEN
     assert my_urls.is_exhausted_domain("https://visited.com") is False
-    #with pytest.raises(KeyError):
+    # with pytest.raises(KeyError):
     #    assert my_urls.is_exhausted_domain("https://visited2.com") is True
     assert my_urls.is_exhausted_domain("https://visited2.com") is False
     # revert changes for further tests
@@ -186,7 +186,7 @@ def test_urlstore():
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10/"
+    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
 
     # duplicates
     my_urls.add_urls(extension_urls)
@@ -194,7 +194,7 @@ def test_urlstore():
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + len(
         extension_urls
     )
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10/"
+    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
 
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
@@ -204,7 +204,7 @@ def test_urlstore():
     timestamp = my_urls.urldict[example_domain].timestamp
     sleep(0.1)
     url2 = my_urls.get_url(example_domain)
-    assert url1 != url2 and url1 == "https://www.example.org/1/10/"
+    assert url1 != url2 and url1 == "https://www.example.org/1/10"
     assert my_urls.urldict[example_domain].count == 2
     assert timestamp != my_urls.urldict[example_domain].timestamp
     assert url2 not in set(my_urls.find_unvisited_urls(example_domain))

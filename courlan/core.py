@@ -197,7 +197,7 @@ def extract_links(
             )
             if checked is None:
                 continue
-            link = checked[0].rstrip("/")
+            link = checked[0]
             # external/internal links
             if external_bool != is_external(
                 url=link, reference=reference, ignore_suffix=True
