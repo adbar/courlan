@@ -310,6 +310,8 @@ def test_path_filter():
 
 
 def test_lang_filter():
+    assert lang_filter("http://test.com/az/", "de") is False
+    assert lang_filter("http://test.com/de/", "de") is True
     assert (
         lang_filter(
             "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
@@ -828,6 +830,24 @@ def test_extraction():
         "https://httpbin.org/links/2/0",
         "https://httpbin.org/links/2/1",
     ]
+    links = extract_links(
+        pagecontent, base_url="https://httpbin.org", external_bool=False, with_nav=True
+    )
+    assert sorted(links) == [
+        "https://httpbin.org/links/2/0",
+        "https://httpbin.org/links/2/1",
+    ]
+    pagecontent = "<html><head><title>Links</title></head><body><a href='links/2/0'>0</a> <a href='links/2/1'>1</a> </body></html>"
+    links = extract_links(
+        pagecontent,
+        url="https://httpbin.org/page1/",
+        external_bool=False,
+        with_nav=True,
+    )
+    assert sorted(links) == [
+        "https://httpbin.org/page1/links/2/0",
+        "https://httpbin.org/page1/links/2/1",
+    ]
     pagecontent = "<html><head><title>Pages</title></head><body><a href='/page/10'>10</a> <a href='/page/?=11'>11</a></body></html>"
     assert (
         extract_links(
@@ -901,8 +921,12 @@ def test_extraction():
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     links, links_priority = filter_links(htmlstring, base_url)
-    assert len(links) == 1
-    assert not links_priority
+    assert len(links) == 1 and not links_priority
+    # link filtering with relative URLs
+    url = "https://example.org/page1.html"
+    htmlstring = '<html><body><a href="/subpage1"/><a href="/subpage1/"/><a href="https://test.org/page1"/></body></html>'
+    links, links_priority = filter_links(htmlstring, url=url)
+    assert len(links) == 1 and not links_priority
 
 
 def test_cli():

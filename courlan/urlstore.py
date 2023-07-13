@@ -27,6 +27,7 @@ from typing import (
 
 from urllib.robotparser import RobotFileParser
 
+from .clean import normalize_url
 from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
@@ -115,6 +116,9 @@ class UrlStore:
                 ):
                     LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
+                parsed_url = normalize_url(
+                    parsed_url, strict=self.strict, language=self.language
+                )
                 hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
@@ -235,18 +239,18 @@ class UrlStore:
     def add_from_html(
         self,
         htmlstring: str,
-        full_url: str,
+        url: str,
         external: bool = False,
         lang: Optional[str] = None,
         with_nav: bool = True,
     ) -> None:
         "Find links in a HTML document, filter them and add them to the data store."
         # lang = lang or self.language
-        base_url = get_base_url(full_url)
+        base_url = get_base_url(url)
         rules = self.get_rules(base_url)
         links, links_priority = filter_links(
             htmlstring=htmlstring,
-            full_url=full_url,
+            url=url,
             external=external,
             lang=lang or self.language,
             rules=rules,
@@ -293,7 +297,8 @@ class UrlStore:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
             return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
-        raise KeyError("website not in store")
+        return False
+        # raise KeyError("website not in store")
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
