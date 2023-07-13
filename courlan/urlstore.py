@@ -239,18 +239,18 @@ class UrlStore:
     def add_from_html(
         self,
         htmlstring: str,
-        full_url: str,
+        url: str,
         external: bool = False,
         lang: Optional[str] = None,
         with_nav: bool = True,
     ) -> None:
         "Find links in a HTML document, filter them and add them to the data store."
         # lang = lang or self.language
-        base_url = get_base_url(full_url)
+        base_url = get_base_url(url)
         rules = self.get_rules(base_url)
         links, links_priority = filter_links(
             htmlstring=htmlstring,
-            full_url=full_url,
+            url=url,
             external=external,
             lang=lang or self.language,
             rules=rules,
@@ -297,7 +297,8 @@ class UrlStore:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
             return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
-        raise KeyError("website not in store")
+        return False
+        # raise KeyError("website not in store")
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
