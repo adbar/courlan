@@ -310,6 +310,10 @@ def test_path_filter():
 
 
 def test_lang_filter():
+    assert lang_filter("http://test.com/az", "de") is False
+    assert lang_filter("http://test.com/az/", "de") is False
+    assert lang_filter("http://test.com/de", "de") is True
+    assert lang_filter("http://test.com/de/", "de") is True
     assert (
         lang_filter(
             "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
@@ -847,7 +851,7 @@ def test_extraction():
         with_nav=True,
     )
     assert sorted(links) == [
-        "https://example.org/page/",  # parameter stripped by strict filtering
+        "https://example.org/page",  # parameter stripped by strict filtering
         "https://example.org/page/10",
     ]
     links = extract_links(

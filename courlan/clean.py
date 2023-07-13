@@ -170,6 +170,8 @@ def normalize_url(
     newquery = clean_query(parsed_url, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
+    elif not newquery and len(newpath) > 1 and newpath.endswith("/"):
+        newpath = newpath.rstrip("/")
     # fragment
     newfragment = "" if strict else parsed_url.fragment
     # rebuild

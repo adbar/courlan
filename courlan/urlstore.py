@@ -27,6 +27,7 @@ from typing import (
 
 from urllib.robotparser import RobotFileParser
 
+from .clean import normalize_url
 from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
@@ -115,6 +116,9 @@ class UrlStore:
                 ):
                     LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
+                parsed_url = normalize_url(
+                    parsed_url, strict=self.strict, language=self.language
+                )
                 hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
