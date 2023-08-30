@@ -1003,7 +1003,7 @@ def test_cli():
             cli.process_args(args)
         assert len(f.getvalue()) == 0
 
-        testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample"]
+        testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample", "10"]
         with patch.object(sys, "argv", testargs):
             args = cli.parse_args(testargs)
         with redirect_stdout(f):
