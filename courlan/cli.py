@@ -55,7 +55,6 @@ def parse_args(args: Any) -> Any:
         "--parallel",
         help="number of parallel processes (not used for sampling)",
         type=int,
-        default=4,
     )
     group2 = argsparser.add_argument_group("Filtering", "Configure URL filters")
     group2.add_argument(
@@ -70,13 +69,10 @@ def parse_args(args: Any) -> Any:
     group3 = argsparser.add_argument_group(
         "Sampling", "Use sampling by host, configure sample size"
     )
-    group3.add_argument("--sample", help="use sampling", action="store_true")
-    group3.add_argument(
-        "--samplesize", help="size of sample per domain", type=int, default=1000
-    )
+    group3.add_argument("--sample", help="size of sample per domain", type=int)
     group3.add_argument(
         "--exclude-max", help="exclude domains with more than n URLs", type=int
-    )  # default=10000
+    )
     group3.add_argument(
         "--exclude-min", help="exclude domains with less than n URLs", type=int
     )
@@ -133,7 +129,7 @@ def _cli_sample(args: Any) -> None:
     with open(args.outputfile, "w", encoding="utf-8") as outputfh:
         for url in _make_sample(
             urlstore,
-            args.samplesize,
+            args.sample,
             exclude_min=args.exclude_min,
             exclude_max=args.exclude_max,
         ):

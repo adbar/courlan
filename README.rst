@@ -309,9 +309,8 @@ The main fonctions are also available through a command-line utility.
     $ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
     $ courlan --help
     usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
-                   [-p PARALLEL] [--strict] [-l LANGUAGE] [-r] [--sample]
-                   [--exclude-max EXCLUDE_MAX]
-                   [--exclude-min EXCLUDE_MIN]
+                   [-p PARALLEL] [--strict] [-l LANGUAGE] [-r] [--sample SAMPLE]
+                   [--exclude-max EXCLUDE_MAX] [--exclude-min EXCLUDE_MIN]
 
 
 optional arguments:
@@ -341,7 +340,7 @@ Filtering:
 Sampling:
   Use sampling by host, configure sample size
 
-  --sample SAMPLESIZE   size of sample per domain
+  --sample SAMPLE       size of sample per domain
   --exclude-max EXCLUDE_MAX
                         exclude domains with more than n URLs
   --exclude-min EXCLUDE_MIN
