@@ -5,6 +5,7 @@
 
 - added plausibility filter for domains/hosts (#48)
 - new UrlStore functions: `add_from_html()`, `discard()`, `get_unvisited_domains`
+- CLI: removed `--samplesize`, use `--sample` with an integer instead
 - more efficient processing (#47, #49, #50)
 - fixed handling of relative URLs with @feltcat in #46
 - fixed bugs and ensured compatibility (#41, #43, #51)
