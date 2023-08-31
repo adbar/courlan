@@ -12,18 +12,18 @@ from tld import get_tld
 
 
 DOMAIN_REGEX = re.compile(
-    r"(?:http|ftp)s?://"  # protocols
+    r"(?:(?:f|ht)tp)s?://"  # protocols
     r"(?:[^/?#]{,63}\.)?"  # subdomain, www, etc.
     r"([^/?#.]{4,63}\.[^/?#]{2,63}|"  # domain and extension
-    r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|"  # IPv4
+    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|"  # IPv4
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
 NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
-STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=[^0-9]):[0-9]+")
+STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=\D):\d+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 INNER_SLASH_REGEX = re.compile(r"(.+/)+")
-FEED_WHITELIST_REGEX = re.compile(r"(feedburner|feedproxy)", re.I)
+FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
 @lru_cache(maxsize=1024)
