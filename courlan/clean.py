@@ -23,6 +23,7 @@ PROTOCOLS = re.compile(r"https?://")
 SELECTION = re.compile(
     r'(https?://[^">&? ]+?)(?:https?://)|(?:https?://[^/]+?/[^/]+?[&?]u(rl)?=)(https?://[^"> ]+)'
 )
+
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
 NETLOC_RE = re.compile(r"(?<=\w):(?:80|443)")
 

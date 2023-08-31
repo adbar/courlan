@@ -23,6 +23,7 @@ LOGGER = logging.getLogger(__name__)
 # domain/host names
 UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\.(.|[0-9]+|[^.]{25,})$")
 
+
 # content filters
 SITE_STRUCTURE = re.compile(
     # wordpress
@@ -41,7 +42,7 @@ FILE_TYPE = re.compile(
     re.IGNORECASE,
 )  # (?=[&?])
 ADULT_AND_VIDEOS = re.compile(
-    r"[/_-](?:bild\-?kontakte|fick|gangbang|incest|live-?chat|live-?cams?|porno?|sexyeroti[ck]|sexcam|swinger|xxx)\b",
+    r"[/_-](?:bild-?kontakte|fick|gangbang|incest|live-?cams?|live-?chat|porno?|sexcam|sexyeroti[ck]|swinger|x{3})\b",
     re.IGNORECASE,
 )
 
