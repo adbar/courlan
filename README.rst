@@ -264,11 +264,14 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
 
 - URL management
    - ``add_urls(urls=[], appendleft=None, visited=False)``: Add a list of URLs to the (possibly) existing one. Optional: append certain URLs to the left, specify if the URLs have already been visited.
+   - ``add_from_html(htmlstring, url, external=False, lang=None, with_nav=True)``: Extract and filter links in a HTML string.
+   - ``discard(domains)``: Declare domains void and prune the store.
    - ``dump_urls()``: Return a list of all known URLs.
    - ``print_urls()``: Print all URLs in store (URL + TAB + visited or not).
    - ``print_unvisited_urls()``: Print all unvisited URLs in store.
    - ``get_all_counts()``: Return all download counts for the hosts in store.
    - ``get_known_domains()``: Return all known domains as a list.
+   - ``get_unvisited_domains()``: Find all domains for which there are unvisited URLs.
    - ``total_url_number()``: Find number of all URLs in store.
    - ``is_known(url)``: Check if the given URL has already been stored.
    - ``has_been_visited(url)``: Check if the given URL has already been visited.
@@ -281,6 +284,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
 - Crawling and downloads
    - ``get_url(domain)``: Retrieve a single URL and consider it to be visited (with corresponding timestamp).
    - ``get_rules(domain)``: Return the stored crawling rules for the given website.
+   - ``store_rules(website, rules=None)``: Store crawling rules for a given website.
    - ``get_crawl_delay()``: Return the delay as extracted from robots.txt, or a given default.
    - ``get_download_urls(timelimit=10)``: Get a list of immediately downloadable URLs according to the given time limit per domain.
    - ``establish_download_schedule(max_urls=100, time_limit=10)``: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
