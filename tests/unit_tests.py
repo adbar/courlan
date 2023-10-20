@@ -147,7 +147,7 @@ def test_fix_relative():
 def test_scrub():
     # clean: scrub + normalize
     assert clean_url(5) is None
-    assert clean_url("ø\xaa") == "øª"
+    assert clean_url("ø\xaa") == "%C3%B8%C2%AA"
     assert clean_url("https://example.org/?p=100") == "https://example.org/?p=100"
     assert (
         clean_url("https://example.org:443/file.html?p=100&abc=1#frag")
