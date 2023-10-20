@@ -9,7 +9,7 @@ import logging
 import re
 
 from typing import Optional, Union
-from urllib.parse import parse_qs, urlencode, urlunsplit, SplitResult
+from urllib.parse import parse_qs, quote, urlencode, urlunsplit, SplitResult
 
 from .filters import validate_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
@@ -166,12 +166,12 @@ def normalize_url(
     netloc = decode_punycode(netloc.lower())
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
-    newpath = PATH2.sub("", PATH1.sub("/", parsed_url.path))
+    newpath = quote(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
     # strip unwanted query elements
     newquery = clean_query(parsed_url, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
     # fragment
-    newfragment = "" if strict else parsed_url.fragment
+    newfragment = "" if strict else quote(parsed_url.fragment)
     # rebuild
     return urlunsplit([scheme, netloc, newpath, newquery, newfragment])
