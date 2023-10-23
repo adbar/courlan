@@ -1,0 +1,78 @@
+# https://pip.pypa.io/en/stable/reference/build-system/pyproject-toml/
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "courlan"
+description = "Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters."
+readme = "README.rst"
+license = { text = "GPLv3+" }
+dynamic = ["version"]
+requires-python = ">=3.6"
+authors = [
+  {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
+]
+keywords=[
+    "cleaner",
+    "crawler",
+    "preprocessing",
+    "url-parsing",
+    "url-manipulation",
+    "urls",
+    "validation",
+    "webcrawling",
+]
+classifiers = [
+    # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+    "Development Status :: 4 - Beta",
+    #'Development Status :: 5 - Production/Stable',
+    #'Development Status :: 6 - Mature',
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Text Processing :: Filters",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "langcodes >= 3.3.0",
+    "tld == 0.12.6; python_version < '3.7'",
+    "tld >= 0.13; python_version >= '3.7'",
+    "urllib3 >= 1.26, < 2; python_version < '3.7'",
+    "urllib3 >= 1.26, < 3; python_version >= '3.7'",
+]
+
+# https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
+[tool.setuptools.dynamic]
+version = {attr = "courlan.__version__"}
+
+[project.urls]
+"Homepage" = "https://github.com/adbar/courlan"
+"Blog" = "https://adrien.barbaresi.eu/blog/"  # /tag/courlan.html
+"Tracker" = "https://github.com/adbar/courlan/issues"
+
+# Development extras
+[project.optional-dependencies]
+dev = [
+    "black",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
