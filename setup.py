@@ -62,7 +62,6 @@ setup(
         "console_scripts": ["courlan=courlan.cli:main"],
     },
     # platforms='any',
-    zip_safe=False,
     # mypyc or not
     ext_modules=ext_modules,
 )
