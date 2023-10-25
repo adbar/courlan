@@ -9,7 +9,7 @@ description = "Clean, filter and sample URLs to optimize data collection – inc
 readme = "README.rst"
 license = { text = "GPLv3+" }
 dynamic = ["version"]
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 authors = [
   {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
 ]
@@ -39,7 +39,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -59,9 +58,16 @@ dependencies = [
     "urllib3 >= 1.26, < 3; python_version >= '3.7'",
 ]
 
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[tool.setuptools]
+packages = ["courlan"]
+
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
 [tool.setuptools.dynamic]
 version = {attr = "courlan.__version__"}
+
+[project.scripts]
+courlan = "courlan.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/adbar/courlan"
