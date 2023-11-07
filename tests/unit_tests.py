@@ -493,6 +493,17 @@ def test_normalization():
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
+    # account for particular characters
+    assert (
+        normalize_url(
+            "https://www.deutschlandfunknova.de/beitrag/nord--und-s%C3%BCdgaza-israels-armee-verk%C3%BCndet-teilung-des-gazastreifens"
+        )
+        == "https://www.deutschlandfunknova.de/beitrag/nord--und-s%C3%BCdgaza-israels-armee-verk%C3%BCndet-teilung-des-gazastreifens"
+    )
+    assert (
+        normalize_url("https://taz.de/Zukunft-des-49-Euro-Tickets/!5968518/")
+        == "https://taz.de/Zukunft-des-49-Euro-Tickets/!5968518/"
+    )
 
 
 def test_qelems():
