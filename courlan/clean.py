@@ -148,6 +148,14 @@ def decode_punycode(string: str) -> str:
     return ".".join(parts)
 
 
+def normalize_part(url_part: str) -> str:
+    """Normalize URLs parts (specifically path and fragment) while
+    accounting for certain characters."""
+    if not "%" in url_part and not "!" in url_part:
+        url_part = quote(url_part)
+    return url_part
+
+
 def normalize_url(
     parsed_url: Union[SplitResult, str],
     strict: bool = False,
@@ -166,12 +174,12 @@ def normalize_url(
     netloc = decode_punycode(netloc.lower())
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
-    newpath = quote(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
+    newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
     # strip unwanted query elements
     newquery = clean_query(parsed_url, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
     # fragment
-    newfragment = "" if strict else quote(parsed_url.fragment)
+    newfragment = "" if strict else normalize_part(parsed_url.fragment)
     # rebuild
     return urlunsplit([scheme, netloc, newpath, newquery, newfragment])
