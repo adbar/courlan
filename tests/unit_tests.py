@@ -27,6 +27,7 @@ from courlan import (
     is_external,
     sample_urls,
     validate_url,
+    is_valid_url,
     extract_links,
     extract_domain,
     filter_urls,
@@ -462,6 +463,9 @@ def test_validate():
     assert validate_url("http://t.g/test")[0] is False
     assert validate_url("http://test.org/test")[0] is True
     # assert validate_url("http://sub.-mkyong.com/test")[0] is False
+
+    assert not is_valid_url("http://www.test[.org/test")
+    assert is_valid_url("http://test.org/test")
 
 
 def test_normalization():

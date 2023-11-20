@@ -239,6 +239,11 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
     return True, parsed_url
 
 
+def is_valid_url(url: Optional[str]) -> bool:
+    "Determine if a given string is a valid URL."
+    return validate_url(url)[0]
+
+
 def is_navigation_page(url: str) -> bool:
     """Determine if the URL is related to navigation and overview pages
     rather than content pages, e.g. /page/1 vs. article page."""

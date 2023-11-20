@@ -14,7 +14,13 @@ __version__ = "0.9.4"
 # imports
 from .clean import clean_url, normalize_url, scrub_url
 from .core import check_url, extract_links
-from .filters import is_navigation_page, is_not_crawlable, lang_filter, validate_url
+from .filters import (
+    is_navigation_page,
+    is_not_crawlable,
+    is_valid_url,
+    lang_filter,
+    validate_url,
+)
 from .sampling import sample_urls
 from .urlstore import UrlStore
 from .urlutils import (
