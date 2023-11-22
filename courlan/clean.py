@@ -11,7 +11,7 @@ import re
 from typing import Optional, Union
 from urllib.parse import parse_qs, quote, urlencode, urlunsplit, SplitResult
 
-from .filters import validate_url
+from .filters import is_valid_url
 from .settings import ALLOWED_PARAMS, CONTROL_PARAMS, TARGET_LANG_DE, TARGET_LANG_EN
 from .urlutils import _parse
 
@@ -73,12 +73,12 @@ def scrub_url(url: str) -> str:
     if len(protocols) > 1 and "web.archive.org" not in url:
         LOGGER.debug("double url: %s %s", len(protocols), url)
         match = SELECTION.match(url)
-        if match and validate_url(match[1])[0] is True:
+        if match and is_valid_url(match[1]):
             url = match[1]
             LOGGER.debug("taking url: %s", url)
         else:
             match = MIDDLE_URL.match(url)
-            if match and validate_url(match[1])[0] is True:
+            if match and is_valid_url(match[1]):
                 url = match[1]
                 LOGGER.debug("taking url: %s", url)
     # too long and garbled URLs e.g. due to quotes URLs
