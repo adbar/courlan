@@ -662,9 +662,12 @@ def test_urlcheck():
 
     assert check_url("http://127.0.0.1") is not None
     assert check_url("http://900.200.100.75") is None
+    assert check_url("http://111.111.111") is None
+    assert check_url("http://111.111.111.111") is not None
     assert check_url("http://0127.0.0.1") is None
-    #assert check_url("http://::1") is not None
-    #assert check_url("http://0:a:b:c:d:e:f::") is not None
+    # assert check_url("http://::1") is not None
+    assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
+    assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
     assert check_url("http://1:2:3:4:5:6:7:8:9") is None
 
 

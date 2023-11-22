@@ -165,13 +165,15 @@ def normalize_url(
     parsed_url = _parse(parsed_url)
     # lowercase + remove fragments + normalize punycode
     scheme = parsed_url.scheme.lower()
+    netloc = parsed_url.netloc.lower()
     # port
-    if parsed_url.port and parsed_url.port in (80, 443):
-        netloc = NETLOC_RE.sub("", parsed_url.netloc)
-    else:
-        netloc = parsed_url.netloc
+    try:
+        if parsed_url.port and parsed_url.port in (80, 443):
+            netloc = NETLOC_RE.sub("", netloc)
+    except ValueError:
+        pass  # Port could not be cast to integer value
     # lowercase + remove fragments + normalize punycode
-    netloc = decode_punycode(netloc.lower())
+    netloc = decode_punycode(netloc)
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
     newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
