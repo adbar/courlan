@@ -9,6 +9,7 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
+from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
@@ -21,7 +22,27 @@ LOGGER = logging.getLogger(__name__)
 
 
 # domain/host names
-UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\.(.|[0-9]+|[^.]{25,})$")
+IP_SET = {
+    ".",
+    ":",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+}
+UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\D+\.[0-9]+|\.(?:\.|[^.]{25,})$")
 
 
 # content filters
@@ -118,7 +139,14 @@ def basic_filter(url: str) -> bool:
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names"
 
-    if UNSUITABLE_DOMAIN.search(domain):
+    # IPv4 or IPv6
+    if not set(domain).difference(IP_SET):
+        try:
+            ip_address(domain)
+        except ValueError:
+            return False
+    # malformed domains
+    elif UNSUITABLE_DOMAIN.search(domain):
         return False
 
     if FILE_TYPE.search(domain):

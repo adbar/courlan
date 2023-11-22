@@ -660,6 +660,13 @@ def test_urlcheck():
     assert check_url("http://0.gravata.html") is None
     assert check_url("http://https:") is None
 
+    assert check_url("http://127.0.0.1") is not None
+    assert check_url("http://900.200.100.75") is None
+    assert check_url("http://0127.0.0.1") is None
+    #assert check_url("http://::1") is not None
+    #assert check_url("http://0:a:b:c:d:e:f::") is not None
+    assert check_url("http://1:2:3:4:5:6:7:8:9") is None
+
 
 def test_urlcheck_redirects():
     "Test redirection checks."
