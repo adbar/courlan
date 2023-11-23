@@ -145,8 +145,10 @@ def domain_filter(domain: str) -> bool:
             ip_address(domain)
         except ValueError:
             return False
+        return True
+
     # malformed domains
-    elif UNSUITABLE_DOMAIN.search(domain):
+    if UNSUITABLE_DOMAIN.search(domain):
         return False
 
     if FILE_TYPE.search(domain):
