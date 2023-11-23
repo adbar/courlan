@@ -56,6 +56,8 @@ VALID_DOMAIN = re.compile(
     re.IGNORECASE,
 )
 
+UNSUITABLE_DOMAIN = re.compile(r"[0-9]+\.")
+
 # content filters
 SITE_STRUCTURE = re.compile(
     # wordpress
@@ -149,7 +151,6 @@ def basic_filter(url: str) -> bool:
 
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names"
-
     # IPv4 or IPv6
     if not set(domain).difference(IP_SET):
         try:
@@ -166,6 +167,9 @@ def domain_filter(domain: str) -> bool:
         return False
 
     # unsuitable content
+    if UNSUITABLE_DOMAIN.match(domain):
+        return False
+
     if FILE_TYPE.search(domain):
         return False
 

@@ -692,7 +692,8 @@ def test_domain_filter():
     assert domain_filter("111.111.111") is False
     assert domain_filter("0127.0.0.1") is False
 
-    # assert domain_filter("12345.org") is False
+    assert domain_filter("0.gravatar.com") is False
+    assert domain_filter("12345.org") is False
     # assert domain_filter("test.invalidtld") is False
 
 
