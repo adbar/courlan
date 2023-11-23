@@ -36,6 +36,16 @@ REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
+# https://github.com/AdguardTeam/AdguardFilters/blob/master/TrackParamFilter/sections/general_url.txt
+# https://gitlab.com/ClearURLs/rules/-/blob/master/data.min.json
+# https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/query-stripping/records
+TRACKERS_RE = re.compile(
+    r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
+    r"(?:click|gbra|msclk|igsh|partner|wbra)id|"
+    r"(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
+    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|kwd|keyword|medium|ref|referer|session|source|uid|xtor)"
+)
+
 
 def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
     "Helper function: chained scrubbing and normalization"
@@ -108,11 +118,11 @@ def clean_query(
         for qelem in sorted(qdict):
             teststr = qelem.lower()
             # control param
-            if (
-                strict
-                and teststr not in ALLOWED_PARAMS
-                and teststr not in CONTROL_PARAMS
-            ):
+            if strict:
+                if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
+                    continue
+            # get rid of trackers
+            elif TRACKERS_RE.search(teststr):
                 continue
             # control language
             if language is not None and teststr in CONTROL_PARAMS:

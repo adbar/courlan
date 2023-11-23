@@ -493,10 +493,12 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+
     # punycode
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
+
     # account for particular characters
     assert (
         normalize_url(
@@ -509,24 +511,32 @@ def test_normalization():
         == "https://taz.de/Zukunft-des-49-Euro-Tickets/!5968518/"
     )
 
+    # trackers
+    assert normalize_url("http://test.org/?utm_tracker=123") == "http://test.org/"
+    assert normalize_url("http://test.org/?s_cid=123") == "http://test.org/"
+    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org/"
+
 
 def test_qelems():
     assert (
         normalize_url("http://test.net/foo.html?utm_source=twitter")
-        == "http://test.net/foo.html?utm_source=twitter"
-    )
-    assert (
-        normalize_url("http://test.net/foo.html?utm_source=twitter", strict=True)
         == "http://test.net/foo.html"
     )
     assert (
-        normalize_url("http://test.net/foo.html?utm_source=twitter&post=abc&page=2")
-        == "http://test.net/foo.html?page=2&post=abc&utm_source=twitter"
+        normalize_url("http://test.net/foo.html?testid=1")
+        == "http://test.net/foo.html?testid=1"
     )
     assert (
-        normalize_url(
-            "http://test.net/foo.html?utm_source=twitter&post=abc&page=2", strict=True
-        )
+        normalize_url("http://test.net/foo.html?testid=1", strict=True)
+        == "http://test.net/foo.html"
+    )
+    assert (
+        normalize_url("http://test.net/foo.html?testid=1&post=abc&page=2")
+        == "http://test.net/foo.html?page=2&post=abc&testid=1"
+    )
+    assert (
+        normalize_url("http://test.net/foo.html?testid=1&post=abc&page=2", strict=True)
         == "http://test.net/foo.html?page=2&post=abc"
     )
     assert (
