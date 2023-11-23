@@ -42,8 +42,19 @@ IP_SET = {
     "e",
     "f",
 }
-UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\D+\.[0-9]+|\.(?:\.|[^.]{25,})$")
 
+# https://github.com/python-validators/validators/blob/master/src/validators/domain.py
+VALID_DOMAIN = re.compile(
+    # First character of the domain
+    r"^(?:[a-zA-Z0-9]"
+    # Sub domain + hostname
+    + r"(?:[a-zA-Z0-9-_]{0,61}[A-Za-z0-9])?\.)"
+    # First 61 characters of the gTLD
+    + r"+[A-Za-z0-9][A-Za-z0-9-_]{0,61}"
+    # Last character of the gTLD
+    + r"[A-Za-z]$",
+    re.IGNORECASE,
+)
 
 # content filters
 SITE_STRUCTURE = re.compile(
@@ -148,9 +159,13 @@ def domain_filter(domain: str) -> bool:
         return True
 
     # malformed domains
-    if UNSUITABLE_DOMAIN.search(domain):
+    try:
+        if not VALID_DOMAIN.match(domain.encode("idna").decode("utf-8")):
+            return False
+    except UnicodeError:
         return False
 
+    # unsuitable content
     if FILE_TYPE.search(domain):
         return False
 
