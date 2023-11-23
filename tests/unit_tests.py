@@ -512,10 +512,19 @@ def test_normalization():
     )
 
     # trackers
-    assert normalize_url("http://test.org/?utm_tracker=123") == "http://test.org/"
-    assert normalize_url("http://test.org/?s_cid=123") == "http://test.org/"
+    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org/"
     assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org/"
     assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org/"
+    assert (
+        normalize_url("http://test.org/?utm_source=rss&utm_medium=rss")
+        == "http://test.org/"
+    )
+    assert (
+        normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
+        == "http://test.org/"
+    )
+    # assert normalize_url("http://test.org/#campaign") == "http://test.org/"
 
 
 def test_qelems():
