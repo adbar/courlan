@@ -41,9 +41,9 @@ TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 # https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/query-stripping/records
 TRACKERS_RE = re.compile(
     r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
-    r"(?:click|gbra|msclk|igsh|partner|wbra)id|"
-    r"(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
-    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|kwd|keyword|medium|ref|referer|session|source|uid|xtor)"
+    r"^(?:click|gbra|msclk|igsh|partner|wbra)id|"
+    r"^(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
+    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
 )
 
 
@@ -109,11 +109,11 @@ def scrub_url(url: str) -> str:
 
 
 def clean_query(
-    parsed_url: SplitResult, strict: bool = False, language: Optional[str] = None
+    querystring: str, strict: bool = False, language: Optional[str] = None
 ) -> str:
     "Strip unwanted query elements"
-    if len(parsed_url.query) > 0:
-        qdict = parse_qs(parsed_url.query)
+    if querystring:
+        qdict = parse_qs(querystring)
         newqdict = {}
         for qelem in sorted(qdict):
             teststr = qelem.lower()
@@ -137,7 +137,7 @@ def clean_query(
             # insert
             newqdict[qelem] = qdict[qelem]
         return urlencode(newqdict, doseq=True)
-    return parsed_url.query
+    return querystring
 
 
 def decode_punycode(string: str) -> str:
@@ -161,9 +161,17 @@ def decode_punycode(string: str) -> str:
 def normalize_part(url_part: str) -> str:
     """Normalize URLs parts (specifically path and fragment) while
     accounting for certain characters."""
-    if not "%" in url_part and not "!" in url_part:
-        url_part = quote(url_part)
-    return url_part
+    return quote(url_part, safe="/%!=:,-")
+
+
+def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
+    "Look for trackers in URL fragments using query analysis, normalize the output."
+    if "=" in fragment:
+        if "&" in fragment:
+            fragment = clean_query(fragment, False, language)
+        elif TRACKERS_RE.search(fragment):
+            fragment = ""
+    return normalize_part(fragment)
 
 
 def normalize_url(
@@ -186,10 +194,10 @@ def normalize_url(
     # leading /../'s in the path are removed
     newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
     # strip unwanted query elements
-    newquery = clean_query(parsed_url, strict, language) or ""
+    newquery = clean_query(parsed_url.query, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
     # fragment
-    newfragment = "" if strict else normalize_part(parsed_url.fragment)
+    newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
     # rebuild
     return urlunsplit([scheme, netloc, newpath, newquery, newfragment])

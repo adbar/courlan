@@ -479,8 +479,8 @@ def test_normalization():
         == "http://test.net/foo.html#bar"
     )
     assert (
-        normalize_url("http://test.net/foo.html#:~:text=night-,vision", strict=True)
-        == "http://test.net/foo.html"
+        normalize_url("http://test.net/foo.html#:~:text=night-,vision")
+        == "http://test.net/foo.html#:~:text=night-,vision"
     )
     assert (
         normalize_url("http://www.example.org:80/test.html")
@@ -524,7 +524,14 @@ def test_normalization():
         normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
         == "http://test.org/"
     )
-    # assert normalize_url("http://test.org/#campaign") == "http://test.org/"
+    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org/"
+    assert (
+        normalize_url(
+            "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
+        )
+        == "http://test.org/#catpage=3"
+    )
+    assert normalize_url("http://test.org/#page2") == "http://test.org/#page2"
 
 
 def test_qelems():

@@ -4,8 +4,8 @@ Functions related to URL manipulation and extraction of URL parts.
 
 import re
 
-from html import unescape
 from functools import lru_cache
+from html import unescape
 from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
 
