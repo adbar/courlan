@@ -40,7 +40,7 @@ from courlan import (
     lang_filter,
 )
 from courlan.core import filter_links
-from courlan.filters import extension_filter, path_filter, type_filter
+from courlan.filters import domain_filter, extension_filter, path_filter, type_filter
 from courlan.meta import clear_caches
 from courlan.urlutils import _parse, get_tldinfo, is_known_link
 
@@ -653,12 +653,50 @@ def test_urlcheck():
     # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
     # domain name
-    assert check_url("http://`$smarty.server.server_name`") is None
-    assert check_url("http://$`)}if(a.tryconvertencoding)trycatch(e)const") is None
-    assert check_url("http://00x200.jpg,") is None
     assert check_url("http://-100x100.webp") is None
     assert check_url("http://0.gravata.html") is None
     assert check_url("http://https:") is None
+    assert check_url("http://127.0.0.1") is not None
+    assert check_url("http://111.111.111.111") is not None
+    assert check_url("http://0127.0.0.1") is None
+    # assert check_url("http://::1") is not None
+    assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
+    assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
+    assert check_url("http://1:2:3:4:5:6:7:8:9") is None
+
+
+def test_domain_filter():
+    "Test filters related to domain and hostnames."
+    assert domain_filter("") is False
+    assert domain_filter("too-long" + "g" * 60 + ".org") is False
+    assert domain_filter("long" + "g" * 50 + ".org") is True
+    assert domain_filter("example.-com") is False
+    assert domain_filter("example.") is False
+    assert domain_filter("-example.com") is False
+    assert domain_filter("_example.com") is False
+    assert domain_filter("example.com:") is False
+    assert domain_filter("a......b.com") is False
+    assert domain_filter("*.example.com") is False
+    assert domain_filter("exa-mple.co.uk") is True
+    assert domain_filter("kräuter.de") is True
+    assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
+    assert domain_filter("`$smarty.server.server_name`") is False
+    assert domain_filter("$`)}if(a.tryconvertencoding)trycatch(e)const") is False
+    assert domain_filter("00x200.jpg,") is False
+    assert domain_filter("-100x100.webp") is False
+    assert domain_filter("0.gravata.html") is False
+    assert domain_filter("https:") is False
+
+    assert domain_filter("127.0.0.1") is True
+    assert domain_filter("900.200.100.75") is False
+    assert domain_filter("111.111.111") is False
+    assert domain_filter("0127.0.0.1") is False
+
+    assert domain_filter("example.jpg") is False
+    assert domain_filter("example.html") is False
+    assert domain_filter("0.gravatar.com") is False
+    assert domain_filter("12345.org") is False
+    # assert domain_filter("test.invalidtld") is False
 
 
 def test_urlcheck_redirects():
