@@ -161,7 +161,8 @@ def decode_punycode(string: str) -> str:
 def normalize_part(url_part: str) -> str:
     """Normalize URLs parts (specifically path and fragment) while
     accounting for certain characters."""
-    return quote(url_part, safe="/%!=:,-")
+    # "~" for compatibility with Python 3.6
+    return quote(url_part, safe="/%!=:,-~")
 
 
 def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
