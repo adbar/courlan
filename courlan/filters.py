@@ -9,6 +9,7 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
+from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
@@ -21,8 +22,41 @@ LOGGER = logging.getLogger(__name__)
 
 
 # domain/host names
-UNSUITABLE_DOMAIN = re.compile(r"[?=`$;,]|:$|\.(.|[0-9]+|[^.]{25,})$")
+IP_SET = {
+    ".",
+    ":",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+}
 
+# https://github.com/python-validators/validators/blob/master/src/validators/domain.py
+VALID_DOMAIN = re.compile(
+    # First character of the domain
+    r"^(?:[a-zA-Z0-9]"
+    # Sub domain + hostname
+    + r"(?:[a-zA-Z0-9-_]{0,61}[A-Za-z0-9])?\.)"
+    # First 61 characters of the gTLD
+    + r"+[A-Za-z0-9][A-Za-z0-9-_]{0,61}"
+    # Last character of the gTLD
+    + r"[A-Za-z]$",
+    re.IGNORECASE,
+)
+
+UNSUITABLE_DOMAIN = re.compile(r"[0-9]+\.")
 
 # content filters
 SITE_STRUCTURE = re.compile(
@@ -117,8 +151,23 @@ def basic_filter(url: str) -> bool:
 
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names"
+    # IPv4 or IPv6
+    if not set(domain).difference(IP_SET):
+        try:
+            ip_address(domain)
+        except ValueError:
+            return False
+        return True
 
-    if UNSUITABLE_DOMAIN.search(domain):
+    # malformed domains
+    try:
+        if not VALID_DOMAIN.match(domain.encode("idna").decode("utf-8")):
+            return False
+    except UnicodeError:
+        return False
+
+    # unsuitable content
+    if UNSUITABLE_DOMAIN.match(domain):
         return False
 
     if FILE_TYPE.search(domain):
