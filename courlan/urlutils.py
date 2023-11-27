@@ -5,6 +5,7 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 
 from functools import lru_cache
+from html import unescape
 from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
 
@@ -70,7 +71,7 @@ def extract_domain(
 def _parse(url: Any) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
-        parsed_url = urlsplit(url)
+        parsed_url = urlsplit(unescape(url))
     elif isinstance(url, SplitResult):
         parsed_url = url
     else:

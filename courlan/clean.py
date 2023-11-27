@@ -36,6 +36,16 @@ REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
 
+# https://github.com/AdguardTeam/AdguardFilters/blob/master/TrackParamFilter/sections/general_url.txt
+# https://gitlab.com/ClearURLs/rules/-/blob/master/data.min.json
+# https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/query-stripping/records
+TRACKERS_RE = re.compile(
+    r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
+    r"^(?:click|gbra|msclk|igsh|partner|wbra)id|"
+    r"^(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
+    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
+)
+
 
 def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
     "Helper function: chained scrubbing and normalization"
@@ -99,20 +109,20 @@ def scrub_url(url: str) -> str:
 
 
 def clean_query(
-    parsed_url: SplitResult, strict: bool = False, language: Optional[str] = None
+    querystring: str, strict: bool = False, language: Optional[str] = None
 ) -> str:
     "Strip unwanted query elements"
-    if len(parsed_url.query) > 0:
-        qdict = parse_qs(parsed_url.query)
+    if querystring:
+        qdict = parse_qs(querystring)
         newqdict = {}
         for qelem in sorted(qdict):
             teststr = qelem.lower()
             # control param
-            if (
-                strict
-                and teststr not in ALLOWED_PARAMS
-                and teststr not in CONTROL_PARAMS
-            ):
+            if strict:
+                if teststr not in ALLOWED_PARAMS and teststr not in CONTROL_PARAMS:
+                    continue
+            # get rid of trackers
+            elif TRACKERS_RE.search(teststr):
                 continue
             # control language
             if language is not None and teststr in CONTROL_PARAMS:
@@ -127,7 +137,7 @@ def clean_query(
             # insert
             newqdict[qelem] = qdict[qelem]
         return urlencode(newqdict, doseq=True)
-    return parsed_url.query
+    return querystring
 
 
 def decode_punycode(string: str) -> str:
@@ -151,9 +161,18 @@ def decode_punycode(string: str) -> str:
 def normalize_part(url_part: str) -> str:
     """Normalize URLs parts (specifically path and fragment) while
     accounting for certain characters."""
-    if not "%" in url_part and not "!" in url_part:
-        url_part = quote(url_part)
-    return url_part
+    # "~" for compatibility with Python 3.6
+    return quote(url_part, safe="/%!=:,-~")
+
+
+def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
+    "Look for trackers in URL fragments using query analysis, normalize the output."
+    if "=" in fragment:
+        if "&" in fragment:
+            fragment = clean_query(fragment, False, language)
+        elif TRACKERS_RE.search(fragment):
+            fragment = ""
+    return normalize_part(fragment)
 
 
 def normalize_url(
@@ -178,10 +197,10 @@ def normalize_url(
     # leading /../'s in the path are removed
     newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
     # strip unwanted query elements
-    newquery = clean_query(parsed_url, strict, language) or ""
+    newquery = clean_query(parsed_url.query, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
     # fragment
-    newfragment = "" if strict else normalize_part(parsed_url.fragment)
+    newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
     # rebuild
     return urlunsplit([scheme, netloc, newpath, newquery, newfragment])
