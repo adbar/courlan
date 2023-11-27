@@ -27,19 +27,19 @@ Why coURLan?
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
 
-This library provides an additional “brain” for web crawling, scraping and document management:
+This library provides an additional “brain” for web crawling, scraping and document management. It facilitates web navigation through a set of filters, enhancing the quality of resulting document collections:
 
 - Save bandwidth and processing time by steering clear of pages deemed low-value
 - Identify specific pages based on language or text content
-- Pinpoint synoptic pages for efficient link gathering
+- Pinpoint pages relevant for efficient link gathering
 
-Courlan facilitates web navigation through a set of content and language-focused filters, enhancing the quality of resulting document collections. Additional functions include effortless URL management, robust validation, and intelligent sampling.
+Additional utilities needed include URL storage, filtering, and deduplication.
 
 
 Features
 --------
 
-Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text.
+Separate the wheat from the chaff and optimize document discovery and retrieval:
 
 - URL handling
    - Validation
@@ -48,11 +48,12 @@ Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_
 - Heuristics for link filtering
    - Spam, trackers, and content-types
    - Language/Locale-aware processing
-   - Crawl management (e.g. frontier, scheduling)
+   - Web crawling (frontier, scheduling)
+- Data store specifically designed for URLs
 - Usable with Python or on the command-line
 
 
-**Let the coURLan fish out juicy bits for you!**
+**Let the coURLan fish up juicy bits for you!**
 
 .. image:: courlan_harns-march.jpg
     :alt: Courlan 
@@ -191,12 +192,16 @@ Other useful functions dedicated to URL handling:
 
     >>> from courlan import *
     >>> url = 'https://www.un.org/en/about-us'
+
     >>> get_base_url(url)
     'https://www.un.org'
+
     >>> get_host_and_path(url)
     ('https://www.un.org', '/en/about-us')
+
     >>> get_hostinfo(url)
     ('un.org', 'https://www.un.org')
+
     >>> fix_relative_urls('https://www.un.org', 'en/about-us')
     'https://www.un.org/en/about-us'
 
