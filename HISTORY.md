@@ -3,7 +3,8 @@
 
 ### 0.9.5
 
-- normalization: encode unicode chars, strip common trackers (#58, #60, #65)
+- IRI to URI normalization: encode path, query and fragments (#58, #60)
+- normalization: strip common trackers (#65)
 - new function `is_valid_url()` (#63)
 - hardening of domain filter (#64)
 

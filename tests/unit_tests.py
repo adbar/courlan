@@ -1135,6 +1135,11 @@ def test_examples():
         "https://github.com/adbar/courlan",
         "github.com",
     )
+    assert check_url("http://666.0.0.1/") is None
+    assert check_url("http://test.net/foo.html?utm_source=twitter#gclid=123") == (
+        "http://test.net/foo.html",
+        "test.net",
+    )
     assert check_url(
         "https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org", strict=True
     ) == ("https://httpbin.org/redirect-to", "httpbin.org")
