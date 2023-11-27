@@ -27,12 +27,13 @@ Why coURLan?
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
 
-This library provides an additional “brain” for web crawling, scraping and management of web pages:
+This library provides an additional “brain” for web crawling, scraping and document management:
 
-- Avoid loosing bandwidth capacity and processing time for pages which are probably not worth the effort.
-- Stay away from pages with little text content or explicitly target synoptic pages to gather links.
+- Save bandwidth and processing time by steering clear of pages deemed low-value
+- Identify specific pages based on language or text content
+- Pinpoint synoptic pages for efficient link gathering
 
-Using content and language-focused filters, Courlan helps navigating the Web so as to improve the resulting document collections. Additional functions include straightforward domain name extraction and URL sampling.
+Courlan facilitates web navigation through a set of content and language-focused filters, enhancing the quality of resulting document collections. Additional functions include effortless URL management, robust validation, and intelligent sampling.
 
 
 Features
@@ -45,7 +46,7 @@ Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_
    - Normalization
    - Sampling
 - Heuristics for link filtering
-   - Spam, trackers and unsuitable content-types
+   - Spam, trackers, and content-types
    - Language/Locale-aware processing
    - Crawl management (e.g. frontier, scheduling)
 - Usable with Python or on the command-line
@@ -104,7 +105,7 @@ All useful operations chained in ``check_url(url)``:
     >>> check_url('http://test.net/foo.html?utm_source=twitter#gclid=123')
     ('http://test.net/foo.html', 'test.net')
 
-    # use strict for additional noisy query parameters
+    # use strict for further trimming
     >>> my_url = 'https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org'
     >>> check_url(my_url, strict=True)
     ('https://httpbin.org/redirect-to', 'httpbin.org')
