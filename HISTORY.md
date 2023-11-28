@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 0.9.5
+
+- IRI to URI normalization: encode path, query and fragments (#58, #60)
+- normalization: strip common trackers (#65)
+- new function `is_valid_url()` (#63)
+- hardening of domain filter (#64)
+
+
 ### 0.9.4
 
 - new UrlStore functions: `add_from_html()` (#42), `discard()` (#44), `get_unvisited_domains`

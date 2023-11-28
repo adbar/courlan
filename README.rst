@@ -27,31 +27,33 @@ Why coURLan?
     “Given that the bandwidth for conducting crawls is neither infinite nor free, it is becoming essential to crawl the Web in not only a scalable, but efficient way, if some reasonable measure of quality or freshness is to be maintained.” (Edwards et al. 2001)
 
 
-This library provides an additional “brain” for web crawling, scraping and management of web archives:
+This library provides an additional “brain” for web crawling, scraping and document management. It facilitates web navigation through a set of filters, enhancing the quality of resulting document collections:
 
-- Avoid loosing bandwidth capacity and processing time for webpages which are probably not worth the effort.
-- Stay away from pages with little text content or explicitly target synoptic pages to gather links.
+- Save bandwidth and processing time by steering clear of pages deemed low-value
+- Identify specific pages based on language or text content
+- Pinpoint pages relevant for efficient link gathering
 
-Using content and language-focused filters, Courlan helps navigating the Web so as to improve the resulting document collections. Additional functions include straightforward domain name extraction and URL sampling.
+Additional utilities needed include URL storage, filtering, and deduplication.
 
 
 Features
 --------
 
-Separate `the wheat from the chaff <https://en.wiktionary.org/wiki/separate_the_wheat_from_the_chaff>`_ and optimize crawls by focusing on non-spam HTML pages containing primarily text.
+Separate the wheat from the chaff and optimize document discovery and retrieval:
 
-- Heuristics for triage of links
-   - Targeting spam and unsuitable content-types
-   - Language-aware filtering
-   - Crawl management
 - URL handling
    - Validation
-   - Canonicalization/Normalization
+   - Normalization
    - Sampling
+- Heuristics for link filtering
+   - Spam, trackers, and content-types
+   - Language/Locale-aware processing
+   - Web crawling (frontier, scheduling)
+- Data store specifically designed for URLs
 - Usable with Python or on the command-line
 
 
-**Let the coURLan fish out juicy bits for you!**
+**Let the coURLan fish up juicy bits for you!**
 
 .. image:: courlan_harns-march.jpg
     :alt: Courlan 
@@ -91,14 +93,25 @@ All useful operations chained in ``check_url(url)``:
 .. code-block:: python
 
     >>> from courlan import check_url
-    # returns url and domain name
+
+    # return url and domain name
     >>> check_url('https://github.com/adbar/courlan')
     ('https://github.com/adbar/courlan', 'github.com')
-    # noisy query parameters can be removed
-    my_url = 'https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org'
+
+    # filter out bogus domains
+    >>> check_url('http://666.0.0.1/')
+    >>>
+
+    # tracker removal
+    >>> check_url('http://test.net/foo.html?utm_source=twitter#gclid=123')
+    ('http://test.net/foo.html', 'test.net')
+
+    # use strict for further trimming
+    >>> my_url = 'https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org'
     >>> check_url(my_url, strict=True)
     ('https://httpbin.org/redirect-to', 'httpbin.org')
-    # Check for redirects (HEAD request)
+
+    # check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
 
 
@@ -106,14 +119,17 @@ Language-aware heuristics, notably internationalization in URLs, are available i
 
 .. code-block:: python
 
-    # optional argument targeting webpages in English or German
+    # optional language argument
     >>> url = 'https://www.un.org/en/about-us'
+
     # success: returns clean URL and domain name
     >>> check_url(url, language='en')
     ('https://www.un.org/en/about-us', 'un.org')
+
     # failure: doesn't return anything
     >>> check_url(url, language='de')
     >>>
+
     # optional argument: strict
     >>> url = 'https://en.wikipedia.org/'
     >>> check_url(url, language='de', strict=False)
@@ -176,12 +192,16 @@ Other useful functions dedicated to URL handling:
 
     >>> from courlan import *
     >>> url = 'https://www.un.org/en/about-us'
+
     >>> get_base_url(url)
     'https://www.un.org'
+
     >>> get_host_and_path(url)
     ('https://www.un.org', '/en/about-us')
+
     >>> get_hostinfo(url)
     ('un.org', 'https://www.un.org')
+
     >>> fix_relative_urls('https://www.un.org', 'en/about-us')
     'https://www.un.org/en/about-us'
 
@@ -390,7 +410,7 @@ Software ecosystem: see `this graphic <https://github.com/adbar/trafilatura/blob
 Similar work
 ------------
 
-These Python libraries perform similar normalization tasks but do not entail language or content filters. They also do not focus on crawl optimization:
+These Python libraries perform similar handling and normalization tasks but do not entail language or content filters. They also do not primarily focus on crawl optimization:
 
 - `furl <https://github.com/gruns/furl>`_
 - `ural <https://github.com/medialab/ural>`_
