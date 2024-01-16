@@ -176,8 +176,6 @@ def _cli_process(args: Any) -> None:
                         ) as discardfh:
                             discardfh.write(url)
 
-            batches = []
-
 
 def process_args(args: Any) -> None:
     """Start processing according to the arguments"""
