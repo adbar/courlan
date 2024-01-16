@@ -107,10 +107,10 @@ def _batch_lines(inputfile: str) -> Iterator[List[str]]:
     "Read input line in batches"
     with open(inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
         while True:
-            batch = [line.strip() for line in islice(inputfh, 10**5)]
-            if not batch:
+            if batch := [line.strip() for line in islice(inputfh, 10**5)]:
+                yield batch
+            else:
                 return
-            yield batch
 
 
 def _cli_sample(args: Any) -> None:
@@ -138,45 +138,44 @@ def _cli_sample(args: Any) -> None:
 
 def _cli_process(args: Any) -> None:
     "Read input file bit by bit and process URLs in batches."
-    with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
-        args.outputfile, "w", encoding="utf-8"
-    ) as outputfh, open(
-        args.inputfile, "r", encoding="utf-8", errors="ignore"
-    ) as inputfh:
+    with (ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
+            args.outputfile, "w", encoding="utf-8"
+        ) as outputfh, open(
+            args.inputfile, "r", encoding="utf-8", errors="ignore"
+        ) as inputfh):
         while True:
             batches = []  # type: List[List[str]]
             while len(batches) < 1000:
-                line_batch = list(islice(inputfh, 1000))
-                if not line_batch:
+                if line_batch := list(islice(inputfh, 1000)):
+                    batches.append(line_batch)
+
+                else:
                     break
-                batches.append(line_batch)
-
-            if batches:
-                futures = (
-                    executor.submit(
-                        _cli_check_urls,
-                        batch,
-                        strict=args.strict,
-                        with_redirects=args.redirects,
-                        language=args.language,
-                    )
-                    for batch in batches
-                )
-
-                for future in as_completed(futures):
-                    for valid, url in future.result():
-                        if valid:
-                            outputfh.write(url + "\n")
-                        # proceed with discarded URLs. to be rewritten
-                        elif args.discardedfile is not None:
-                            with open(
-                                args.discardedfile, "a", encoding="utf-8"
-                            ) as discardfh:
-                                discardfh.write(url)
-
-                batches = []
-            else:
+            if not batches:
                 break
+            futures = (
+                executor.submit(
+                    _cli_check_urls,
+                    batch,
+                    strict=args.strict,
+                    with_redirects=args.redirects,
+                    language=args.language,
+                )
+                for batch in batches
+            )
+
+            for future in as_completed(futures):
+                for valid, url in future.result():
+                    if valid:
+                        outputfh.write(url + "\n")
+                    # proceed with discarded URLs. to be rewritten
+                    elif args.discardedfile is not None:
+                        with open(
+                            args.discardedfile, "a", encoding="utf-8"
+                        ) as discardfh:
+                            discardfh.write(url)
+
+            batches = []
 
 
 def process_args(args: Any) -> None:

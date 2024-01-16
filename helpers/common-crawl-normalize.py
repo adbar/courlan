@@ -38,9 +38,7 @@ with open(args.outputfile, 'w') as outputfh:
                     # normalize URL problem
                     line = re.sub(r'\./', '/', line, 1)
 
-                    # not elegant, but will do the trick
-                    match = re.match(r'(.+?)/', line)
-                    if match:
+                    if match := re.match(r'(.+?)/', line):
                         core = match.group(1)
                     else:
                         print ('ERROR: Curious one (1):', lastseen)
@@ -49,8 +47,7 @@ with open(args.outputfile, 'w') as outputfh:
                         print ('ERROR: Curious one (2):', lastseen)
                         continue
                     elements = re.findall(r'.+?\.', core)
-                    match = re.search(r'\.([^\.]+)$', core)
-                    if match:
+                    if match := re.search(r'\.([^\.]+)$', core):
                         lastone = match.group(1)
                     else:
                         print ('ERROR: Curious one (3):', lastseen)
@@ -60,7 +57,7 @@ with open(args.outputfile, 'w') as outputfh:
                     core = ''.join(reversed(elements))
                     core = re.sub(r'\.$', '', core)
                     line = re.sub(r'^.+?/', '/', line)
-                    line = 'http://' + lastone + '.' + core + line
+                    line = f'http://{lastone}.{core}{line}'
                     outputfh.write(line + '\n')
 
 

@@ -174,26 +174,22 @@ def extract_links(
         if "rel" in link and "nofollow" in link:
             continue
         # https://en.wikipedia.org/wiki/Hreflang
-        if no_filter is False and language is not None and "hreflang" in link:
+        if not no_filter and language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)
             if langmatch and (
                 langmatch[1].startswith(language) or langmatch[1] == "x-default"
             ):
-                linkmatch = LINK_REGEX.search(link)
-                if linkmatch:
+                if linkmatch := LINK_REGEX.search(link):
                     candidates.add(linkmatch[1])
-        # default
-        else:
-            linkmatch = LINK_REGEX.search(link)
-            if linkmatch:
-                candidates.add(linkmatch[1])
+        elif linkmatch := LINK_REGEX.search(link):
+            candidates.add(linkmatch[1])
     # filter candidates
     for link in candidates:
         # repair using base
         if not link.startswith("http"):
             link = fix_relative_urls(url, link)
         # check
-        if no_filter is False:
+        if not no_filter:
             checked = check_url(
                 link,
                 strict=strict,

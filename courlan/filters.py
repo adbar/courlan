@@ -174,10 +174,7 @@ def domain_filter(domain: str) -> bool:
         return False
 
     extension_match = EXTENSION_REGEX.search(domain)
-    if extension_match and extension_match[0] in WHITELISTED_EXTENSIONS:
-        return False
-
-    return True
+    return not extension_match or extension_match[0] not in WHITELISTED_EXTENSIONS
 
 
 def extension_filter(urlpath: str) -> bool:
@@ -215,9 +212,7 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         return True
     # init score
     score = 0
-    # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.match(url)
-    if match:
+    if match := PATH_LANG_FILTER.match(url):
         # look for other occurrences
         occurrences = ALL_PATH_LANGS.findall(url)
         if len(occurrences) == 1:
@@ -225,11 +220,9 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
         elif len(occurrences) == 2:
             for occurrence in occurrences:
                 score = langcodes_score(language, occurrence, score)
-        # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
     if strict and language in LANGUAGE_MAPPINGS:
-        match = HOST_LANG_FILTER.match(url)
-        if match:
+        if match := HOST_LANG_FILTER.match(url):
             candidate = match[1].lower()
             LOGGER.debug("candidate lang %s found in URL", candidate)
             if candidate in LANGUAGE_MAPPINGS[language]:
