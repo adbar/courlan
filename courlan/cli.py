@@ -151,32 +151,30 @@ def _cli_process(args: Any) -> None:
                     break
                 batches.append(line_batch)
 
-            if batches:
-                futures = (
-                    executor.submit(
-                        _cli_check_urls,
-                        batch,
-                        strict=args.strict,
-                        with_redirects=args.redirects,
-                        language=args.language,
-                    )
-                    for batch in batches
-                )
-
-                for future in as_completed(futures):
-                    for valid, url in future.result():
-                        if valid:
-                            outputfh.write(url + "\n")
-                        # proceed with discarded URLs. to be rewritten
-                        elif args.discardedfile is not None:
-                            with open(
-                                args.discardedfile, "a", encoding="utf-8"
-                            ) as discardfh:
-                                discardfh.write(url)
-
-                batches = []
-            else:
+            if not batches:
                 break
+
+            futures = (
+                executor.submit(
+                    _cli_check_urls,
+                    batch,
+                    strict=args.strict,
+                    with_redirects=args.redirects,
+                    language=args.language,
+                )
+                for batch in batches
+            )
+
+            for future in as_completed(futures):
+                for valid, url in future.result():
+                    if valid:
+                        outputfh.write(url + "\n")
+                    # proceed with discarded URLs. to be rewritten
+                    elif args.discardedfile is not None:
+                        with open(
+                            args.discardedfile, "a", encoding="utf-8"
+                        ) as discardfh:
+                            discardfh.write(url)
 
 
 def process_args(args: Any) -> None:

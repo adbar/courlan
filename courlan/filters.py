@@ -167,17 +167,12 @@ def domain_filter(domain: str) -> bool:
         return False
 
     # unsuitable content
-    if UNSUITABLE_DOMAIN.match(domain):
+    if UNSUITABLE_DOMAIN.match(domain) or FILE_TYPE.search(domain):
         return False
 
-    if FILE_TYPE.search(domain):
-        return False
-
+    # extensions
     extension_match = EXTENSION_REGEX.search(domain)
-    if extension_match and extension_match[0] in WHITELISTED_EXTENSIONS:
-        return False
-
-    return True
+    return not extension_match or extension_match[0] not in WHITELISTED_EXTENSIONS
 
 
 def extension_filter(urlpath: str) -> bool:

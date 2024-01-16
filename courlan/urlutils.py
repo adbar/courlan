@@ -58,14 +58,12 @@ def extract_domain(
         blacklist = set()
     # new code: Python >= 3.6 with tld module
     domain, full_domain = get_tldinfo(url, fast=fast)
-    # invalid input
-    if full_domain is None:
-        return None
-    # blacklisting
-    if domain in blacklist or full_domain in blacklist:
-        return None
-    # return domain
-    return full_domain
+
+    return (
+        full_domain
+        if full_domain and not domain in blacklist and not full_domain in blacklist
+        else None
+    )
 
 
 def _parse(url: Any) -> SplitResult:
