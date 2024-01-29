@@ -182,6 +182,7 @@ def test_urlstore():
     my_urls.add_urls(extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
+    my_urls.trailing_slash = False
     extension_urls = [f"{example_domain}/1/{str(a)}/" for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
@@ -371,6 +372,7 @@ def test_dbdump(capsys):
 def test_from_html():
     "Test link extraction procedures."
     url_store = UrlStore()
+    url_store.trailing_slash = False
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.com/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     # 1 internal link in total

@@ -2,7 +2,6 @@
 coURLan: Clean, filter, normalize, and sample URLs
 """
 
-
 # meta
 __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
