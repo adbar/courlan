@@ -2,10 +2,6 @@
 General settings for package execution.
 """
 
-## This file is available from https://github.com/adbar/courlan
-## under GNU GPL v3 license
-
-
 # https://www.alexa.com/topsites
 # https://www.alexa.com/topsites/countries/DE
 # https://www.alexa.com/topsites/countries/US
