@@ -68,19 +68,29 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
-    __slots__ = ("compressed", "done", "language", "strict", "urldict", "_lock")
+    __slots__ = (
+        "compressed",
+        "done",
+        "language",
+        "strict",
+        "trailing_slash",
+        "urldict",
+        "_lock",
+    )
 
     def __init__(
         self,
         compressed: bool = False,
         language: Optional[str] = None,
         strict: bool = False,
+        trailing: bool = True,
         verbose: bool = False,
     ) -> None:
         self.compressed: bool = compressed
         self.done: bool = False
         self.language: Optional[str] = language
         self.strict: bool = strict
+        self.trailing_slash: bool = trailing
         self.urldict: DefaultDict[str, DomainEntry] = defaultdict(DomainEntry)
         self._lock: Lock = Lock()
 
@@ -112,12 +122,18 @@ class UrlStore:
                 # filter
                 if (
                     self.language is not None
-                    and lang_filter(url, self.language, self.strict) is False
+                    and lang_filter(
+                        url, self.language, self.strict, self.trailing_slash
+                    )
+                    is False
                 ):
                     LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
                 parsed_url = normalize_url(
-                    parsed_url, strict=self.strict, language=self.language
+                    parsed_url,
+                    strict=self.strict,
+                    language=self.language,
+                    trailing_slash=self.trailing_slash,
                 )
                 hostinfo, urlpath = get_host_and_path(parsed_url)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))

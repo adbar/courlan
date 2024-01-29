@@ -182,11 +182,12 @@ def test_urlstore():
     my_urls.add_urls(extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
+    my_urls.trailing_slash = False
     extension_urls = [f"{example_domain}/1/{str(a)}/" for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10/"
+    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
 
     # duplicates
     my_urls.add_urls(extension_urls)
@@ -194,7 +195,7 @@ def test_urlstore():
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + len(
         extension_urls
     )
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10/"
+    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
 
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
@@ -204,7 +205,7 @@ def test_urlstore():
     timestamp = my_urls.urldict[example_domain].timestamp
     sleep(0.1)
     url2 = my_urls.get_url(example_domain)
-    assert url1 != url2 and url1 == "https://www.example.org/1/10/"
+    assert url1 != url2 and url1 == "https://www.example.org/1/10"
     assert my_urls.urldict[example_domain].count == 2
     assert timestamp != my_urls.urldict[example_domain].timestamp
     assert url2 not in set(my_urls.find_unvisited_urls(example_domain))
@@ -371,6 +372,7 @@ def test_dbdump(capsys):
 def test_from_html():
     "Test link extraction procedures."
     url_store = UrlStore()
+    url_store.trailing_slash = False
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.com/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     # 1 internal link in total
@@ -398,7 +400,7 @@ def test_from_html():
     url_store.add_from_html(htmlstring, base_url, lang="en")
     todo = url_store.find_unvisited_urls(base_url)
     known_links = url_store.find_known_urls(base_url)
-    assert "https://example.org/en/page1/" in todo and len(known_links) == 4
+    assert "https://example.org/en/page1" in todo and len(known_links) == 4
     # wrong language
     htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
     url_store.add_from_html(htmlstring, base_url, lang="de")

@@ -179,6 +179,7 @@ def normalize_url(
     parsed_url: Union[SplitResult, str],
     strict: bool = False,
     language: Optional[str] = None,
+    trailing_slash: bool = True,
 ) -> str:
     "Takes a URL string or a parsed URL and returns a normalized URL string"
     parsed_url = _parse(parsed_url)
@@ -200,6 +201,13 @@ def normalize_url(
     newquery = clean_query(parsed_url.query, strict, language) or ""
     if newquery and newpath == "":
         newpath = "/"
+    elif (
+        not trailing_slash
+        and not newquery
+        and len(newpath) > 1
+        and newpath.endswith("/")
+    ):
+        newpath = newpath.rstrip("/")
     # fragment
     newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
     # rebuild

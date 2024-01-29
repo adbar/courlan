@@ -312,7 +312,9 @@ def test_path_filter():
 
 
 def test_lang_filter():
+    assert lang_filter("http://test.com/az", "de", trailing_slash=False) is False
     assert lang_filter("http://test.com/az/", "de") is False
+    assert lang_filter("http://test.com/de", "de", trailing_slash=False) is True
     assert lang_filter("http://test.com/de/", "de") is True
     assert (
         lang_filter(
@@ -945,9 +947,23 @@ def test_extraction():
         external_bool=False,
         strict=True,
         with_nav=True,
+        trailing_slash=True,
     )
     assert sorted(links) == [
-        "https://example.org/page/",  # parameter stripped by strict filtering
+        "https://example.org/page/",
+        "https://example.org/page/10",
+    ]
+    links = extract_links(
+        pagecontent,
+        "https://example.org",
+        external_bool=False,
+        strict=True,
+        trailing_slash=False,
+        with_nav=True,
+    )
+    print(links)
+    assert sorted(links) == [
+        "https://example.org/page",  # parameter stripped by strict filtering
         "https://example.org/page/10",
     ]
     links = extract_links(

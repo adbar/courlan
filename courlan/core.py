@@ -48,6 +48,7 @@ def check_url(
     with_redirects: bool = False,
     language: Optional[str] = None,
     with_nav: bool = False,
+    trailing_slash: bool = True,
 ) -> Optional[Tuple[str, str]]:
     """Check links for appropriateness and sanity
     Args:
@@ -85,7 +86,10 @@ def check_url(
             raise ValueError
 
         # internationalization and language heuristics in URL
-        if language is not None and lang_filter(url, language, strict) is False:
+        if (
+            language is not None
+            and lang_filter(url, language, strict, trailing_slash) is False
+        ):
             LOGGER.debug("rejected, lang filter: %s", url)
             raise ValueError
 
@@ -111,7 +115,7 @@ def check_url(
             raise ValueError
 
         # normalize
-        url = normalize_url(parsed_url, strict, language)
+        url = normalize_url(parsed_url, strict, language, trailing_slash)
 
         # domain info: use blacklist in strict mode only
         if strict:
@@ -138,6 +142,7 @@ def extract_links(
     no_filter: bool = False,
     language: Optional[str] = None,
     strict: bool = True,
+    trailing_slash: bool = True,
     with_nav: bool = False,
     redirects: bool = False,
     reference: Optional[str] = None,
@@ -152,6 +157,7 @@ def extract_links(
         no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
+        trailing_slash: set to False to trim trailing slashes
         with_nav: set to True to include navigation pages instead of discarding them
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation
@@ -197,6 +203,7 @@ def extract_links(
             checked = check_url(
                 link,
                 strict=strict,
+                trailing_slash=trailing_slash,
                 with_nav=with_nav,
                 with_redirects=redirects,
                 language=language,

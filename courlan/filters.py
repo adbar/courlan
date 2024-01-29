@@ -2,7 +2,6 @@
 Bundles functions needed to target text content and validate the input.
 """
 
-
 ## This file is available from https://github.com/adbar/courlan
 ## under GNU GPL v3 license
 
@@ -82,9 +81,12 @@ ADULT_AND_VIDEOS = re.compile(
 
 # language filter
 PATH_LANG_FILTER = re.compile(
-    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/)", re.IGNORECASE
+    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/|$)", re.IGNORECASE
 )
 ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)", re.IGNORECASE)
+ALL_PATH_LANGS_NO_TRAILING = re.compile(
+    r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+)
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
 )
@@ -202,7 +204,12 @@ def langcodes_score(language: str, segment: str, score: int) -> int:
     return score
 
 
-def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) -> bool:
+def lang_filter(
+    url: str,
+    language: Optional[str] = None,
+    strict: bool = False,
+    trailing_slash: bool = True,
+) -> bool:
     """Heuristics targeting internationalization and linguistic elements.
     Based on a score."""
     # sanity check
@@ -214,7 +221,10 @@ def lang_filter(url: str, language: Optional[str] = None, strict: bool = False) 
     match = PATH_LANG_FILTER.match(url)
     if match:
         # look for other occurrences
-        occurrences = ALL_PATH_LANGS.findall(url)
+        if trailing_slash:
+            occurrences = ALL_PATH_LANGS.findall(url)
+        else:
+            occurrences = ALL_PATH_LANGS_NO_TRAILING.findall(url)
         if len(occurrences) == 1:
             score = langcodes_score(language, match[1], score)
         elif len(occurrences) == 2:
