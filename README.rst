@@ -55,7 +55,7 @@ Separate the wheat from the chaff and optimize document discovery and retrieval:
 
 **Let the coURLan fish up juicy bits for you!**
 
-.. image:: courlan_harns-march.jpg
+.. image:: https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg
     :alt: Courlan 
     :align: center
     :width: 65%
