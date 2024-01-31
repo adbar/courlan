@@ -427,7 +427,10 @@ def test_persistance():
     _, tmp = tempfile.mkstemp()
     url_store.write(tmp)
     new_one = load_store(tmp)
-    os.remove(tmp)
+    try:
+        os.remove(tmp)
+    except PermissionError:
+        pass  # Windows
 
     assert new_one.strict is True
     assert new_one.total_url_number() == 200
