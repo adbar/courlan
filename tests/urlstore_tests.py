@@ -419,18 +419,25 @@ def test_from_html():
 
 def test_persistance():
     "Test writing and loading to/from disk."
-    url_store = UrlStore(strict=True)
+    url_store = UrlStore(
+        compressed=True, language="de", strict=True, trailing=True, verbose=True
+    )
     example_urls = [f"https://www.example.org/{str(a)}" for a in range(100)]
     test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(100)]
     url_store.add_urls(example_urls + test_urls)
 
     _, tmp = tempfile.mkstemp()
     url_store.write(tmp)
-    new_one = load_store(tmp)
+    new_store = load_store(tmp)
     try:
         os.remove(tmp)
     except PermissionError:
         pass  # Windows
 
-    assert new_one.strict is True
-    assert new_one.total_url_number() == 200
+    assert new_store.compressed is True
+    assert new_store.language == "de"
+    assert new_store.strict is True
+    assert new_store.trailing_slash is True
+    urls = set(new_store.dump_urls())
+    assert new_store.total_url_number() == len(urls) == 200
+    assert "https://www.example.org/99" in urls
