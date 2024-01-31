@@ -7,6 +7,7 @@ import os
 import pickle
 import signal
 import sys
+import tempfile
 import uuid
 
 from datetime import datetime
@@ -16,7 +17,7 @@ import pytest
 
 from courlan import UrlStore
 from courlan.core import filter_links
-from courlan.urlstore import State
+from courlan.urlstore import State, load_store
 
 
 def test_urlstore():
@@ -414,3 +415,19 @@ def test_from_html():
     htmlstring = '<html><body><a href="https://example.org/en/page2"/><a href="https://example.org/imprint.html"/></body></html>'
     url_store.add_from_html(htmlstring, base_url)
     assert not url_store.find_known_urls(base_url)
+
+
+def test_persistance():
+    "Test writing and loading to/from disk."
+    url_store = UrlStore(strict=True)
+    example_urls = [f"https://www.example.org/{str(a)}" for a in range(100)]
+    test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(100)]
+    url_store.add_urls(example_urls + test_urls)
+
+    _, tmp = tempfile.mkstemp()
+    url_store.write(tmp)
+    new_one = load_store(tmp)
+    os.remove(tmp)
+
+    assert new_one.strict is True
+    assert new_one.total_url_number() == 200

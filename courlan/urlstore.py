@@ -509,3 +509,19 @@ class UrlStore:
                 ),
                 flush=True,
             )
+
+    # PERSISTANCE
+
+    def write(self, filename: str) -> None:
+        "Write the URL store to disk."
+        del self._lock
+        with open(filename, "wb") as output:
+            pickle.dump(self, output)
+
+
+def load_store(filename: str) -> UrlStore:
+    "Load a URL store from disk."
+    with open(filename, "rb") as output:
+        url_store = pickle.load(output)
+    url_store._lock = Lock()
+    return url_store  # type: ignore[no-any-return]
