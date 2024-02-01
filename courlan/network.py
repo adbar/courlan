@@ -2,9 +2,6 @@
 Functions devoted to requests over the WWW.
 """
 
-## This file is available from https://github.com/adbar/courlan
-## under GNU GPL v3 license
-
 import logging
 
 import urllib3

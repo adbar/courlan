@@ -5,7 +5,7 @@ coURLan: Clean, filter, normalize, and sample URLs
 # meta
 __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
-__license__ = "GNU GPL v3+"
+__license__ = "Apache-2.0"
 __copyright__ = "Copyright 2020-2023, Adrien Barbaresi"
 __version__ = "0.9.5"
 

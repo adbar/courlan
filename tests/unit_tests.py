@@ -2,9 +2,6 @@
 Unit tests for the courlan package.
 """
 
-## This file is available from https://github.com/adbar/courlan
-## under GNU GPL v3 license
-
 import io
 import logging
 import os
