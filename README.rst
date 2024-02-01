@@ -372,6 +372,8 @@ License
 
 *coURLan* is distributed under the `Apache 2.0 license <https://www.apache.org/licenses/LICENSE-2.0.html>`_.
 
+Versions prior to v1 were under GPLv3+ license.
+
 
 
 Settings
