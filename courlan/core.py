@@ -54,6 +54,7 @@ def check_url(
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
         with_nav: set to True to include navigation pages instead of discarding them
+        trailing_slash: set to False to trim trailing slashes
 
     Returns:
         A tuple consisting of canonical URL and extracted domain

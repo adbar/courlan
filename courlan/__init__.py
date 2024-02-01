@@ -6,8 +6,8 @@ coURLan: Clean, filter, normalize, and sample URLs
 __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
 __license__ = "Apache-2.0"
-__copyright__ = "Copyright 2020-2023, Adrien Barbaresi"
-__version__ = "0.9.5"
+__copyright__ = "Copyright 2020-2024, Adrien Barbaresi"
+__version__ = "1.0.0"
 
 
 # imports

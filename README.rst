@@ -114,6 +114,12 @@ All useful operations chained in ``check_url(url)``:
     # check for redirects (HEAD request)
     >>> url, domain_name = check_url(my_url, with_redirects=True)
 
+    # include navigation pages instead of discarding them
+    >>> check_url('http://www.example.org/page/10/', with_nav=True)
+
+    # remove trailing slash
+    >>> check_url('https://github.com/adbar/courlan/', trailing_slash=False)
+
 
 Language-aware heuristics, notably internationalization in URLs, are available in ``lang_filter(url, language)``:
 
@@ -311,6 +317,10 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``download_threshold_reached(threshold)``: Find out if the download limit (in seconds) has been reached for one of the websites in store.
    - ``unvisited_websites_number()``: Return the number of websites for which there are still URLs to visit.
    - ``is_exhausted_domain(domain)``: Tell if all known URLs for the website have been visited.
+- Persistance
+   - ``write(filename)``: Save the store to disk.
+   - ``load_store(filename)``: Read a UrlStore from disk (separate function, not class method).
+
 
 Optional settings:
 - ``compressed=True``: activate compression of URLs and rules

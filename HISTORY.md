@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 1.0.0
+
+- license change from GPLv3+ to Apache 2.0 (#81)
+- UrlStore: `write()` method and `load_store()` function added (#83)
+- add parameter `trailing_slash` to keep of discard slashes at the end of URLs (#52)
+- maintenance: fix whitespace in `clean_url()` (#77), simplify code (#79)
+
+
 ### 0.9.5
 
 - IRI to URI normalization: encode path, query and fragments (#58, #60)
