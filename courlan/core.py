@@ -2,9 +2,6 @@
 Core functions needed to make the module work.
 """
 
-## This file is available from https://github.com/adbar/courlan
-## under GNU GPL v3 license
-
 # import locale
 import logging
 import re

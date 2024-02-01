@@ -65,7 +65,7 @@ setup(
         "Intended Audience :: Education",
         "Intended Audience :: Information Technology",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: POSIX :: Linux",
@@ -96,7 +96,7 @@ setup(
     url="https://github.com/adbar/courlan",
     author="Adrien Barbaresi",
     author_email="barbaresi@bbaw.de",
-    license="GPLv3+",
+    license="Apache-2.0",
     packages=["courlan"],
     project_urls={
         "Blog": "https://adrien.barbaresi.eu/blog/",  # /tag/courlan.html
