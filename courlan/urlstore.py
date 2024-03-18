@@ -142,7 +142,7 @@ class UrlStore:
         return inputdict
 
     def _load_urls(self, domain: bytes) -> Deque[UrlPathTuple]:
-        #domain = domain.encode("utf-8")
+        # domain = domain.encode("utf-8")
         if domain in self.urldict:
             if self.compressed:
                 return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
@@ -150,7 +150,9 @@ class UrlStore:
         return deque()
 
     def _set_done(self) -> None:
-        if not self.done and all(self.is_exhausted_domain(d.decode("utf-8")) for d in self.urldict):
+        if not self.done and all(
+            self.is_exhausted_domain(d.decode("utf-8")) for d in self.urldict
+        ):
             with self._lock:
                 self.done = True
 
@@ -329,13 +331,18 @@ class UrlStore:
     def find_known_urls(self, domain: str) -> List[str]:
         """Get all already known URLs for the given domain (ex. "https://example.org")."""
         test_domain = domain.encode("utf-8")
-        return [test_domain.decode("utf-8") + u.urlpath for u in self._load_urls(test_domain)]
+        return [
+            test_domain.decode("utf-8") + u.urlpath
+            for u in self._load_urls(test_domain)
+        ]
 
     def find_unvisited_urls(self, domain: str) -> List[str]:
         "Get all unvisited URLs for the given domain."
         if not self.is_exhausted_domain(domain):
             return [
-                domain + u.urlpath for u in self._load_urls(domain.encode("utf-8")) if not u.visited
+                domain + u.urlpath
+                for u in self._load_urls(domain.encode("utf-8"))
+                if not u.visited
             ]
         return []
 
@@ -503,7 +510,9 @@ class UrlStore:
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
         for domain in self.urldict:
-            print("\n".join(self.find_unvisited_urls(domain.decode("utf-8"))), flush=True)
+            print(
+                "\n".join(self.find_unvisited_urls(domain.decode("utf-8"))), flush=True
+            )
 
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."
