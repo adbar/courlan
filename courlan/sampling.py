@@ -23,9 +23,9 @@ def _make_sample(
     output_urls = []
     for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
         urlpaths = [
-            p.urlpath
+            p.urlpath.decode("utf-8")
             for p in urlstore._load_urls(domain)
-            if p.urlpath not in ("/", None)
+            if p.urlpath not in (b"/", None)
         ]
         # too few or too many URLs
         if (
