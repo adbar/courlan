@@ -42,7 +42,7 @@ def _make_sample(
             mysample = sorted(sample(urlpaths, k=samplesize))
         else:
             mysample = urlpaths
-        output_urls.extend([domain + p for p in mysample])
+        output_urls.extend([domain.decode("utf-8") + p for p in mysample])
         LOGGER.debug(
             "%s\t\turls: %s\tprop.: %s",
             domain,
