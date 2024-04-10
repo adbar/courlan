@@ -162,7 +162,6 @@ class UrlStore:
         timestamp: Optional[datetime] = None,
         to_left: Optional[Deque[UrlPathTuple]] = None,
     ) -> None:
-
         # http/https switch
         if domain.startswith(b"http://"):
             candidate = b"https" + domain[4:]
