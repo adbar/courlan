@@ -9,7 +9,7 @@ from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
-from langcodes import Language, tag_is_valid
+from babel import Locale, UnknownLocaleError
 
 from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
@@ -183,21 +183,17 @@ def extension_filter(urlpath: str) -> bool:
 def langcodes_score(language: str, segment: str, score: int) -> int:
     """Use langcodes on selected URL segments and integrate
     them into a score."""
-    # see also: https://babel.pocoo.org/en/latest/locale.html
     # test if the code looks like a country or a language
     if segment[:2] not in COUNTRY_CODES and segment[:2] not in LANGUAGE_CODES:
         return score
-    # test if tag is valid (caution: private codes are)
-    if tag_is_valid(segment):
-        # try to identify language code
-        identified = Language.get(segment).language
-        # see if it matches
-        if identified is not None:
-            LOGGER.debug("langcode %s found in URL segment %s", identified, segment)
-            if identified != language:
-                score -= 1
-            else:
-                score += 1
+    # use locale parser
+    try:
+        if Locale.parse(segment).language != language:
+            score -= 1
+        else:
+            score += 1
+    except UnknownLocaleError:
+        pass
     return score
 
 
