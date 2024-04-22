@@ -37,7 +37,13 @@ from courlan import (
     lang_filter,
 )
 from courlan.core import filter_links
-from courlan.filters import domain_filter, extension_filter, path_filter, type_filter
+from courlan.filters import (
+    domain_filter,
+    extension_filter,
+    langcodes_score,
+    path_filter,
+    type_filter,
+)
 from courlan.meta import clear_caches
 from courlan.urlutils import _parse, get_tldinfo, is_known_link
 
@@ -440,6 +446,10 @@ def test_lang_filter():
         lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=True)
         is False
     )
+    assert langcodes_score("en", "en_HK", 0) == 1
+    assert langcodes_score("en", "en_XY", 0) == 0
+    assert langcodes_score("en", "de_DE", 0) == -1
+
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20

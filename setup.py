@@ -106,7 +106,7 @@ setup(
     include_package_data=True,
     python_requires=">=3.6",
     install_requires=[
-        "langcodes >= 3.3.0",
+        "babel >= 2.11.0",
         "tld == 0.12.6; python_version < '3.7'",
         "tld >= 0.13; python_version >= '3.7'",
         "urllib3 >= 1.26, < 2; python_version < '3.7'",
