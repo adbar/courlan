@@ -181,19 +181,19 @@ def extension_filter(urlpath: str) -> bool:
 
 
 def langcodes_score(language: str, segment: str, score: int) -> int:
-    """Use langcodes on selected URL segments and integrate
-    them into a score."""
+    """Use language codes or locale parser on selected URL segments and
+    integrate them into a score."""
     # test if the code looks like a country or a language
-    if segment[:2] not in COUNTRY_CODES and segment[:2] not in LANGUAGE_CODES:
-        return score
-    # use locale parser
-    try:
-        if Locale.parse(segment).language == language:
-            score += 1
-        else:
-            score -= 1
-    except UnknownLocaleError:
-        pass
+    beginning = segment[:2]
+    if beginning in LANGUAGE_CODES or beginning in COUNTRY_CODES:
+        # use locale parser
+        try:
+            if Locale.parse(segment).language == language:
+                score += 1
+            else:
+                score -= 1
+        except UnknownLocaleError:
+            pass
     return score
 
 
