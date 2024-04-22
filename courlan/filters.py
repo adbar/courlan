@@ -9,7 +9,7 @@ from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
-from babel import Locale, UnknownLocaleError
+from babel import Locale, UnknownLocaleError  # type: ignore
 
 from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
