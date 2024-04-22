@@ -188,10 +188,10 @@ def langcodes_score(language: str, segment: str, score: int) -> int:
         return score
     # use locale parser
     try:
-        if Locale.parse(segment).language != language:
-            score -= 1
-        else:
+        if Locale.parse(segment).language == language:
             score += 1
+        else:
+            score -= 1
     except UnknownLocaleError:
         pass
     return score
