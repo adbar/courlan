@@ -303,7 +303,7 @@ class UrlStore:
         and potentially adjust done meta-information."""
         unvisited = []
         if not self.done:
-            unvisited = [d for d in self.urldict if not self.is_exhausted_domain(d)]
+            unvisited = [d for d, v in self.urldict.items() if v.state == State.OPEN]
             if not unvisited:
                 self._set_done()
         return unvisited
@@ -311,7 +311,7 @@ class UrlStore:
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
-            return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
+            return self.urldict[domain].state != State.OPEN
         return False
         # raise KeyError("website not in store")
 
