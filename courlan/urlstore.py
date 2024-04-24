@@ -149,7 +149,7 @@ class UrlStore:
         return deque()
 
     def _set_done(self) -> None:
-        if not self.done and all(self.is_exhausted_domain(d) for d in self.urldict):
+        if not self.done and all(v.state != State.OPEN for v in self.urldict.values()):
             with self._lock:
                 self.done = True
 
@@ -374,20 +374,26 @@ class UrlStore:
         self._set_done()
         return None
 
-    def get_download_urls(self, timelimit: int = 10) -> Optional[List[str]]:
+    def get_download_urls(
+        self, timelimit: int = 10, max_size: int = 10000
+    ) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
-        potential = self.get_unvisited_domains()
-        targets = []
-        for domain in potential:
-            timestamp = self._timestamp(domain)
+        urls = []
+        for website, entry in self.urldict.items():
+            if entry.state != State.OPEN:
+                continue
             if (
-                timestamp is None
-                or (datetime.now() - timestamp).total_seconds() > timelimit
+                not entry.timestamp
+                or (datetime.now() - entry.timestamp).total_seconds() > timelimit
             ):
-                targets.append(domain)
-        # get corresponding URLs and filter out None values
-        return list(filter(None, [self.get_url(domain) for domain in targets]))
+                url = self.get_url(website)
+                if url is not None:
+                    urls.append(url)
+                    if len(urls) >= max_size:
+                        break
+        self._set_done()
+        return urls
 
     def establish_download_schedule(
         self, max_urls: int = 100, time_limit: int = 10
@@ -420,7 +426,7 @@ class UrlStore:
                         self.urldict[domain].count += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self._timestamp(domain)
+            original_timestamp = self.urldict[domain].timestamp
             if (
                 original_timestamp is None
                 or (now - original_timestamp).total_seconds() > time_limit
