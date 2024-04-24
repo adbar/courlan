@@ -48,10 +48,10 @@ class DomainEntry:
     "Class to record host-related information and URL paths."
     __slots__ = ("count", "rules", "state", "timestamp", "total", "tuples")
 
-    def __init__(self) -> None:
+    def __init__(self, state: State = State.OPEN) -> None:
         self.count: int = 0
         self.rules: Optional[RobotFileParser] = None
-        self.state: State = State.OPEN
+        self.state: State = state
         self.timestamp: Optional[Any] = None
         self.total: int = 0
         self.tuples: Deque[UrlPathTuple] = deque()
@@ -279,8 +279,7 @@ class UrlStore:
         "Declare domains void and prune the store."
         with self._lock:
             for d in domains:
-                self.urldict[d] = DomainEntry()
-                self.urldict[d].state = State.BUSTED
+                self.urldict[d] = DomainEntry(state=State.BUSTED)
         self._set_done()
         num = gc.collect()
         LOGGER.debug("%s objects in GC after UrlStore.discard", num)
@@ -304,7 +303,7 @@ class UrlStore:
         and potentially adjust done meta-information."""
         unvisited = []
         if not self.done:
-            unvisited = [d for d in self.urldict if not self.is_exhausted_domain(d)]
+            unvisited = [d for d, v in self.urldict.items() if v.state == State.OPEN]
             if not unvisited:
                 self._set_done()
         return unvisited
@@ -312,7 +311,7 @@ class UrlStore:
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
         if domain in self.urldict:
-            return self.urldict[domain].state in (State.ALL_VISITED, State.BUSTED)
+            return self.urldict[domain].state != State.OPEN
         return False
         # raise KeyError("website not in store")
 
@@ -475,15 +474,15 @@ class UrlStore:
 
     def get_all_counts(self) -> List[int]:
         "Return all download counts for the hosts in store."
-        return [self.urldict[d].count for d in self.urldict]
+        return [v.count for v in self.urldict.values()]
 
     def total_url_number(self) -> int:
         "Find number of all URLs in store."
-        return sum(self.urldict[d].total for d in self.urldict)
+        return sum(v.total for v in self.urldict.values())
 
     def download_threshold_reached(self, threshold: float) -> bool:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."
-        return any(self.urldict[d].count >= threshold for d in self.urldict)
+        return any(v.count >= threshold for v in self.urldict.values())
 
     def dump_urls(self) -> List[str]:
         "Return a list of all known URLs."
