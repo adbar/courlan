@@ -10,14 +10,12 @@ import sys
 import tempfile
 import uuid
 
-from copy import copy
 from datetime import datetime
 from time import sleep
 
 import pytest
 
 from courlan import UrlStore
-from courlan.core import filter_links
 from courlan.urlstore import State, load_store
 
 
