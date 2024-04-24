@@ -299,12 +299,7 @@ class UrlStore:
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
         and potentially adjust done meta-information."""
-        unvisited = []
-        if not self.done:
-            unvisited = [d for d, v in self.urldict.items() if v.state == State.OPEN]
-            if not unvisited:
-                self._set_done()
-        return unvisited
+        return [d for d, v in self.urldict.items() if v.state == State.OPEN]
 
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
