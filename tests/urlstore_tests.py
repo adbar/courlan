@@ -10,6 +10,7 @@ import sys
 import tempfile
 import uuid
 
+from copy import copy
 from datetime import datetime
 from time import sleep
 
@@ -297,17 +298,22 @@ def test_urlstore():
     ).total_seconds() < 0.25
     assert my_urls.urldict["https://www.example.org"].count == 3
 
-    downloadable_urls = my_urls.get_download_urls(time_limit=0)
     # does not work on Windows?
-    if os.name != "nt":
-        assert (
-            len(downloadable_urls) == 2
-            and downloadable_urls[0].startswith("https://www.example.org")
-            and downloadable_urls[1].startswith("https://test.org")
-        )
-    assert my_urls.urldict["https://test.org"].count == 1
-    downloadable_urls = my_urls.get_download_urls()
+    # if os.name != "nt":
+    test_urls = UrlStore()
+    test_urls.add_urls(
+        ["https://www.example.org/1", "https://test.org/1", "https://test.org/2"]
+    )
+    downloadable_urls = test_urls.get_download_urls(time_limit=0)
+    assert (
+        len(downloadable_urls) == 2
+        and downloadable_urls[0].startswith("https://www.example.org")
+        and downloadable_urls[1].startswith("https://test.org")
+        and test_urls.urldict["https://test.org"].count == 1
+    )
+    downloadable_urls = test_urls.get_download_urls()
     assert len(downloadable_urls) == 0
+
     other_store = UrlStore()
     downloadable_urls = other_store.get_download_urls()
     assert not downloadable_urls and other_store.done is True
@@ -329,18 +335,18 @@ def test_urlstore():
     assert (
         len(schedule) == 1
         and round(schedule[0][0]) == 1
-        and schedule[0][1] == "https://www.example.org/3"
+        and schedule[0][1].startswith("https://www.example.org")
     )
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
-    assert my_urls.urldict["https://www.example.org"].count == 8
+    assert my_urls.urldict["https://www.example.org"].count == 7
     assert (
         my_urls.urldict["https://test.org"].count
-        == 4
+        == 3
         == sum(u.visited is True for u in my_urls.urldict["https://test.org"].tuples)
     )
-    assert my_urls.download_threshold_reached(9) is False
-    assert my_urls.download_threshold_reached(8) is True
+    assert my_urls.download_threshold_reached(8) is False
+    assert my_urls.download_threshold_reached(7) is True
 
 
 def test_dbdump(capsys):
