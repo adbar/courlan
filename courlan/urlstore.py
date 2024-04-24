@@ -232,9 +232,6 @@ class UrlStore:
         # preserve input order
         return list(remaining_urls)
 
-    def _timestamp(self, domain: str) -> Optional[datetime]:
-        return self.urldict[domain].timestamp
-
     # ADDITIONS AND DELETIONS
 
     def add_urls(
