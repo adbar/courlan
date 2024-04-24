@@ -13,6 +13,7 @@ import zlib
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from enum import Enum
+from operator import itemgetter
 from threading import Lock
 from typing import (
     Any,
@@ -375,7 +376,7 @@ class UrlStore:
         return None
 
     def get_download_urls(
-        self, timelimit: int = 10, max_size: int = 10000
+        self, max_urls: int = 10000, time_limit: int = 10
     ) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
@@ -385,12 +386,12 @@ class UrlStore:
                 continue
             if (
                 not entry.timestamp
-                or (datetime.now() - entry.timestamp).total_seconds() > timelimit
+                or (datetime.now() - entry.timestamp).total_seconds() > time_limit
             ):
                 url = self.get_url(website)
                 if url is not None:
                     urls.append(url)
-                    if len(urls) >= max_size:
+                    if len(urls) >= max_urls:
                         break
         self._set_done()
         return urls
@@ -428,7 +429,7 @@ class UrlStore:
             now = datetime.now()
             original_timestamp = self.urldict[domain].timestamp
             if (
-                original_timestamp is None
+                not original_timestamp
                 or (now - original_timestamp).total_seconds() > time_limit
             ):
                 schedule_secs = 0.0
@@ -445,7 +446,7 @@ class UrlStore:
             self._store_urls(domain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
         self._set_done()
-        return sorted(targets, key=lambda x: x[0])  # type: ignore[arg-type]
+        return sorted(targets, key=itemgetter(1))  # type: ignore[arg-type]
 
     # CRAWLING
 

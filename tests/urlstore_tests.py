@@ -287,7 +287,7 @@ def test_urlstore():
     assert my_urls.total_url_number() == 20014
 
     # get download URLs
-    downloadable_urls = my_urls.get_download_urls(timelimit=0, max_size=1)
+    downloadable_urls = my_urls.get_download_urls(time_limit=0, max_urls=1)
     assert (
         len(downloadable_urls) == 1
         and downloadable_urls[0] == "https://www.example.org/1"
@@ -296,7 +296,7 @@ def test_urlstore():
         datetime.now() - my_urls.urldict["https://www.example.org"].timestamp
     ).total_seconds() < 0.25
     assert my_urls.urldict["https://www.example.org"].count == 3
-    downloadable_urls = my_urls.get_download_urls(timelimit=0)
+    downloadable_urls = my_urls.get_download_urls(time_limit=0)
     assert (
         len(downloadable_urls) == 2
         and downloadable_urls[0].startswith("https://www.example.org")
