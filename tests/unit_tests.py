@@ -447,8 +447,11 @@ def test_lang_filter():
         is False
     )
     assert langcodes_score("en", "en_HK", 0) == 1
+    assert langcodes_score("en", "en-HK", 0) == 1
     assert langcodes_score("en", "en_XY", 0) == 0
+    assert langcodes_score("en", "en-XY", 0) == 0
     assert langcodes_score("en", "de_DE", 0) == -1
+    assert langcodes_score("en", "de-DE", 0) == -1
 
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
