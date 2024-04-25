@@ -62,7 +62,6 @@ def scrub_url(url: str) -> str:
         "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f \r\n"
     )
-    # url = "".join([c for c in "".join(url.split()) if c.isprintable()])
 
     # <![CDATA[http://www.urbanlife.de/item/260-bmw-i8-hybrid-revolution-unter-den-sportwagen.html]]>
     if url.startswith("<![CDATA["):
@@ -72,7 +71,9 @@ def scrub_url(url: str) -> str:
     url = REMAINING_MARKUP.sub("", url)
 
     # & and &amp;
-    url = TRAILING_AMP.sub("", url.replace("&amp;", "&"))
+    if "&amp;" in url:
+        url = url.replace("&amp;", "&")
+    url = TRAILING_AMP.sub("", url)
 
     # if '"' in link:
     #    link = link.split('"')[0]
@@ -127,13 +128,13 @@ def clean_query(
         elif TRACKERS_RE.search(teststr):
             continue
         # control language
-        if teststr in LANG_PARAMS:
-            if (
-                language in TARGET_LANGS
-                and str(qdict[qelem][0]) not in TARGET_LANGS[language]
-            ):
-                LOGGER.debug("bad lang: %s %s", language, qelem)
-                raise ValueError
+        if (
+            language in TARGET_LANGS
+            and teststr in LANG_PARAMS
+            and str(qdict[qelem][0]) not in TARGET_LANGS[language]
+        ):
+            LOGGER.debug("bad lang: %s %s", language, qelem)
+            raise ValueError
         # insert
         newqdict[qelem] = qdict[qelem]
 
