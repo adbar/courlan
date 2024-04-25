@@ -45,7 +45,7 @@ from courlan.filters import (
     type_filter,
 )
 from courlan.meta import clear_caches
-from courlan.urlutils import _parse, get_tldinfo, is_known_link
+from courlan.urlutils import _parse, is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -1184,16 +1184,18 @@ def test_examples():
 
 def test_meta():
     "Test package meta functions."
-    url = "https://example.net/123/abc"
-    _ = get_tldinfo(url)
-    _ = _parse(url)
-    assert get_tldinfo.cache_info().currsize > 0
+    _ = langcodes_score("en", "en_HK", 0)
+    _ = _parse("https://example.net/123/abc")
+
+    assert langcodes_score.cache_info().currsize > 0
     try:
         urlsplit_lrucache = True
         assert urlsplit.cache_info().currsize > 0
     except AttributeError:  # newer Python versions only
         urlsplit_lrucache = False
+
     clear_caches()
-    assert get_tldinfo.cache_info().currsize == 0
+
+    assert langcodes_score.cache_info().currsize == 0
     if urlsplit_lrucache:
         assert urlsplit.cache_info().currsize == 0
