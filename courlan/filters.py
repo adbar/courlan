@@ -5,13 +5,12 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
+from functools import lru_cache
 from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
 from babel import Locale, UnknownLocaleError  # type: ignore
-
-from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
 
 LOGGER = logging.getLogger(__name__)
@@ -144,12 +143,12 @@ LANGUAGE_MAPPINGS = {
 
 
 def basic_filter(url: str) -> bool:
-    """Filter URLs based on basic formal characteristics"""
+    "Filter URLs based on basic formal characteristics."
     return bool(url.startswith("http") and 10 <= len(url) < 500)
 
 
 def domain_filter(domain: str) -> bool:
-    "Find invalid domain/host names"
+    "Find invalid domain/host names."
     # IPv4 or IPv6
     if not set(domain).difference(IP_SET):
         try:
@@ -175,25 +174,22 @@ def domain_filter(domain: str) -> bool:
 
 
 def extension_filter(urlpath: str) -> bool:
-    """Filter based on file extension"""
+    "Filter based on file extension."
     extension_match = EXTENSION_REGEX.search(urlpath)
     return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
+@lru_cache(maxsize=1024)
 def langcodes_score(language: str, segment: str, score: int) -> int:
-    """Use language codes or locale parser on selected URL segments and
-    integrate them into a score."""
-    # test if the code looks like a country or a language
-    beginning = segment[:2]
-    if beginning in LANGUAGE_CODES or beginning in COUNTRY_CODES:
-        # use locale parser
-        try:
-            if Locale.parse(segment).language == language:
-                score += 1
-            else:
-                score -= 1
-        except UnknownLocaleError:
-            pass
+    "Use locale parser to assess the plausibility of the chosen URL segment."
+    delimiter = "_" if "_" in segment else "-"
+    try:
+        if Locale.parse(segment, sep=delimiter).language == language:
+            score += 1
+        else:
+            score -= 1
+    except (TypeError, UnknownLocaleError):
+        pass
     return score
 
 
@@ -203,8 +199,7 @@ def lang_filter(
     strict: bool = False,
     trailing_slash: bool = True,
 ) -> bool:
-    """Heuristics targeting internationalization and linguistic elements.
-    Based on a score."""
+    "Heuristics targeting internationalization and linguistic elements based on a score."
     # sanity check
     if language is None:
         return True
@@ -239,7 +234,7 @@ def lang_filter(
 
 
 def path_filter(urlpath: str, query: str) -> bool:
-    """Filters based on URL path: index page, imprint, etc."""
+    "Filters based on URL path: index page, imprint, etc."
     if NOTCRAWLABLE.search(urlpath):
         return False
     return bool(not INDEX_PAGE_FILTER.match(urlpath) or query)
@@ -265,7 +260,7 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
 
 
 def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
-    """Parse and validate the input"""
+    "Parse and validate the input."
     try:
         parsed_url = urlsplit(url)
     except ValueError:
