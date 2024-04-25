@@ -4,7 +4,6 @@ Functions related to URL manipulation and extraction of URL parts.
 
 import re
 
-from functools import lru_cache
 from html import unescape
 from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
@@ -26,7 +25,6 @@ INNER_SLASH_REGEX = re.compile(r"(.+/)+")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
-@lru_cache(maxsize=1024)  # todo: remove
 def get_tldinfo(
     url: str, fast: bool = False
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
