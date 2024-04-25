@@ -16,6 +16,8 @@ from babel import Locale, UnknownLocaleError  # type: ignore
 LOGGER = logging.getLogger(__name__)
 
 
+PROTOCOLS = {"http", "https"}
+
 # domain/host names
 IP_SET = {
     ".",
@@ -50,8 +52,6 @@ VALID_DOMAIN = re.compile(
     + r"[A-Za-z]$",
     re.IGNORECASE,
 )
-
-UNSUITABLE_DOMAIN = re.compile(r"[0-9]+\.")
 
 # content filters
 SITE_STRUCTURE = re.compile(
@@ -132,15 +132,6 @@ WHITELISTED_EXTENSIONS = {
     ".xml",
 }
 
-# territories whitelist
-# see also: https://babel.pocoo.org/en/latest/api/languages.html
-# get_official_languages('ch')
-LANGUAGE_MAPPINGS = {
-    "de": {"at", "ch", "de", "li"},  # 'be', 'it'
-    "en": {"au", "ca", "en", "gb", "ie", "nz", "us"},
-    "fr": {"be", "ca", "ch", "fr", "tn"},  # , 'lu', ...
-}
-
 
 def basic_filter(url: str) -> bool:
     "Filter URLs based on basic formal characteristics."
@@ -158,14 +149,15 @@ def domain_filter(domain: str) -> bool:
         return True
 
     # malformed domains
-    try:
-        if not VALID_DOMAIN.match(domain.encode("idna").decode("utf-8")):
+    if not VALID_DOMAIN.match(domain):
+        try:
+            if not VALID_DOMAIN.match(domain.encode("idna").decode("utf-8")):
+                return False
+        except UnicodeError:
             return False
-    except UnicodeError:
-        return False
 
     # unsuitable content
-    if UNSUITABLE_DOMAIN.match(domain) or FILE_TYPE.search(domain):
+    if domain.split(".")[0].isdigit() or FILE_TYPE.search(domain):
         return False
 
     # extensions
@@ -220,12 +212,11 @@ def lang_filter(
                 score = langcodes_score(language, occurrence, score)
         # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
-    if strict and language in LANGUAGE_MAPPINGS:
+    if strict:
         match = HOST_LANG_FILTER.match(url)
         if match:
             candidate = match[1].lower()
-            LOGGER.debug("candidate lang %s found in URL", candidate)
-            if candidate in LANGUAGE_MAPPINGS[language]:
+            if candidate == language:
                 score += 1
             else:
                 score -= 1
@@ -265,10 +256,7 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
         parsed_url = urlsplit(url)
     except ValueError:
         return False, None
-    if not bool(parsed_url.scheme) or parsed_url.scheme not in (
-        "http",
-        "https",
-    ):
+    if not bool(parsed_url.scheme) or parsed_url.scheme not in PROTOCOLS:
         return False, None
     # fmt: off
     if len(parsed_url.netloc) < 5 or (
