@@ -20,14 +20,13 @@ DOMAIN_REGEX = re.compile(
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
-NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
 STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=\D):\d+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 INNER_SLASH_REGEX = re.compile(r"(.+/)+")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)  # todo: remove
 def get_tldinfo(
     url: str, fast: bool = False
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
@@ -39,9 +38,9 @@ def get_tldinfo(
         domain_match = DOMAIN_REGEX.match(url)
         if domain_match:
             full_domain = STRIP_DOMAIN_REGEX.sub("", domain_match[1])
-            clean_match = NO_EXTENSION_REGEX.match(full_domain)
+            clean_match = full_domain.split(".")[0]
             if clean_match:
-                return clean_match[0], full_domain
+                return clean_match, full_domain
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
     if tldinfo is None:
