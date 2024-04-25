@@ -19,9 +19,8 @@ DOMAIN_REGEX = re.compile(
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
-STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=\D):\d+")
+STRIP_PORT_REGEX = re.compile(r"(?<=\D):\d+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
-INNER_SLASH_REGEX = re.compile(r"(.+/)+")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
@@ -35,7 +34,7 @@ def get_tldinfo(
         # try with regexes
         domain_match = DOMAIN_REGEX.match(url)
         if domain_match:
-            full_domain = STRIP_DOMAIN_REGEX.sub("", domain_match[1])
+            full_domain = STRIP_PORT_REGEX.sub("", domain_match[1].split("@")[-1])
             clean_match = full_domain.split(".")[0]
             if clean_match:
                 return clean_match, full_domain
