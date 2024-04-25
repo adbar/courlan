@@ -5,13 +5,12 @@ Bundles functions needed to target text content and validate the input.
 import logging
 import re
 
+from functools import lru_cache
 from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
 from babel import Locale, UnknownLocaleError  # type: ignore
-
-from .langinfo import COUNTRY_CODES, LANGUAGE_CODES
 
 
 LOGGER = logging.getLogger(__name__)
@@ -180,20 +179,18 @@ def extension_filter(urlpath: str) -> bool:
     return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
+@lru_cache(maxsize=1024)
 def langcodes_score(language: str, segment: str, score: int) -> int:
-    """Use language codes or locale parser on selected URL segments and
+    """Use locale parser on selected URL segments and
     integrate them into a score."""
-    # test if the code looks like a country or a language
-    beginning = segment[:2]
-    if beginning in LANGUAGE_CODES or beginning in COUNTRY_CODES:
-        # use locale parser
-        try:
-            if Locale.parse(segment).language == language:
-                score += 1
-            else:
-                score -= 1
-        except UnknownLocaleError:
-            pass
+    delimiter = "_" if "_" in segment else "-"
+    try:
+        if Locale.parse(segment, sep=delimiter).language == language:
+            score += 1
+        else:
+            score -= 1
+    except (TypeError, UnknownLocaleError):
+        pass
     return score
 
 
