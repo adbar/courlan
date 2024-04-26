@@ -2,7 +2,6 @@
 General settings for package execution.
 """
 
-# https://www.alexa.com/topsites
 # https://www.alexa.com/topsites/countries/DE
 # https://www.alexa.com/topsites/countries/US
 BLACKLIST = {
@@ -101,7 +100,10 @@ ALLOWED_PARAMS = {
     "postid",
     "product_id",
 }
-CONTROL_PARAMS = {"lang", "language"}
-TARGET_LANG_DE = {"de", "deutsch", "ger", "german"}
-TARGET_LANG_EN = {"en", "english", "eng"}  # 'en_US', ''
-# accepted_lang = ('en')
+
+LANG_PARAMS = {"lang", "language"}
+
+TARGET_LANGS = {
+    "de": {"de", "deutsch", "ger", "german"},
+    "en": {"en", "english", "eng"},  # 'en_US'
+}
