@@ -56,22 +56,24 @@ VALID_DOMAIN = re.compile(
 # content filters
 SITE_STRUCTURE = re.compile(
     # wordpress
-    r"/(?:paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|archives|uploads|modules|attachment|wp-admin|wp-content|wp-includes|wp-json|wp-themes|oembed)/|"
+    r"/(?:wp-(?:admin|content|includes|json|themes)|"
+    r"paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|"
+    r"archives|uploads|modules|attachment|oembed)/|"
     # wordpress + short URL
     r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$|"
     # mixed/blogspot
-    r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$|"
-    # blogspot
-    r"_archive\.html$",
+    r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$",
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
-    r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b|"
+    r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|"
+    r"avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b|"
     r"[/-](img|jpg|png)(\b|_)",
     re.IGNORECASE,
 )  # (?=[&?])
 ADULT_AND_VIDEOS = re.compile(
-    r"[/_-](?:bild-?kontakte|fick|gangbang|incest|live-?cams?|live-?chat|porno?|sexcam|sexyeroti[ck]|swinger|x{3})\b",
+    r"[/_-](?:bild-?kontakte|fick|gangbang|incest|live-?cams?|live-?chat|"
+    r"porno?|sexcam|sexyeroti[ck]|swinger|x{3})\b",
     re.IGNORECASE,
 )
 
@@ -235,8 +237,8 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
     """Make sure the target URL is from a suitable type (HTML page with primarily text).
     Strict: Try to filter out other document types, spam, video and adult websites."""
     try:
-        # feeds
-        if url.endswith(("/feed", "/rss")):
+        # feeds + blogspot
+        if url.endswith(("/feed", "/rss", "_archive.html")):
             raise ValueError
         # website structure
         if SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)):

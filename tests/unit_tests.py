@@ -249,6 +249,9 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
+    # wp
+    assert type_filter("http://www.example.org/wp-admin/") is False
+    assert type_filter("http://www.example.org/wp-includes/this") is False
     # straight category
     assert type_filter("http://www.example.org/category/123") is False
     assert type_filter("http://www.example.org/product-category/123") is False
