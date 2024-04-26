@@ -40,7 +40,8 @@ TRACKERS_RE = re.compile(
     r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
     r"^(?:click|gbra|msclk|igsh|partner|wbra)id|"
     r"^(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
-    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
+    r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|"
+    r"kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
 )
 
 
@@ -54,16 +55,14 @@ def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
 
 def scrub_url(url: str) -> str:
     "Strip unnecessary parts and make sure only one URL is considered"
-    # trim
-    # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
-    # remove leading and trailing white space and unescaped control chars
+    # remove leading/trailing space and unescaped control chars
     # strip space in input string
     url = "".join(url.split()).strip(
         "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
     )
 
-    # <![CDATA[http://www.urbanlife.de/item/260-bmw-i8-hybrid-revolution-unter-den-sportwagen.html]]>
+    # <![CDATA[http://...]]>
     if url.startswith("<![CDATA["):
         url = url.replace("<![CDATA[", "").replace("]]>", "")
 
@@ -92,19 +91,16 @@ def scrub_url(url: str) -> str:
                 LOGGER.debug("taking url: %s", url)
 
     # too long and garbled URLs e.g. due to quotes URLs
-    # https://github.com/cocrawler/cocrawler/blob/main/cocrawler/urls.py
-    # if len(url) > 500:  # arbitrary choice
     match = TRAILING_PARTS.match(url)
     if match:
         url = match[1]
-    if len(url) > 500:
+    if len(url) > 500:  # arbitrary choice
         LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
 
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
         url = url.rstrip("/")
-    # lower
-    # url = url.lower()
+
     return url
 
 
@@ -212,4 +208,4 @@ def normalize_url(
     # fragment
     newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
     # rebuild
-    return urlunsplit([scheme, netloc, newpath, newquery, newfragment])
+    return urlunsplit((scheme, netloc, newpath, newquery, newfragment))
