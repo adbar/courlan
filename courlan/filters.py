@@ -256,16 +256,16 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
         parsed_url = urlsplit(url)
     except ValueError:
         return False, None
+
     if not bool(parsed_url.scheme) or parsed_url.scheme not in PROTOCOLS:
         return False, None
-    # fmt: off
+
     if len(parsed_url.netloc) < 5 or (
         parsed_url.netloc.startswith("www.")  # type: ignore
         and len(parsed_url.netloc) < 8
     ):
         return False, None
-    # fmt: on
-    # default
+
     return True, parsed_url
 
 
