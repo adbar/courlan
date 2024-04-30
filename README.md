@@ -50,7 +50,7 @@ retrieval:
 
 **Let the coURLan fish up juicy bits for you!**
 
-<img src="https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg) width="65%" alt="Courlan bird"/>
+<img src="https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg" width="65%" alt="Courlan bird"/>
 
 Here is a [courlan](https://en.wiktionary.org/wiki/courlan) (source:
 [Limpkin at Harn's Marsh by
@@ -326,7 +326,7 @@ features the following methods:
 
 ## Command-line
 
-The main fonctions are also available through a command-line utility.
+The main fonctions are also available through a command-line utility:
 
 ``` bash
 $ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
@@ -379,16 +379,17 @@ license](https://www.apache.org/licenses/LICENSE-2.0.html).
 
 Versions prior to v1 were under GPLv3+ license.
 
+
 ## Settings
 
 `courlan` is optimized for English and German but its generic approach
 is also usable in other contexts.
 
 Details of strict URL filtering can be reviewed and changed in the file
-`settings.py`. To override the default settings, [clone the
-repository](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github)
-and [re-install the package
+`settings.py`. To override the default settings, clone the repository and
+[re-install the package
 locally](https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree).
+
 
 ## Contributing
 
@@ -398,32 +399,26 @@ are welcome!
 Feel free to file issues on the [dedicated
 page](https://github.com/adbar/courlan/issues).
 
+
 ## Author
 
-This effort is part of methods to derive information from web documents
-in order to build [text databases for
-research](https://www.dwds.de/d/k-web) (chiefly linguistic analysis and
-natural language processing). Extracting and pre-processing web texts to
-the exacting standards of scientific research presents a substantial
-challenge for those who conduct such research. Web corpus construction
-involves numerous design decisions, and this software package can help
-facilitate text data collection and enhance corpus quality.
+Developed with practical applications of academic research in mind, this software
+is part of a broader effort to derive information from web documents.
+Extracting and pre-processing web texts to the exacting standards of
+scientific research presents a substantial challenge.
+This software package simplifies text data collection and enhances corpus quality,
+it is currently used to build [text databases for research](https://www.dwds.de/d/k-web).
 
--   Barbaresi, A. "[Trafilatura: A Web Scraping Library and
-    Command-Line Tool for Text Discovery and
-    Extraction](https://aclanthology.org/2021.acl-demo.15/)."
-    *Proceedings of ACL/IJCNLP 2021: System Demonstrations*, 2021, pp.
-    122-131.
--   Barbaresi, A. "[Generic Web Content Extraction with Open-Source
-    Software](https://konvens.org/proceedings/2019/papers/kaleidoskop/camera_ready_barbaresi.pdf)."
-    *Proceedings of the 15th Conference on Natural Language Processing
-    (KONVENS 2019)*, 2019, pp. 267-268.
+- Barbaresi, A. "[Trafilatura: A Web Scraping Library and
+  Command-Line Tool for Text Discovery and
+  Extraction](https://aclanthology.org/2021.acl-demo.15/)."
+  *Proceedings of ACL/IJCNLP 2021: System Demonstrations*, 2021, pp. 122-131.
 
-Contact: see [homepage](https://adrien.barbaresi.eu/) or
-[GitHub](https://github.com/adbar).
+Contact: see [homepage](https://adrien.barbaresi.eu/).
 
 Software ecosystem: see [this
 graphic](https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png).
+
 
 ## Similar work
 
@@ -435,12 +430,13 @@ primarily focus on crawl optimization:
 -   [ural](https://github.com/medialab/ural)
 -   [yarl](https://github.com/aio-libs/yarl)
 
+
 ## References
 
 -   Cho, J., Garcia-Molina, H., & Page, L. (1998). Efficient crawling
     through URL ordering. *Computer networks and ISDN systems*, 30(1-7),
-    161--172.
+    161–172.
 -   Edwards, J., McCurley, K. S., and Tomlin, J. A. (2001). "An
     adaptive model for optimizing performance of an incremental web
     crawler". In *Proceedings of the 10th international conference on
-    World Wide Web - WWW'01*, pp. 106--113.
+    World Wide Web - WWW'01*, pp. 106–113.
