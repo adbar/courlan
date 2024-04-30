@@ -1,6 +1,14 @@
 ## History / Changelog
 
 
+### 1.1.0
+
+- replace `langcodes` by `babel` and use its information on locales (#89, #92)
+- simplified and faster code: domain extraction, cleaning, filters and UrlStore (#90, #93, #94, #95)
+- UrlStore: better url batches, replace `timelimit` parameter by `time_limit` (#91)
+- maintenance: update readme and convert it to markdown (#97)
+
+
 ### 1.0.0
 
 - license change from GPLv3+ to Apache 2.0 (#81)

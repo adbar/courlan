@@ -7,7 +7,7 @@ __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
 __license__ = "Apache-2.0"
 __copyright__ = "Copyright 2020-2024, Adrien Barbaresi"
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 # imports
