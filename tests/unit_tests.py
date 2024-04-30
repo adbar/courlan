@@ -743,11 +743,11 @@ def test_domain_filter():
 
 def test_urlcheck_redirects():
     "Test redirection checks."
-    assert check_url("https://www.httpbun.com/status/200", with_redirects=True) == (
-        "https://httpbun.com",
-        "httpbun.com",
+    assert check_url("https://www.httpbin.org/status/301", with_redirects=True) == (
+        "https://www.httpbin.org/get",
+        "httpbin.org",
     )
-    assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
+    assert check_url("https://httpbun.com/status/404", with_redirects=True) is None
     assert check_url("https://www.ht.or", with_redirects=True) is None
 
 

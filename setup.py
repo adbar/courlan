@@ -108,10 +108,9 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "babel >= 2.11.0",
+        "certifi",
         "tld == 0.12.6; python_version < '3.7'",
         "tld >= 0.13; python_version >= '3.7'",
-        "urllib3 >= 1.26, < 2; python_version < '3.7'",
-        "urllib3 >= 1.26, < 3; python_version >= '3.7'",
     ],
     # extras_require=extras,
     entry_points={
