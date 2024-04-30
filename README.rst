@@ -47,7 +47,7 @@ Separate the wheat from the chaff and optimize document discovery and retrieval:
    - Sampling
 - Heuristics for link filtering
    - Spam, trackers, and content-types
-   - Language/Locale-aware processing
+   - Locales and internationalization
    - Web crawling (frontier, scheduling)
 - Data store specifically designed for URLs
 - Usable with Python or on the command-line
@@ -312,7 +312,7 @@ The ``UrlStore`` class allow for storing and retrieving domain-classified URLs, 
    - ``get_rules(domain)``: Return the stored crawling rules for the given website.
    - ``store_rules(website, rules=None)``: Store crawling rules for a given website.
    - ``get_crawl_delay()``: Return the delay as extracted from robots.txt, or a given default.
-   - ``get_download_urls(timelimit=10)``: Get a list of immediately downloadable URLs according to the given time limit per domain.
+   - ``get_download_urls(max_urls=100, time_limit=10)``: Get a list of immediately downloadable URLs according to the given time limit per domain.
    - ``establish_download_schedule(max_urls=100, time_limit=10)``: Get up to the specified number of URLs along with a suitable backoff schedule (in seconds).
    - ``download_threshold_reached(threshold)``: Find out if the download limit (in seconds) has been reached for one of the websites in store.
    - ``unvisited_websites_number()``: Return the number of websites for which there are still URLs to visit.
