@@ -302,7 +302,11 @@ def test_urlstore():
     test_urls.add_urls(
         ["https://www.example.org/1", "https://test.org/1", "https://test.org/2"]
     )
-    downloadable_urls = test_urls.get_download_urls(timelimit=0)  # legacy
+
+    with pytest.raises(ValueError):
+        test_urls.get_download_urls(timelimit=0)
+
+    downloadable_urls = test_urls.get_download_urls(time_limit=0)
     assert (
         len(downloadable_urls) == 2
         and downloadable_urls[0].startswith("https://www.example.org")

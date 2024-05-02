@@ -371,12 +371,12 @@ class UrlStore:
         self,
         time_limit: int = 10,
         max_urls: int = 10000,
-        timelimit: Optional[int] = None,
+        timelimit: Optional[int] = None,  # TODO: remove later
     ) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
-        # TODO: deprecate in later version
-        time_limit = timelimit if timelimit is not None else time_limit
+        if timelimit is not None:
+            raise ValueError("timelimit is deprecated, use time_limit instead")
 
         urls = []
         for website, entry in self.urldict.items():
