@@ -297,7 +297,7 @@ def test_urlstore():
     assert (
         datetime.now() - my_urls.urldict[b"https://www.example.org"].timestamp
     ).total_seconds() < 0.25
-    assert my_urls.urldict["https://www.example.org"].count == 3
+    assert my_urls.urldict[b"https://www.example.org"].count == 3
 
     # does not work on Windows?
     # if os.name != "nt":
@@ -314,7 +314,7 @@ def test_urlstore():
         len(downloadable_urls) == 2
         and downloadable_urls[0].startswith("https://www.example.org")
         and downloadable_urls[1].startswith("https://test.org")
-        and test_urls.urldict["https://test.org"].count == 1
+        and test_urls.urldict[b"https://test.org"].count == 1
     )
     downloadable_urls = test_urls.get_download_urls()
     assert len(downloadable_urls) == 0
@@ -346,9 +346,9 @@ def test_urlstore():
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
     assert my_urls.urldict[b"https://www.example.org"].count == 7
     assert (
-        my_urls.urldict["https://test.org"].count
+        my_urls.urldict[b"https://test.org"].count
         == 3
-        == sum(u.visited is True for u in my_urls.urldict["https://test.org"].tuples)
+        == sum(u.visited is True for u in my_urls.urldict[b"https://test.org"].tuples)
     )
     assert my_urls.download_threshold_reached(8) is False
     assert my_urls.download_threshold_reached(7) is True

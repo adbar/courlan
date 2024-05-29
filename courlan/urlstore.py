@@ -288,7 +288,7 @@ class UrlStore:
     def discard(self, domains: List[str]) -> None:
         "Declare domains void and prune the store."
         with self._lock:
-            for d in domains:
+            for d in (dom.encode("utf-8") for dom in domains):
                 self.urldict[d] = DomainEntry(state=State.BUSTED)
         self._set_done()
         num = gc.collect()
@@ -311,12 +311,15 @@ class UrlStore:
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
         and potentially adjust done meta-information."""
-        return [d for d, v in self.urldict.items() if v.state == State.OPEN]
+        return [
+            d.decode("utf-8") for d, v in self.urldict.items() if v.state == State.OPEN
+        ]
 
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
-        if domain in self.urldict:
-            return self.urldict[domain].state != State.OPEN
+        test_domain = domain.encode("utf-8")
+        if test_domain in self.urldict:
+            return self.urldict[test_domain].state != State.OPEN
         return False
         # raise KeyError("website not in store")
 
@@ -368,9 +371,9 @@ class UrlStore:
 
     def get_url(self, domain: str, as_visited: bool = True) -> Optional[str]:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
+        bdomain = domain.encode("utf-8")
         # not fully used
         if not self.is_exhausted_domain(domain):
-            bdomain = domain.encode("utf-8")
             url_tuples = self._load_urls(bdomain)
             # get first non-seen url
             for url in url_tuples:
@@ -384,7 +387,7 @@ class UrlStore:
                     return domain + url.urlpath.decode("utf-8")
         # nothing to draw from
         with self._lock:
-            self.urldict[domain.encode("utf-8")].state = State.ALL_VISITED
+            self.urldict[bdomain].state = State.ALL_VISITED
         self._set_done()
         return None
 
@@ -407,7 +410,7 @@ class UrlStore:
                 not entry.timestamp
                 or (datetime.now() - entry.timestamp).total_seconds() > time_limit
             ):
-                url = self.get_url(website)
+                url = self.get_url(website.decode("utf-8"))
                 if url is not None:
                     urls.append(url)
                     if len(urls) >= max_urls:
@@ -447,7 +450,7 @@ class UrlStore:
                         self.urldict[bdomain].count += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self.urldict[domain].timestamp
+            original_timestamp = self.urldict[bdomain].timestamp
             if (
                 not original_timestamp
                 or (now - original_timestamp).total_seconds() > time_limit
