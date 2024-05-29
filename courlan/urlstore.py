@@ -229,13 +229,13 @@ class UrlStore:
         # iterate
         for url in sorted(remaining_urls):
             hostinfo, urlpath = get_host_and_path(url)
-            bytesdom = hostinfo.encode("utf-8")
+            bdomain = hostinfo.encode("utf-8")
             # examine domain
-            if bytesdom != last_domain:
-                last_domain = bytesdom
+            if bdomain != last_domain:
+                last_domain = bdomain
                 known_paths = {
                     u.urlpath.decode("utf-8"): u.visited
-                    for u in self._load_urls(bytesdom)
+                    for u in self._load_urls(bdomain)
                 }
             # run checks: case 1: the path matches, case 2: visited URL
             if urlpath in known_paths and (
@@ -385,8 +385,8 @@ class UrlStore:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
         if not self.is_exhausted_domain(domain):
-            bytesdom = domain.encode("utf-8")
-            url_tuples = self._load_urls(bytesdom)
+            bdomain = domain.encode("utf-8")
+            url_tuples = self._load_urls(bdomain)
             # get first non-seen url
             for url in url_tuples:
                 if not url.visited:
@@ -394,8 +394,8 @@ class UrlStore:
                     if as_visited:
                         url.visited = True
                         with self._lock:
-                            self.urldict[bytesdom].count += 1
-                        self._store_urls(bytesdom, url_tuples, timestamp=datetime.now())
+                            self.urldict[bdomain].count += 1
+                        self._store_urls(bdomain, url_tuples, timestamp=datetime.now())
                     return domain + url.urlpath.decode("utf-8")
         # nothing to draw from
         with self._lock:
@@ -432,9 +432,9 @@ class UrlStore:
         targets: List[Tuple[float, str]] = []
         # iterate potential domains
         for domain in potential:
-            bytesdom = domain.encode("utf-8")
+            bdomain = domain.encode("utf-8")
             # load urls
-            url_tuples = self._load_urls(bytesdom)
+            url_tuples = self._load_urls(bdomain)
             urlpaths: List[str] = []
             # get first non-seen urls
             for url in url_tuples:
@@ -447,10 +447,10 @@ class UrlStore:
                     urlpaths.append(url.urlpath.decode("utf-8"))
                     url.visited = True
                     with self._lock:
-                        self.urldict[bytesdom].count += 1
+                        self.urldict[bdomain].count += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self._timestamp(bytesdom)
+            original_timestamp = self._timestamp(bdomain)
             if (
                 original_timestamp is None
                 or (now - original_timestamp).total_seconds() > time_limit
@@ -466,7 +466,7 @@ class UrlStore:
             # calculate difference and offset last addition
             total_diff = now + timedelta(0, schedule_secs - time_limit)
             # store new info
-            self._store_urls(bytesdom, url_tuples, timestamp=total_diff)
+            self._store_urls(bdomain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
         self._set_done()
         return sorted(targets, key=lambda x: x[0])  # type: ignore[arg-type]
@@ -483,11 +483,11 @@ class UrlStore:
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
-        bytesdom = website.encode("utf-8")
-        if bytesdom in self.urldict:
+        bdomain = website.encode("utf-8")
+        if bdomain in self.urldict:
             if self.compressed:
-                return pickle.loads(zlib.decompress(self.urldict[bytesdom].rules))  # type: ignore
-            return self.urldict[bytesdom].rules
+                return pickle.loads(zlib.decompress(self.urldict[bdomain].rules))  # type: ignore
+            return self.urldict[bdomain].rules
         return None
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
