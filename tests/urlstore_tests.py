@@ -34,9 +34,9 @@ def test_urlstore():
         "http://example.org/1",
     ]
     my_urls.add_urls(candidates)
-    assert len(my_urls.urldict) == 1 and b"http://example.org" not in my_urls.urldict
-    assert len(my_urls.urldict[b"https://example.org"].tuples) == 2
-    firstelem = my_urls.urldict[b"https://example.org"].tuples[0]
+    assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
+    assert len(my_urls.urldict["https://example.org"].tuples) == 2
+    firstelem = my_urls.urldict["https://example.org"].tuples[0]
     assert firstelem.urlpath == b"/" and firstelem.visited is False
     # reset
     num, _, _ = gc.get_count()
@@ -52,8 +52,8 @@ def test_urlstore():
         "https://example.org/1",
     ]
     my_urls.add_urls(candidates)
-    assert len(my_urls.urldict) == 1 and b"http://example.org" not in my_urls.urldict
-    assert len(my_urls.urldict[b"https://example.org"].tuples) == 2
+    assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
+    assert len(my_urls.urldict["https://example.org"].tuples) == 2
 
     # rules
     rules = pickle.loads(
@@ -61,21 +61,21 @@ def test_urlstore():
     )
     my_urls.store_rules("https://example.org", rules)
     assert my_urls.get_rules("http://test.org") is None
-    assert my_urls.urldict[b"https://example.org"].rules is not None
+    assert my_urls.urldict["https://example.org"].rules is not None
     assert (
         my_urls.get_rules("https://example.org")
-        == my_urls.urldict[b"https://example.org"].rules
+        == my_urls.urldict["https://example.org"].rules
         == rules
     )
     assert my_urls.get_crawl_delay("http://test.org", default=2) == 2
     assert my_urls.get_crawl_delay("https://example.org") == 5
 
     assert my_urls.compressed is False
-    my_urls.urldict[b"https://example.org"].rules = None
+    my_urls.urldict["https://example.org"].rules = None
 
     my_urls.compressed = True
     my_urls.store_rules("https://example.org", rules)
-    assert my_urls.urldict[b"https://example.org"].rules is not None
+    assert my_urls.urldict["https://example.org"].rules is not None
     # no identity check since different location after compression
     assert my_urls.get_rules("https://example.org").mtime() == rules.mtime()
     my_urls.compressed = False
@@ -88,14 +88,14 @@ def test_urlstore():
         "http://example.com/de/test.html",
     ]
     my_urls.add_urls(candidates)
-    assert len(my_urls.urldict) == 1 and b"https://www.sitemaps.org" in my_urls.urldict
+    assert len(my_urls.urldict) == 1 and "https://www.sitemaps.org" in my_urls.urldict
     my_urls.add_urls(
         ["https://www.sitemaps.org/es/1"], appendleft=["https://www.sitemaps.org/fi/2"]
     )
-    assert len(my_urls.urldict[b"https://www.sitemaps.org"].tuples) == 1
+    assert len(my_urls.urldict["https://www.sitemaps.org"].tuples) == 1
     # pruning
     assert not my_urls.done
-    my_urls.urldict[b"https://www.sitemaps.org"].state = State.ALL_VISITED
+    my_urls.urldict["https://www.sitemaps.org"].state = State.ALL_VISITED
     my_urls._set_done()
     assert my_urls.done
 
@@ -161,77 +161,76 @@ def test_urlstore():
     if my_urls.compressed is False:
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
-    assert my_urls.urldict[b"https://visited.com"].tuples[0].visited is True
-    assert my_urls.urldict[b"https://visited.com"].state is State.ALL_VISITED
+    assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
+    assert my_urls.urldict["https://visited.com"].state is State.ALL_VISITED
     assert not my_urls.find_unvisited_urls("https://visited.com")
     assert my_urls.is_exhausted_domain("https://visited.com") is True
     # new unvisited URLs
     my_urls.add_urls(["https://visited.com/1"], visited=False)
-    assert my_urls.urldict[b"https://visited.com"].tuples[1].visited is False
-    assert my_urls.urldict[b"https://visited.com"].state is State.OPEN
+    assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
+    assert my_urls.urldict["https://visited.com"].state is State.OPEN
     assert my_urls.is_exhausted_domain("https://visited.com") is False
     # with pytest.raises(KeyError):
     #    assert my_urls.is_exhausted_domain("https://visited2.com") is True
     assert my_urls.is_exhausted_domain("https://visited2.com") is False
     # revert changes for further tests
-    del my_urls.urldict[b"https://visited.com"].tuples[1]
-    my_urls.urldict[b"https://visited.com"].state = State.ALL_VISITED
+    del my_urls.urldict["https://visited.com"].tuples[1]
+    my_urls.urldict["https://visited.com"].state = State.ALL_VISITED
 
     # test extension
-    bytes_example = example_domain.encode("utf-8")
     extension_urls = [f"{example_domain}/1/{str(a)}" for a in range(10)]
     my_urls.add_urls(extension_urls)
-    assert len(my_urls._load_urls(bytes_example)) == len(example_urls) + 10
+    assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
     my_urls.trailing_slash = False
     extension_urls = [f"{example_domain}/1/{str(a)}/" for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
-    url_tuples = my_urls._load_urls(bytes_example)
+    url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
     assert url_tuples[-1].urlpath == b"/1/9" and url_tuples[0].urlpath == b"/1/10"
 
     # duplicates
     my_urls.add_urls(extension_urls)
     my_urls.add_urls(appendleft=extension_urls)
-    assert len(my_urls._load_urls(bytes_example)) == len(example_urls) + len(
+    assert len(my_urls._load_urls(example_domain)) == len(example_urls) + len(
         extension_urls
     )
     assert url_tuples[-1].urlpath == b"/1/9" and url_tuples[0].urlpath == b"/1/10"
 
     # get_url
-    assert my_urls.urldict[bytes_example].timestamp is None
-    assert my_urls.urldict[bytes_example].count == 0
+    assert my_urls.urldict[example_domain].timestamp is None
+    assert my_urls.urldict[example_domain].count == 0
 
     url1 = my_urls.get_url(example_domain)
-    timestamp = my_urls.urldict[bytes_example].timestamp
+    timestamp = my_urls.urldict[example_domain].timestamp
     sleep(0.1)
     url2 = my_urls.get_url(example_domain)
     assert url1 != url2 and url1 == "https://www.example.org/1/10"
-    assert my_urls.urldict[bytes_example].count == 2
-    assert timestamp != my_urls.urldict[bytes_example].timestamp
+    assert my_urls.urldict[example_domain].count == 2
+    assert timestamp != my_urls.urldict[example_domain].timestamp
     assert url2 not in set(my_urls.find_unvisited_urls(example_domain))
     assert my_urls.get_all_counts() == [2, 0, 0]
 
     # as_visited=False
-    timestamp = my_urls.urldict[bytes_example].timestamp
+    timestamp = my_urls.urldict[example_domain].timestamp
     url3 = my_urls.get_url(example_domain, as_visited=False)
     assert url3 not in (url1, url2)
-    assert my_urls.urldict[bytes_example].count == 2
-    assert timestamp == my_urls.urldict[bytes_example].timestamp
+    assert my_urls.urldict[example_domain].count == 2
+    assert timestamp == my_urls.urldict[example_domain].timestamp
     assert url3 in set(my_urls.find_unvisited_urls(example_domain))
 
-    url_tuples = my_urls._load_urls(bytes_example)
+    url_tuples = my_urls._load_urls(example_domain)
     # positions
     assert url1.endswith(url_tuples[0].urlpath.decode("utf-8")) and url2.endswith(
         url_tuples[1].urlpath.decode("utf-8")
     )
     # timestamp
-    assert my_urls.urldict[bytes_example].timestamp is not None
+    assert my_urls.urldict[example_domain].timestamp is not None
     # nothing left
-    assert my_urls.urldict[bytes_example].state is State.OPEN
+    assert my_urls.urldict[example_domain].state is State.OPEN
     my_urls.add_urls(["http://tovisit.com/page"])
     assert my_urls.get_url("http://tovisit.com") == "http://tovisit.com/page"
-    assert my_urls.urldict[b"http://tovisit.com"].state is State.ALL_VISITED
+    assert my_urls.urldict["http://tovisit.com"].state is State.ALL_VISITED
     assert my_urls.get_url("http://tovisit.com") is None
 
     # known domains
@@ -262,7 +261,7 @@ def test_urlstore():
         and url_tuples[2].visited is False
     )
     assert my_urls.has_been_visited("http://tovisit.com/page") is True
-    assert my_urls.urldict[b"http://tovisit.com"].state is State.ALL_VISITED
+    assert my_urls.urldict["http://tovisit.com"].state is State.ALL_VISITED
     assert not my_urls.filter_unvisited_urls(["http://tovisit.com/page"])
     assert my_urls.filter_unvisited_urls(["http://tovisit.com/otherpage"]) == [
         "http://tovisit.com/otherpage"
@@ -278,8 +277,8 @@ def test_urlstore():
     ]
     assert (
         len(my_urls.find_known_urls(example_domain))
-        == len(my_urls._load_urls(bytes_example))
-        == my_urls.urldict[bytes_example].total
+        == len(my_urls._load_urls(example_domain))
+        == my_urls.urldict[example_domain].total
         == 10011
     )
     assert len(my_urls.find_unvisited_urls(example_domain)) == 10009
@@ -295,9 +294,9 @@ def test_urlstore():
         and downloadable_urls[0] == "https://www.example.org/1"
     )
     assert (
-        datetime.now() - my_urls.urldict[b"https://www.example.org"].timestamp
+        datetime.now() - my_urls.urldict["https://www.example.org"].timestamp
     ).total_seconds() < 0.25
-    assert my_urls.urldict[b"https://www.example.org"].count == 3
+    assert my_urls.urldict["https://www.example.org"].count == 3
 
     # does not work on Windows?
     # if os.name != "nt":
@@ -314,7 +313,7 @@ def test_urlstore():
         len(downloadable_urls) == 2
         and downloadable_urls[0].startswith("https://www.example.org")
         and downloadable_urls[1].startswith("https://test.org")
-        and test_urls.urldict[b"https://test.org"].count == 1
+        and test_urls.urldict["https://test.org"].count == 1
     )
     downloadable_urls = test_urls.get_download_urls()
     assert len(downloadable_urls) == 0
@@ -344,11 +343,11 @@ def test_urlstore():
     )
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
-    assert my_urls.urldict[b"https://www.example.org"].count == 7
+    assert my_urls.urldict["https://www.example.org"].count == 7
     assert (
-        my_urls.urldict[b"https://test.org"].count
+        my_urls.urldict["https://test.org"].count
         == 3
-        == sum(u.visited is True for u in my_urls.urldict[b"https://test.org"].tuples)
+        == sum(u.visited is True for u in my_urls.urldict["https://test.org"].tuples)
     )
     assert my_urls.download_threshold_reached(8) is False
     assert my_urls.download_threshold_reached(7) is True
