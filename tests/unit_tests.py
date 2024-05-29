@@ -37,9 +37,15 @@ from courlan import (
     lang_filter,
 )
 from courlan.core import filter_links
-from courlan.filters import domain_filter, extension_filter, path_filter, type_filter
+from courlan.filters import (
+    domain_filter,
+    extension_filter,
+    langcodes_score,
+    path_filter,
+    type_filter,
+)
 from courlan.meta import clear_caches
-from courlan.urlutils import _parse, get_tldinfo, is_known_link
+from courlan.urlutils import _parse, is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -243,6 +249,9 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
+    # wp
+    assert type_filter("http://www.example.org/wp-admin/") is False
+    assert type_filter("http://www.example.org/wp-includes/this") is False
     # straight category
     assert type_filter("http://www.example.org/category/123") is False
     assert type_filter("http://www.example.org/product-category/123") is False
@@ -440,6 +449,13 @@ def test_lang_filter():
         lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=True)
         is False
     )
+    assert langcodes_score("en", "en_HK", 0) == 1
+    assert langcodes_score("en", "en-HK", 0) == 1
+    assert langcodes_score("en", "en_XY", 0) == 0
+    assert langcodes_score("en", "en-XY", 0) == 0
+    assert langcodes_score("en", "de_DE", 0) == -1
+    assert langcodes_score("en", "de-DE", 0) == -1
+
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
@@ -1171,16 +1187,18 @@ def test_examples():
 
 def test_meta():
     "Test package meta functions."
-    url = "https://example.net/123/abc"
-    _ = get_tldinfo(url)
-    _ = _parse(url)
-    assert get_tldinfo.cache_info().currsize > 0
+    _ = langcodes_score("en", "en_HK", 0)
+    _ = _parse("https://example.net/123/abc")
+
+    assert langcodes_score.cache_info().currsize > 0
     try:
         urlsplit_lrucache = True
         assert urlsplit.cache_info().currsize > 0
     except AttributeError:  # newer Python versions only
         urlsplit_lrucache = False
+
     clear_caches()
-    assert get_tldinfo.cache_info().currsize == 0
+
+    assert langcodes_score.cache_info().currsize == 0
     if urlsplit_lrucache:
         assert urlsplit.cache_info().currsize == 0

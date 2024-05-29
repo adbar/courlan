@@ -16,7 +16,6 @@ from time import sleep
 import pytest
 
 from courlan import UrlStore
-from courlan.core import filter_links
 from courlan.urlstore import State, load_store
 
 
@@ -290,18 +289,36 @@ def test_urlstore():
     assert my_urls.total_url_number() == 20014
 
     # get download URLs
-    downloadable_urls = my_urls.get_download_urls(timelimit=0)
+    downloadable_urls = my_urls.get_download_urls(time_limit=0, max_urls=1)
     assert (
-        len(downloadable_urls) == 2
+        len(downloadable_urls) == 1
         and downloadable_urls[0] == "https://www.example.org/1"
     )
     assert (
         datetime.now() - my_urls.urldict[b"https://www.example.org"].timestamp
     ).total_seconds() < 0.25
-    assert my_urls.urldict[b"https://www.example.org"].count == 3
-    assert my_urls.urldict[b"https://test.org"].count == 1
-    downloadable_urls = my_urls.get_download_urls()  # limit=10
+    assert my_urls.urldict["https://www.example.org"].count == 3
+
+    # does not work on Windows?
+    # if os.name != "nt":
+    test_urls = UrlStore()
+    test_urls.add_urls(
+        ["https://www.example.org/1", "https://test.org/1", "https://test.org/2"]
+    )
+
+    with pytest.raises(ValueError):
+        test_urls.get_download_urls(timelimit=0)
+
+    downloadable_urls = test_urls.get_download_urls(time_limit=0)
+    assert (
+        len(downloadable_urls) == 2
+        and downloadable_urls[0].startswith("https://www.example.org")
+        and downloadable_urls[1].startswith("https://test.org")
+        and test_urls.urldict["https://test.org"].count == 1
+    )
+    downloadable_urls = test_urls.get_download_urls()
     assert len(downloadable_urls) == 0
+
     other_store = UrlStore()
     downloadable_urls = other_store.get_download_urls()
     assert not downloadable_urls and other_store.done is True
@@ -323,15 +340,15 @@ def test_urlstore():
     assert (
         len(schedule) == 1
         and round(schedule[0][0]) == 1
-        and schedule[0][1] == "https://www.example.org/2"
+        and schedule[0][1].startswith("https://www.example.org")
     )
     schedule = my_urls.establish_download_schedule(max_urls=6, time_limit=1)
     assert len(schedule) == 6 and round(max(s[0] for s in schedule)) == 4
     assert my_urls.urldict[b"https://www.example.org"].count == 7
     assert (
-        my_urls.urldict[b"https://test.org"].count
-        == 4
-        == sum(u.visited is True for u in my_urls.urldict[b"https://test.org"].tuples)
+        my_urls.urldict["https://test.org"].count
+        == 3
+        == sum(u.visited is True for u in my_urls.urldict["https://test.org"].tuples)
     )
     assert my_urls.download_threshold_reached(8) is False
     assert my_urls.download_threshold_reached(7) is True

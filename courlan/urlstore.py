@@ -13,6 +13,7 @@ import zlib
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from enum import Enum
+from operator import itemgetter
 from threading import Lock
 from typing import (
     Any,
@@ -48,10 +49,10 @@ class DomainEntry:
     "Class to record host-related information and URL paths."
     __slots__ = ("count", "rules", "state", "timestamp", "total", "tuples")
 
-    def __init__(self) -> None:
+    def __init__(self, state: State = State.OPEN) -> None:
         self.count: int = 0
         self.rules: Optional[RobotFileParser] = None
-        self.state: State = State.OPEN
+        self.state: State = state
         self.timestamp: Optional[Any] = None
         self.total: int = 0
         self.tuples: Deque[UrlPathTuple] = deque()
@@ -149,9 +150,7 @@ class UrlStore:
         return deque()
 
     def _set_done(self) -> None:
-        if not self.done and all(
-            self.is_exhausted_domain(d.decode("utf-8")) for d in self.urldict
-        ):
+        if not self.done and all(v.state != State.OPEN for v in self.urldict.values()):
             with self._lock:
                 self.done = True
 
@@ -245,9 +244,6 @@ class UrlStore:
         # preserve input order
         return list(remaining_urls)
 
-    def _timestamp(self, domain: bytes) -> Optional[datetime]:
-        return self.urldict[domain].timestamp
-
     # ADDITIONS AND DELETIONS
 
     def add_urls(
@@ -292,9 +288,8 @@ class UrlStore:
     def discard(self, domains: List[str]) -> None:
         "Declare domains void and prune the store."
         with self._lock:
-            for d in (dom.encode("utf-8") for dom in domains):
-                self.urldict[d] = DomainEntry()
-                self.urldict[d].state = State.BUSTED
+            for d in domains:
+                self.urldict[d] = DomainEntry(state=State.BUSTED)
         self._set_done()
         num = gc.collect()
         LOGGER.debug("%s objects in GC after UrlStore.discard", num)
@@ -316,22 +311,12 @@ class UrlStore:
     def get_unvisited_domains(self) -> List[str]:
         """Find all domains for which there are unvisited URLs
         and potentially adjust done meta-information."""
-        unvisited = []
-        if not self.done:
-            unvisited = [
-                k.decode("utf-8")
-                for k, v in self.urldict.items()
-                if v.state == State.OPEN
-            ]
-            if not unvisited:
-                self._set_done()
-        return unvisited
+        return [d for d, v in self.urldict.items() if v.state == State.OPEN]
 
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
-        test_domain = domain.encode("utf-8")
-        if test_domain in self.urldict:
-            return self.urldict[test_domain].state in (State.ALL_VISITED, State.BUSTED)
+        if domain in self.urldict:
+            return self.urldict[domain].state != State.OPEN
         return False
         # raise KeyError("website not in store")
 
@@ -403,20 +388,32 @@ class UrlStore:
         self._set_done()
         return None
 
-    def get_download_urls(self, timelimit: int = 10) -> Optional[List[str]]:
+    def get_download_urls(
+        self,
+        time_limit: int = 10,
+        max_urls: int = 10000,
+        timelimit: Optional[int] = None,  # TODO: remove later
+    ) -> Optional[List[str]]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
-        potential = self.get_unvisited_domains()
-        targets = []
-        for domain in potential:
-            timestamp = self._timestamp(domain.encode("utf-8"))
+        if timelimit is not None:
+            raise ValueError("timelimit is deprecated, use time_limit instead")
+
+        urls = []
+        for website, entry in self.urldict.items():
+            if entry.state != State.OPEN:
+                continue
             if (
-                timestamp is None
-                or (datetime.now() - timestamp).total_seconds() > timelimit
+                not entry.timestamp
+                or (datetime.now() - entry.timestamp).total_seconds() > time_limit
             ):
-                targets.append(domain)
-        # get corresponding URLs and filter out None values
-        return list(filter(None, [self.get_url(domain) for domain in targets]))
+                url = self.get_url(website)
+                if url is not None:
+                    urls.append(url)
+                    if len(urls) >= max_urls:
+                        break
+        self._set_done()
+        return urls
 
     def establish_download_schedule(
         self, max_urls: int = 100, time_limit: int = 10
@@ -450,9 +447,9 @@ class UrlStore:
                         self.urldict[bdomain].count += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self._timestamp(bdomain)
+            original_timestamp = self.urldict[domain].timestamp
             if (
-                original_timestamp is None
+                not original_timestamp
                 or (now - original_timestamp).total_seconds() > time_limit
             ):
                 schedule_secs = 0.0
@@ -469,7 +466,7 @@ class UrlStore:
             self._store_urls(bdomain, url_tuples, timestamp=total_diff)
         # sort by first tuple element (time in secs)
         self._set_done()
-        return sorted(targets, key=lambda x: x[0])  # type: ignore[arg-type]
+        return sorted(targets, key=itemgetter(1))  # type: ignore[arg-type]
 
     # CRAWLING
 
@@ -505,15 +502,15 @@ class UrlStore:
 
     def get_all_counts(self) -> List[int]:
         "Return all download counts for the hosts in store."
-        return [self.urldict[d].count for d in self.urldict]
+        return [v.count for v in self.urldict.values()]
 
     def total_url_number(self) -> int:
         "Find number of all URLs in store."
-        return sum(self.urldict[d].total for d in self.urldict)
+        return sum(v.total for v in self.urldict.values())
 
     def download_threshold_reached(self, threshold: float) -> bool:
         "Find out if the download limit (in seconds) has been reached for one of the websites in store."
-        return any(self.urldict[d].count >= threshold for d in self.urldict)
+        return any(v.count >= threshold for v in self.urldict.values())
 
     def dump_urls(self) -> List[str]:
         "Return a list of all known URLs."

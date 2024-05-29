@@ -18,7 +18,7 @@ def get_version(package):
 
 def get_long_description():
     "Return the README"
-    with open("README.rst", "r", encoding="utf-8") as filehandle:
+    with open("README.md", "r", encoding="utf-8") as filehandle:
         long_description = filehandle.read()
     # long_description += "\n\n"
     # with open("CHANGELOG.md", encoding="utf8") as f:
@@ -55,6 +55,7 @@ setup(
     version=get_version("courlan"),
     description="Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters.",
     long_description=get_long_description(),
+    long_description_content_type="text/markdown",
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Development Status :: 4 - Beta",
@@ -106,7 +107,7 @@ setup(
     include_package_data=True,
     python_requires=">=3.6",
     install_requires=[
-        "langcodes >= 3.3.0",
+        "babel >= 2.11.0",
         "tld == 0.12.6; python_version < '3.7'",
         "tld >= 0.13; python_version >= '3.7'",
         "urllib3 >= 1.26, < 2; python_version < '3.7'",
