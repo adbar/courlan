@@ -37,7 +37,7 @@ def test_urlstore():
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
     firstelem = my_urls.urldict["https://example.org"].tuples[0]
-    assert firstelem.urlpath == "/" and firstelem.visited is False
+    assert firstelem.urlpath == b"/" and firstelem.visited is False
     # reset
     num, _, _ = gc.get_count()
     my_urls.reset()
@@ -187,7 +187,7 @@ def test_urlstore():
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
+    assert url_tuples[-1].urlpath == b"/1/9" and url_tuples[0].urlpath == b"/1/10"
 
     # duplicates
     my_urls.add_urls(extension_urls)
@@ -195,7 +195,7 @@ def test_urlstore():
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + len(
         extension_urls
     )
-    assert url_tuples[-1].urlpath == "/1/9" and url_tuples[0].urlpath == "/1/10"
+    assert url_tuples[-1].urlpath == b"/1/9" and url_tuples[0].urlpath == b"/1/10"
 
     # get_url
     assert my_urls.urldict[example_domain].timestamp is None
@@ -221,7 +221,9 @@ def test_urlstore():
 
     url_tuples = my_urls._load_urls(example_domain)
     # positions
-    assert url1.endswith(url_tuples[0].urlpath) and url2.endswith(url_tuples[1].urlpath)
+    assert url1.endswith(url_tuples[0].urlpath.decode("utf-8")) and url2.endswith(
+        url_tuples[1].urlpath.decode("utf-8")
+    )
     # timestamp
     assert my_urls.urldict[example_domain].timestamp is not None
     # nothing left
