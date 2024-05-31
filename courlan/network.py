@@ -4,10 +4,8 @@ Functions devoted to requests over the WWW.
 
 import logging
 import ssl
-import urllib.request
 
-from typing import Optional
-from urllib.error import HTTPError
+from urllib import request
 
 import certifi
 
@@ -31,14 +29,12 @@ def redirection_test(url: str) -> str:
         Nothing.
     """
     try:
-        req = urllib.request.Request(url, method="HEAD")
-        rhead = urllib.request.urlopen(req, context=CERTIFI_CONTEXT)
-    except HTTPError as error:
-        if error.status in ACCEPTABLE_CODES:
-            return error.url
+        req = request.Request(url, method="HEAD")
+        with request.urlopen(req, context=CERTIFI_CONTEXT) as f:
+            pass
+        if f.status in ACCEPTABLE_CODES:
+            return f.url
     except Exception as err:
         LOGGER.warning("unknown error: %s %s", url, err)
-    else:
-        return rhead.url
 
     raise ValueError(f"cannot reach URL: {url}")
