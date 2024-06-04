@@ -217,11 +217,7 @@ def lang_filter(
     if strict:
         match = HOST_LANG_FILTER.match(url)
         if match:
-            candidate = match[1].lower()
-            if candidate == language:
-                score += 1
-            else:
-                score -= 1
+            score += 1 if match[1].lower() == language else -1
     # determine test result
     return score >= 0
 
@@ -236,17 +232,16 @@ def path_filter(urlpath: str, query: str) -> bool:
 def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
     """Make sure the target URL is from a suitable type (HTML page with primarily text).
     Strict: Try to filter out other document types, spam, video and adult websites."""
-    try:
+    if (
         # feeds + blogspot
-        if url.endswith(("/feed", "/rss", "_archive.html")):
-            raise ValueError
+        url.endswith(("/feed", "/rss", "_archive.html"))
+        or
         # website structure
-        if SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)):
-            raise ValueError
+        (SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)))
+        or
         # type (also hidden in parameters), videos, adult content
-        if strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)):
-            raise ValueError
-    except ValueError:
+        (strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)))
+    ):
         return False
     # default
     return True
@@ -259,7 +254,7 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
     except ValueError:
         return False, None
 
-    if not bool(parsed_url.scheme) or parsed_url.scheme not in PROTOCOLS:
+    if not parsed_url.scheme or parsed_url.scheme not in PROTOCOLS:
         return False, None
 
     if len(parsed_url.netloc) < 5 or (
