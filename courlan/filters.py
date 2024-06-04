@@ -209,7 +209,7 @@ def lang_filter(
             occurrences = ALL_PATH_LANGS_NO_TRAILING.findall(url)
         if len(occurrences) == 1:
             score = langcodes_score(language, match[1], score)
-        elif len(occurrences) <= 2:
+        elif len(occurrences) == 2:
             for occurrence in occurrences:
                 score = langcodes_score(language, occurrence, score)
         # don't perform the test if there are too many candidates: > 2
