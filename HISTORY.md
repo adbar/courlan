@@ -6,6 +6,7 @@
 - more compact UrlStore: use bytes instead of str for URL paths (#88)
 - UrlStore maintenance: deprecate `timelimit` argument (#101)
 - maintenance: simplify code (#103)
+- support for Python 3.13
 
 
 ### 1.1.0
