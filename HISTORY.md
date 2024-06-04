@@ -1,6 +1,12 @@
 ## History / Changelog
 
 
+### 1.2.0
+
+- more compact UrlStore: use bytes instead of str for URL paths (#88)
+- UrlStore maintenance: deprecate `timelimit` argument (#101)
+
+
 ### 1.1.0
 
 - replace `langcodes` by `babel` and use its information on locales (#89, #92)
