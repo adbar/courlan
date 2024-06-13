@@ -41,7 +41,7 @@ IP_SET = {
 }
 
 # https://github.com/python-validators/validators/blob/master/src/validators/domain.py
-VALID_DOMAIN = re.compile(
+VALID_DOMAIN_PORT = re.compile(
     # First character of the domain
     r"^(?:[a-zA-Z0-9]"
     # Sub domain + hostname
@@ -49,7 +49,10 @@ VALID_DOMAIN = re.compile(
     # First 61 characters of the gTLD
     + r"+[A-Za-z0-9][A-Za-z0-9-_]{0,61}"
     # Last character of the gTLD
-    + r"[A-Za-z]$",
+    + r"[A-Za-z]"
+    # Port number
+    + r"(\:(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|"
+    + r"6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}))?$",
     re.IGNORECASE,
 )
 
@@ -151,9 +154,9 @@ def domain_filter(domain: str) -> bool:
         return True
 
     # malformed domains
-    if not VALID_DOMAIN.match(domain):
+    if not VALID_DOMAIN_PORT.match(domain):
         try:
-            if not VALID_DOMAIN.match(domain.encode("idna").decode("utf-8")):
+            if not VALID_DOMAIN_PORT.match(domain.encode("idna").decode("utf-8")):
                 return False
         except UnicodeError:
             return False

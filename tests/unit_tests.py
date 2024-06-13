@@ -706,6 +706,10 @@ def test_urlcheck():
     assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
     assert check_url("http://1:2:3:4:5:6:7:8:9") is None
 
+    # port
+    assert check_url("http://example.com:80") is not None
+    assert check_url("http://example.com:80:80") is None
+
 
 def test_domain_filter():
     "Test filters related to domain and hostnames."
