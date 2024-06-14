@@ -72,7 +72,7 @@ $ pip install --upgrade courlan # to make sure you have the latest version
 $ pip install git+https://github.com/adbar/courlan.git # latest available code (see build status above)
 ```
 
-The last version to support Python versions 3.6 and 3.7 is `courlan==1.2.0`.
+The last version to support Python 3.6 and 3.7 is `courlan==1.2.0`.
 
 
 ## Python

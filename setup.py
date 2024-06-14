@@ -58,7 +58,7 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 5 - Production/Stable',
+        "Development Status :: 5 - Production/Stable",
         #'Development Status :: 6 - Mature',
         "Environment :: Console",
         "Intended Audience :: Developers",
