@@ -6,17 +6,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "courlan"
 description = "Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters."
-readme = "README.rst"
-license = { text = "GPLv3+" }
+readme = "README.md"
+license = { text = "Apache 2.0" }
 dynamic = ["version"]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 authors = [
   {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
 ]
 keywords=[
     "cleaner",
     "crawler",
-    "preprocessing",
+    "uri",
     "url-parsing",
     "url-manipulation",
     "urls",
@@ -25,37 +25,36 @@ keywords=[
 ]
 classifiers = [
     # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-    "Development Status :: 4 - Beta",
-    #'Development Status :: 5 - Production/Stable',
+    'Development Status :: 5 - Production/Stable',
     #'Development Status :: 6 - Mature',
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Security",
     "Topic :: Text Processing :: Filters",
     "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
 ]
 dependencies = [
-    "langcodes >= 3.3.0",
-    "tld == 0.12.6; python_version < '3.7'",
-    "tld >= 0.13; python_version >= '3.7'",
-    "urllib3 >= 1.26, < 2; python_version < '3.7'",
-    "urllib3 >= 1.26, < 3; python_version >= '3.7'",
+    "babel >= 2.11.0",
+    "tld >= 0.13",
+    "urllib3 >= 1.26, < 3",
 ]
 
 # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
