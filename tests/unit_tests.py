@@ -2,9 +2,6 @@
 Unit tests for the courlan package.
 """
 
-## This file is available from https://github.com/adbar/courlan
-## under GNU GPL v3 license
-
 import io
 import logging
 import os
@@ -27,6 +24,7 @@ from courlan import (
     is_external,
     sample_urls,
     validate_url,
+    is_valid_url,
     extract_links,
     extract_domain,
     filter_urls,
@@ -39,9 +37,15 @@ from courlan import (
     lang_filter,
 )
 from courlan.core import filter_links
-from courlan.filters import extension_filter, path_filter, type_filter
+from courlan.filters import (
+    domain_filter,
+    extension_filter,
+    langcodes_score,
+    path_filter,
+    type_filter,
+)
 from courlan.meta import clear_caches
-from courlan.urlutils import _parse, get_tldinfo, is_known_link
+from courlan.urlutils import _parse, is_known_link
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -149,6 +153,7 @@ def test_scrub():
     assert clean_url(5) is None
     assert clean_url("ø\xaa") == "%C3%B8%C2%AA"
     assert clean_url("https://example.org/?p=100") == "https://example.org/?p=100"
+    assert clean_url("https://example.org/\t?p=100") == "https://example.org/?p=100"
     assert (
         clean_url("https://example.org:443/file.html?p=100&abc=1#frag")
         == "https://example.org/file.html?abc=1&p=100#frag"
@@ -244,6 +249,9 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
+    # wp
+    assert type_filter("http://www.example.org/wp-admin/") is False
+    assert type_filter("http://www.example.org/wp-includes/this") is False
     # straight category
     assert type_filter("http://www.example.org/category/123") is False
     assert type_filter("http://www.example.org/product-category/123") is False
@@ -310,7 +318,9 @@ def test_path_filter():
 
 
 def test_lang_filter():
+    assert lang_filter("http://test.com/az", "de", trailing_slash=False) is False
     assert lang_filter("http://test.com/az/", "de") is False
+    assert lang_filter("http://test.com/de", "de", trailing_slash=False) is True
     assert lang_filter("http://test.com/de/", "de") is True
     assert (
         lang_filter(
@@ -439,6 +449,13 @@ def test_lang_filter():
         lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=True)
         is False
     )
+    assert langcodes_score("en", "en_HK", 0) == 1
+    assert langcodes_score("en", "en-HK", 0) == 1
+    assert langcodes_score("en", "en_XY", 0) == 0
+    assert langcodes_score("en", "en-XY", 0) == 0
+    assert langcodes_score("en", "de_DE", 0) == -1
+    assert langcodes_score("en", "de-DE", 0) == -1
+
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
@@ -463,6 +480,9 @@ def test_validate():
     assert validate_url("http://test.org/test")[0] is True
     # assert validate_url("http://sub.-mkyong.com/test")[0] is False
 
+    assert not is_valid_url("http://www.test[.org/test")
+    assert is_valid_url("http://test.org/test")
+
 
 def test_normalization():
     assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de/"
@@ -475,8 +495,8 @@ def test_normalization():
         == "http://test.net/foo.html#bar"
     )
     assert (
-        normalize_url("http://test.net/foo.html#:~:text=night-,vision", strict=True)
-        == "http://test.net/foo.html"
+        normalize_url("http://test.net/foo.html#:~:text=night-,vision")
+        == "http://test.net/foo.html#:~:text=night-,vision"
     )
     assert (
         normalize_url("http://www.example.org:80/test.html")
@@ -489,29 +509,66 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+
     # punycode
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
 
+    # account for particular characters
+    assert (
+        normalize_url(
+            "https://www.deutschlandfunknova.de/beitrag/nord--und-s%C3%BCdgaza-israels-armee-verk%C3%BCndet-teilung-des-gazastreifens"
+        )
+        == "https://www.deutschlandfunknova.de/beitrag/nord--und-s%C3%BCdgaza-israels-armee-verk%C3%BCndet-teilung-des-gazastreifens"
+    )
+    assert (
+        normalize_url("https://taz.de/Zukunft-des-49-Euro-Tickets/!5968518/")
+        == "https://taz.de/Zukunft-des-49-Euro-Tickets/!5968518/"
+    )
+
+    # trackers
+    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org/"
+    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org/"
+    assert (
+        normalize_url("http://test.org/?utm_source=rss&utm_medium=rss")
+        == "http://test.org/"
+    )
+    assert (
+        normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
+        == "http://test.org/"
+    )
+    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org/"
+    assert (
+        normalize_url(
+            "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
+        )
+        == "http://test.org/#catpage=3"
+    )
+    assert normalize_url("http://test.org/#page2") == "http://test.org/#page2"
+
 
 def test_qelems():
     assert (
         normalize_url("http://test.net/foo.html?utm_source=twitter")
-        == "http://test.net/foo.html?utm_source=twitter"
-    )
-    assert (
-        normalize_url("http://test.net/foo.html?utm_source=twitter", strict=True)
         == "http://test.net/foo.html"
     )
     assert (
-        normalize_url("http://test.net/foo.html?utm_source=twitter&post=abc&page=2")
-        == "http://test.net/foo.html?page=2&post=abc&utm_source=twitter"
+        normalize_url("http://test.net/foo.html?testid=1")
+        == "http://test.net/foo.html?testid=1"
     )
     assert (
-        normalize_url(
-            "http://test.net/foo.html?utm_source=twitter&post=abc&page=2", strict=True
-        )
+        normalize_url("http://test.net/foo.html?testid=1", strict=True)
+        == "http://test.net/foo.html"
+    )
+    assert (
+        normalize_url("http://test.net/foo.html?testid=1&post=abc&page=2")
+        == "http://test.net/foo.html?page=2&post=abc&testid=1"
+    )
+    assert (
+        normalize_url("http://test.net/foo.html?testid=1&post=abc&page=2", strict=True)
         == "http://test.net/foo.html?page=2&post=abc"
     )
     assert (
@@ -638,19 +695,61 @@ def test_urlcheck():
     # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
     # domain name
-    assert check_url("http://`$smarty.server.server_name`") is None
-    assert check_url("http://$`)}if(a.tryconvertencoding)trycatch(e)const") is None
-    assert check_url("http://00x200.jpg,") is None
     assert check_url("http://-100x100.webp") is None
     assert check_url("http://0.gravata.html") is None
     assert check_url("http://https:") is None
+    assert check_url("http://127.0.0.1") is not None
+    assert check_url("http://111.111.111.111") is not None
+    assert check_url("http://0127.0.0.1") is None
+    # assert check_url("http://::1") is not None
+    assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
+    assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
+    assert check_url("http://1:2:3:4:5:6:7:8:9") is None
+
+    # port
+    assert check_url("http://example.com:80") is not None
+    assert check_url("http://example.com:80:80") is None
+
+
+def test_domain_filter():
+    "Test filters related to domain and hostnames."
+    assert domain_filter("") is False
+    assert domain_filter("too-long" + "g" * 60 + ".org") is False
+    assert domain_filter("long" + "g" * 50 + ".org") is True
+    assert domain_filter("example.-com") is False
+    assert domain_filter("example.") is False
+    assert domain_filter("-example.com") is False
+    assert domain_filter("_example.com") is False
+    assert domain_filter("example.com:") is False
+    assert domain_filter("a......b.com") is False
+    assert domain_filter("*.example.com") is False
+    assert domain_filter("exa-mple.co.uk") is True
+    assert domain_filter("kräuter.de") is True
+    assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
+    assert domain_filter("`$smarty.server.server_name`") is False
+    assert domain_filter("$`)}if(a.tryconvertencoding)trycatch(e)const") is False
+    assert domain_filter("00x200.jpg,") is False
+    assert domain_filter("-100x100.webp") is False
+    assert domain_filter("0.gravata.html") is False
+    assert domain_filter("https:") is False
+
+    assert domain_filter("127.0.0.1") is True
+    assert domain_filter("900.200.100.75") is False
+    assert domain_filter("111.111.111") is False
+    assert domain_filter("0127.0.0.1") is False
+
+    assert domain_filter("example.jpg") is False
+    assert domain_filter("example.html") is False
+    assert domain_filter("0.gravatar.com") is False
+    assert domain_filter("12345.org") is False
+    # assert domain_filter("test.invalidtld") is False
 
 
 def test_urlcheck_redirects():
     "Test redirection checks."
-    assert check_url("https://www.httpbun.org/status/200", with_redirects=True) == (
-        "https://httpbun.org",
-        "httpbun.org",
+    assert check_url("https://www.httpbun.com/status/200", with_redirects=True) == (
+        "https://httpbun.com",
+        "httpbun.com",
     )
     assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
     assert check_url("https://www.ht.or", with_redirects=True) is None
@@ -865,9 +964,23 @@ def test_extraction():
         external_bool=False,
         strict=True,
         with_nav=True,
+        trailing_slash=True,
     )
     assert sorted(links) == [
-        "https://example.org/page/",  # parameter stripped by strict filtering
+        "https://example.org/page/",
+        "https://example.org/page/10",
+    ]
+    links = extract_links(
+        pagecontent,
+        "https://example.org",
+        external_bool=False,
+        strict=True,
+        trailing_slash=False,
+        with_nav=True,
+    )
+    print(links)
+    assert sorted(links) == [
+        "https://example.org/page",  # parameter stripped by strict filtering
         "https://example.org/page/10",
     ]
     links = extract_links(
@@ -1056,6 +1169,11 @@ def test_examples():
         "https://github.com/adbar/courlan",
         "github.com",
     )
+    assert check_url("http://666.0.0.1/") is None
+    assert check_url("http://test.net/foo.html?utm_source=twitter#gclid=123") == (
+        "http://test.net/foo.html",
+        "test.net",
+    )
     assert check_url(
         "https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org", strict=True
     ) == ("https://httpbin.org/redirect-to", "httpbin.org")
@@ -1073,16 +1191,18 @@ def test_examples():
 
 def test_meta():
     "Test package meta functions."
-    url = "https://example.net/123/abc"
-    _ = get_tldinfo(url)
-    _ = _parse(url)
-    assert get_tldinfo.cache_info().currsize > 0
+    _ = langcodes_score("en", "en_HK", 0)
+    _ = _parse("https://example.net/123/abc")
+
+    assert langcodes_score.cache_info().currsize > 0
     try:
         urlsplit_lrucache = True
         assert urlsplit.cache_info().currsize > 0
     except AttributeError:  # newer Python versions only
         urlsplit_lrucache = False
+
     clear_caches()
-    assert get_tldinfo.cache_info().currsize == 0
+
+    assert langcodes_score.cache_info().currsize == 0
     if urlsplit_lrucache:
         assert urlsplit.cache_info().currsize == 0

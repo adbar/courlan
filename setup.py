@@ -20,7 +20,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
             "courlan/clean.py",
             "courlan/core.py",
             "courlan/filters.py",
-            "courlan/langinfo.py",
+            "courlan/sampling.py",
             "courlan/settings.py",
             "courlan/urlstore.py",
             "courlan/urlutils.py",

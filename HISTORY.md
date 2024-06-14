@@ -1,6 +1,38 @@
 ## History / Changelog
 
 
+### 1.2.0
+
+- more compact UrlStore: use bytes instead of str for URL paths (#88)
+- UrlStore maintenance: deprecate `timelimit` argument (#101)
+- maintenance: simplify code (#103)
+- support for Python 3.13
+
+
+### 1.1.0
+
+- replace `langcodes` by `babel` and use its information on locales (#89, #92)
+- simplified and faster code: domain extraction, cleaning, filters and UrlStore (#90, #93, #94, #95)
+- UrlStore: better url batches, replace `timelimit` parameter by `time_limit` (#91)
+- maintenance: update readme and convert it to markdown (#97)
+
+
+### 1.0.0
+
+- license change from GPLv3+ to Apache 2.0 (#81)
+- UrlStore: `write()` method and `load_store()` function added (#83)
+- add parameter `trailing_slash` to keep of discard slashes at the end of URLs (#52)
+- maintenance: fix whitespace in `clean_url()` (#77), simplify code (#79)
+
+
+### 0.9.5
+
+- IRI to URI normalization: encode path, query and fragments (#58, #60)
+- normalization: strip common trackers (#65)
+- new function `is_valid_url()` (#63)
+- hardening of domain filter (#64)
+
+
 ### 0.9.4
 
 - new UrlStore functions: `add_from_html()` (#42), `discard()` (#44), `get_unvisited_domains`

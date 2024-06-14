@@ -4,7 +4,7 @@ Functions related to URL manipulation and extraction of URL parts.
 
 import re
 
-from functools import lru_cache
+from html import unescape
 from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
 
@@ -19,14 +19,11 @@ DOMAIN_REGEX = re.compile(
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
-NO_EXTENSION_REGEX = re.compile(r"(^[^.]+)")
-STRIP_DOMAIN_REGEX = re.compile(r"^.+?:.*?@|(?<=\D):\d+")
+STRIP_PORT_REGEX = re.compile(r"(?<=\D):\d+")
 CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
-INNER_SLASH_REGEX = re.compile(r"(.+/)+")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
-@lru_cache(maxsize=1024)
 def get_tldinfo(
     url: str, fast: bool = False
 ) -> Union[Tuple[None, None], Tuple[str, str]]:
@@ -37,10 +34,10 @@ def get_tldinfo(
         # try with regexes
         domain_match = DOMAIN_REGEX.match(url)
         if domain_match:
-            full_domain = STRIP_DOMAIN_REGEX.sub("", domain_match[1])
-            clean_match = NO_EXTENSION_REGEX.match(full_domain)
+            full_domain = STRIP_PORT_REGEX.sub("", domain_match[1].split("@")[-1])
+            clean_match = full_domain.split(".")[0]
             if clean_match:
-                return clean_match[0], full_domain
+                return clean_match, full_domain
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
     if tldinfo is None:
@@ -57,20 +54,18 @@ def extract_domain(
         blacklist = set()
     # new code: Python >= 3.6 with tld module
     domain, full_domain = get_tldinfo(url, fast=fast)
-    # invalid input
-    if full_domain is None:
-        return None
-    # blacklisting
-    if domain in blacklist or full_domain in blacklist:
-        return None
-    # return domain
-    return full_domain
+
+    return (
+        full_domain
+        if full_domain and not domain in blacklist and not full_domain in blacklist
+        else None
+    )
 
 
 def _parse(url: Any) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
-        parsed_url = urlsplit(url)
+        parsed_url = urlsplit(unescape(url))
     elif isinstance(url, SplitResult):
         parsed_url = url
     else:
@@ -116,12 +111,15 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     "Prepend protocol and host information to relative links."
     if url.startswith("{"):
         return url
+
     base_netloc = urlsplit(baseurl).netloc
     split_url = urlsplit(url)
+
     if split_url.netloc not in (base_netloc, ""):
         if split_url.scheme:
             return url
         return urlunsplit(split_url._replace(scheme="http"))
+
     return urljoin(baseurl, url)
 
 
@@ -155,20 +153,21 @@ def is_known_link(link: str, known_links: Set[str]) -> bool:
         return True
 
     # check link and variants with trailing slashes
-    test_links = [link.rstrip("/"), link.rstrip("/") + "/"]
-    if any(test_link in known_links for test_link in test_links):
+    slash_test = link.rstrip("/") if link[-1] == "/" else link + "/"
+    if slash_test in known_links:
         return True
 
     # check link and variants with modified protocol
     if link.startswith("http"):
-        if link.startswith("https"):
-            testlink = link[:4] + link[5:]
-        else:
-            testlink = "".join([link[:4], "s", link[4:]])
-        if any(
-            test in known_links
-            for test in [testlink, testlink.rstrip("/"), testlink.rstrip("/") + "/"]
-        ):
+        protocol_test = (
+            "http" + link[:5] if link.startswith("https") else "https" + link[4:]
+        )
+        slash_test = (
+            protocol_test.rstrip("/")
+            if protocol_test[-1] == "/"
+            else protocol_test + "/"
+        )
+        if protocol_test in known_links or slash_test in known_links:
             return True
 
     return False
