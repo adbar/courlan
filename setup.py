@@ -58,8 +58,7 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=[
         # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "Development Status :: 4 - Beta",
-        #'Development Status :: 5 - Production/Stable',
+        "Development Status :: 5 - Production/Stable",
         #'Development Status :: 6 - Mature',
         "Environment :: Console",
         "Intended Audience :: Developers",
@@ -72,8 +71,6 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -108,13 +105,11 @@ setup(
     },
     # package_data={},
     include_package_data=True,
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
         "babel >= 2.11.0",
-        "tld == 0.12.6; python_version < '3.7'",
-        "tld >= 0.13; python_version >= '3.7'",
-        "urllib3 >= 1.26, < 2; python_version < '3.7'",
-        "urllib3 >= 1.26, < 3; python_version >= '3.7'",
+        "tld >= 0.13",
+        "urllib3 >= 1.26, < 3",
     ],
     # extras_require=extras,
     entry_points={

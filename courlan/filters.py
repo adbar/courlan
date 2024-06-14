@@ -10,7 +10,7 @@ from ipaddress import ip_address
 from typing import Any, Optional, Tuple
 from urllib.parse import urlsplit
 
-from babel import Locale, UnknownLocaleError  # type: ignore
+from babel import Locale, UnknownLocaleError
 
 
 LOGGER = logging.getLogger(__name__)
