@@ -3,27 +3,9 @@ URL filter and manipulation tools
 https://github.com/adbar/courlan
 """
 
-import re
 import sys
 
-from pathlib import Path
 from setuptools import setup
-
-
-def get_version(package):
-    "Return package version as listed in `__version__` in `init.py`"
-    initfile = Path(package, "__init__.py").read_text(encoding="utf-8")
-    return re.search("__version__ = ['\"]([^'\"]+)['\"]", initfile)[1]
-
-
-def get_long_description():
-    "Return the README"
-    with open("README.md", "r", encoding="utf-8") as filehandle:
-        long_description = filehandle.read()
-    # long_description += "\n\n"
-    # with open("CHANGELOG.md", encoding="utf8") as f:
-    #    long_description += f.read()
-    return long_description
 
 
 # add argument to compile with mypyc
@@ -51,73 +33,6 @@ else:
 
 
 setup(
-    name="courlan",
-    version=get_version("courlan"),
-    description="Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters.",
-    long_description=get_long_description(),
-    long_description_content_type="text/markdown",
-    classifiers=[
-        # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "Development Status :: 5 - Production/Stable",
-        #'Development Status :: 6 - Mature',
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Education",
-        "Intended Audience :: Information Technology",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: MacOS :: MacOS X",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
-        "Topic :: Internet :: WWW/HTTP",
-        "Topic :: Scientific/Engineering :: Information Analysis",
-        "Topic :: Security",
-        "Topic :: Text Processing :: Filters",
-        "Topic :: Text Processing :: Linguistic",
-        "Typing :: Typed",
-    ],
-    keywords=[
-        "cleaner",
-        "crawler",
-        "uri",
-        "url-parsing",
-        "url-manipulation",
-        "urls",
-        "validation",
-        "webcrawling",
-    ],
-    url="https://github.com/adbar/courlan",
-    author="Adrien Barbaresi",
-    author_email="barbaresi@bbaw.de",
-    license="Apache-2.0",
-    packages=["courlan"],
-    project_urls={
-        "Blog": "https://adrien.barbaresi.eu/blog/",  # /tag/courlan.html
-        "Tracker": "https://github.com/adbar/courlan/issues",
-    },
-    # package_data={},
-    include_package_data=True,
-    python_requires=">=3.8",
-    install_requires=[
-        "babel >= 2.11.0",
-        "tld >= 0.13",
-        "urllib3 >= 1.26, < 3",
-    ],
-    # extras_require=extras,
-    entry_points={
-        "console_scripts": ["courlan=courlan.cli:main"],
-    },
-    # platforms='any',
-    tests_require=["pytest"],
-    zip_safe=False,
     # mypyc or not
     ext_modules=ext_modules,
 )
