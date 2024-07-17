@@ -31,7 +31,7 @@ PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
 # scrub
 REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
-TRAILING_PARTS = re.compile(r'(.*?)[<>"\'\s]')
+TRAILING_PARTS = re.compile(r'(.*?)[<>"\s]')
 
 # https://github.com/AdguardTeam/AdguardFilters/blob/master/TrackParamFilter/sections/general_url.txt
 # https://gitlab.com/ClearURLs/rules/-/blob/master/data.min.json
