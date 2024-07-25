@@ -26,7 +26,6 @@ keywords=[
 classifiers = [
     # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
     'Development Status :: 5 - Production/Stable',
-    #'Development Status :: 6 - Mature',
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
@@ -52,7 +51,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "babel >= 2.11.0",
+    "babel >= 2.15.0",
     "tld >= 0.13",
     "urllib3 >= 1.26, < 3",
 ]
