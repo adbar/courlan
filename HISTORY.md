@@ -1,6 +1,13 @@
 ## History / Changelog
 
 
+### 1.3.0
+
+- parsing: validate netloc with port number by @naz-theori in #104
+- cleaning: fix handling of apostrophes (#107)
+- maintenance: deprecate Python 3.6 & 3.7, add `pyproject.toml` setup file (#59, #105)
+
+
 ### 1.2.0
 
 - more compact UrlStore: use bytes instead of str for URL paths (#88)
