@@ -2,13 +2,26 @@
 Defines a URL store which holds URLs along with relevant information and entails crawling helpers.
 """
 
-import bz2
 import gc
 import logging
 import pickle
 import signal
 import sys
-import zlib
+
+try:
+    import bz2
+
+    HAS_BZ2 = True
+except ImportError:
+    HAS_BZ2 = False
+
+try:
+    import zlib
+
+    HAS_ZLIB = True
+except ImportError:
+    HAS_ZLIB = False
+
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
@@ -36,6 +49,39 @@ from .urlutils import get_base_url, get_host_and_path, is_known_link
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+class Compressor:
+    "Use system information on available compression modules and define corresponding methods."
+    __slots__ = ("compressor", "decompressor")
+
+    def __init__(self, compression: bool = True) -> None:
+        self.compressor: Any = (
+            bz2.compress
+            if compression and HAS_BZ2
+            else zlib.compress if compression and HAS_ZLIB else self._identical
+        )
+        self.decompressor: Any = (
+            bz2.decompress
+            if compression and HAS_BZ2
+            else zlib.decompress if compression and HAS_ZLIB else self._identical
+        )
+
+    @staticmethod
+    def _identical(data: Any) -> Any:
+        "Return unchanged data."
+        return data
+
+    def compress(self, data: Any) -> Any:
+        "Pickle the data and compress it if a method is available."
+        return self.compressor(pickle.dumps(data, protocol=5))
+
+    def decompress(self, data: bytes) -> Any:
+        "Decompress the data if a method is available and load the object."
+        return pickle.loads(self.decompressor(data))
+
+
+COMPRESSOR = Compressor()
 
 
 class State(Enum):
@@ -149,7 +195,7 @@ class UrlStore:
     def _load_urls(self, domain: str) -> Deque[UrlPathTuple]:
         if domain in self.urldict:
             if self.compressed:
-                return pickle.loads(bz2.decompress(self.urldict[domain].tuples))  # type: ignore
+                return COMPRESSOR.decompress(self.urldict[domain].tuples)  # type: ignore
             return self.urldict[domain].tuples
         return deque()
 
@@ -197,9 +243,7 @@ class UrlStore:
 
         with self._lock:
             if self.compressed:
-                self.urldict[domain].tuples = bz2.compress(  # type: ignore[assignment]
-                    pickle.dumps(urls, protocol=4)
-                )
+                self.urldict[domain].tuples = COMPRESSOR.compress(urls)
             else:
                 self.urldict[domain].tuples = urls
             self.urldict[domain].total = len(urls)
@@ -453,16 +497,14 @@ class UrlStore:
     def store_rules(self, website: str, rules: Optional[RobotFileParser]) -> None:
         "Store crawling rules for a given website."
         if self.compressed:
-            rules = zlib.compress(  # type: ignore[assignment]
-                pickle.dumps(rules, protocol=4)
-            )
+            rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
         "Return the stored crawling rules for the given website."
         if website in self.urldict:
             if self.compressed:
-                return pickle.loads(zlib.decompress(self.urldict[website].rules))  # type: ignore
+                return COMPRESSOR.decompress(self.urldict[website].rules)  # type: ignore
             return self.urldict[website].rules
         return None
 

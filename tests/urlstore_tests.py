@@ -16,7 +16,17 @@ from time import sleep
 import pytest
 
 from courlan import UrlStore
-from courlan.urlstore import State, load_store
+from courlan.urlstore import Compressor, State, load_store, HAS_BZ2, HAS_ZLIB
+
+
+def test_compressor():
+    "Test compression class."
+    assert HAS_BZ2 or HAS_ZLIB
+    data = 1234
+
+    for setting in (True, False):
+        comp = Compressor(compression=setting)
+        assert comp.decompress(comp.compress(data)) == data
 
 
 def test_urlstore():
