@@ -30,7 +30,6 @@ from operator import itemgetter
 from threading import Lock
 from typing import (
     Any,
-    Callable,
     DefaultDict,
     Deque,
     Dict,
@@ -56,34 +55,30 @@ class Compressor:
     "Use system information on available compression modules and define corresponding methods."
     __slots__ = ("compressor", "decompressor")
 
-    def __init__(self) -> None:
-        self.compressor: Callable[[Any], bytes] = self._dump
-        self.decompressor: Callable[[bytes], Any] = self._load
-
-        if HAS_ZLIB:
-            self.compressor = zlib.compress
-            self.decompressor = zlib.decompress
-        elif HAS_BZ2:
-            self.compressor = bz2.compress
-            self.decompressor = bz2.decompress
-
-    @staticmethod
-    def _dump(data: Any) -> bytes:
-        "Pickle the data or object."
-        return pickle.dumps(data, protocol=5)
+    def __init__(self, compression: bool = True) -> None:
+        self.compressor: Any = (
+            bz2.compress
+            if compression and HAS_BZ2
+            else zlib.compress if compression and HAS_ZLIB else self._identical
+        )
+        self.decompressor: Any = (
+            bz2.decompress
+            if compression and HAS_BZ2
+            else zlib.decompress if compression and HAS_ZLIB else self._identical
+        )
 
     @staticmethod
-    def _load(data: bytes) -> Any:
-        "Load Python object from pickle."
-        return pickle.loads(data)
+    def _identical(data: Any) -> Any:
+        "Return unchanged data."
+        return data
 
-    def compress(self, data: Any) -> bytes:
+    def compress(self, data: Any) -> Any:
         "Pickle the data and compress it if a method is available."
-        return self.compressor(self._dump(data))
+        return self.compressor(pickle.dumps(data, protocol=5))
 
     def decompress(self, data: bytes) -> Any:
         "Decompress the data if a method is available and load the object."
-        return self._load(self.decompressor(data))
+        return pickle.loads(self.decompressor(data))
 
 
 COMPRESSOR = Compressor()
@@ -248,7 +243,7 @@ class UrlStore:
 
         with self._lock:
             if self.compressed:
-                self.urldict[domain].tuples = COMPRESSOR.compress(urls)  # type: ignore[assignment]
+                self.urldict[domain].tuples = COMPRESSOR.compress(urls)
             else:
                 self.urldict[domain].tuples = urls
             self.urldict[domain].total = len(urls)
@@ -502,7 +497,7 @@ class UrlStore:
     def store_rules(self, website: str, rules: Optional[RobotFileParser]) -> None:
         "Store crawling rules for a given website."
         if self.compressed:
-            rules = COMPRESSOR.compress(rules)  # type: ignore[assignment]
+            rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
 
     def get_rules(self, website: str) -> Optional[RobotFileParser]:
