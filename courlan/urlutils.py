@@ -57,7 +57,7 @@ def extract_domain(
 
     return (
         full_domain
-        if full_domain and not domain in blacklist and not full_domain in blacklist
+        if full_domain and domain not in blacklist and full_domain not in blacklist
         else None
     )
 
