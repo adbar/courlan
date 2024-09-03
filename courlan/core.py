@@ -237,7 +237,7 @@ def filter_links(
     strict: bool = False,
     with_nav: bool = True,
 ) -> Tuple[List[str], List[str]]:
-    "Find links in a HTML document, filter them and add them to the data store."
+    "Find links in a HTML document, filter and prioritize them for crawling purposes."
     links, links_priority = [], []
     url = url or base_url
     for link in extract_links(
