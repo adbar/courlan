@@ -168,7 +168,7 @@ def extract_links(
     """
     if base_url:
         warnings.warn(
-            "The base_url argument will soon be deprecated.", PendingDeprecationWarning
+            "'base_url' will soon be deprecated, use 'url'.", PendingDeprecationWarning
         )
 
     base_url = base_url or get_base_url(url)
