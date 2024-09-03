@@ -137,9 +137,8 @@ available in `lang_filter(url, language)`:
 ```
 
 Define stricter restrictions on the expected content type with
-`strict=True`. Also blocks certain platforms and pages types crawlers
-should stay away from if they don't target them explicitly and other
-black holes where machines get lost.
+`strict=True`. This also blocks certain platforms and page types
+where machines get lost.
 
 ``` python
 # strict filtering: blocked as it is a major platform
@@ -157,6 +156,20 @@ black holes where machines get lost.
 ```
 
 ### Web crawling and URL handling
+
+Link extraction and preprocessing:
+
+``` python
+>>> from courlan import extract_links
+>>> doc = '<html><body><a href="test/link.html">Link</a></body></html>'
+>>> url = "https://example.org"
+>>> extract_links(doc, url)
+{'https://example.org/test/link.html'}
+# other options: external_bool, no_filter, language, strict, redirects, ...
+```
+
+The `filter_links()` function provides additional filters for crawling purposes:
+use of robots.txt rules and link priorization. See `courlan.core` for details.
 
 Determine if a link leads to another host:
 
@@ -214,6 +227,10 @@ True
 >>> is_not_crawlable('https://www.randomblog.net/login')
 True
 ```
+
+See also [URL management page](https://trafilatura.readthedocs.io/en/latest/url-management.html)
+of the Trafilatura documentation.
+
 
 ### Python helpers
 

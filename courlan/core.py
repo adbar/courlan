@@ -5,6 +5,7 @@ Core functions needed to make the module work.
 # import locale
 import logging
 import re
+import warnings
 
 from typing import List, Optional, Set, Tuple
 from urllib.robotparser import RobotFileParser
@@ -149,7 +150,6 @@ def extract_links(
     Args:
         pagecontent: whole page in binary format
         url: full URL of the original page
-        base_url: deprecated, legacy only
         external_bool: set to True for external links only, False for
                   internal links only
         no_filter: override settings and bypass checks to return all possible URLs
@@ -157,7 +157,7 @@ def extract_links(
         strict: set to True for stricter filtering
         trailing_slash: set to False to trim trailing slashes
         with_nav: set to True to include navigation pages instead of discarding them
-        with_redirects: set to True for redirection test (per HTTP HEAD request)
+        redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation
 
     Returns:
@@ -166,6 +166,11 @@ def extract_links(
     Raises:
         Nothing.
     """
+    if base_url:
+        warnings.warn(
+            "'base_url' will soon be deprecated, use 'url'.", PendingDeprecationWarning
+        )
+
     base_url = base_url or get_base_url(url)
     url = url or base_url
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
@@ -232,7 +237,7 @@ def filter_links(
     strict: bool = False,
     with_nav: bool = True,
 ) -> Tuple[List[str], List[str]]:
-    "Find links in a HTML document, filter them and add them to the data store."
+    "Find links in a HTML document, filter and prioritize them for crawling purposes."
     links, links_priority = [], []
     url = url or base_url
     for link in extract_links(
