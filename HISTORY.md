@@ -1,6 +1,13 @@
 ## History / Changelog
 
 
+### 1.3.1
+
+- `UrlStore` compression: make bz2 and zlib optional, update pickle protocol (#113)
+- `extract_links()`: review and document, add deprecation warning for `base_url` argument (#115)
+- maintenance: add `__all__` to `init.py` and lint code (#116)
+
+
 ### 1.3.0
 
 - parsing: validate netloc with port number by @naz-theori in #104
