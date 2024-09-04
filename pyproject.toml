@@ -51,7 +51,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "babel >= 2.15.0",
+    "babel >= 2.16.0",
     "tld >= 0.13",
     "urllib3 >= 1.26, < 3",
 ]
