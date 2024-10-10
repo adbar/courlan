@@ -1,4 +1,4 @@
-include CONTRIBUTING.md HISTORY.md README.rst LICENSE pytest.ini
+include CONTRIBUTING.md HISTORY.md README.rst LICENSE
 include courlan_harns-march.jpg
 include courlan/py.typed
 

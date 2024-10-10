@@ -18,7 +18,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         # https://github.com/actions/python-versions/blob/main/versions-manifest.json
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13-dev"]
+        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13"] # "3.14-dev"
         include:
         # other OS version necessary
         - os: macos-latest
@@ -51,10 +51,12 @@ jobs:
     # package setup
     - uses: actions/checkout@v4
 
+    - name: Install dependencies
+      run: python -m pip install -e ".[dev]"
+
     # tests
     - name: Lint with flake8
       run: |
-        python -m pip install --upgrade flake8
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
@@ -62,21 +64,15 @@ jobs:
 
     - name: Code format with black
       run: |
-        python -m pip install --upgrade black
         black --check --diff courlan
-
-    - name: Install dependencies
-      run: python -m pip install -e "."
 
     - name: Type checking with mypy
       run: |
-        python -m pip install --upgrade mypy types-urllib3
         mypy -p courlan
 
     - name: Test with pytest
       run: |
-        python -m pip install --upgrade pytest pytest-cov
-        pytest --cov=./ --cov-report=xml
+        python -m pytest --cov=./ --cov-report=xml
 
     # coverage
     - name: Upload coverage to Codecov

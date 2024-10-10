@@ -76,7 +76,12 @@ courlan = "courlan.cli:main"
 [project.optional-dependencies]
 dev = [
     "black",
+    "flake8",
     "mypy",
     "pytest",
     "pytest-cov",
+    "types-urllib3",
 ]
+
+[tool.pytest.ini_options]
+testpaths = "tests/*test*.py"
