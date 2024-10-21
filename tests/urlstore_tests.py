@@ -315,9 +315,6 @@ def test_urlstore():
         ["https://www.example.org/1", "https://test.org/1", "https://test.org/2"]
     )
 
-    with pytest.raises(ValueError):
-        test_urls.get_download_urls(timelimit=0)
-
     downloadable_urls = test_urls.get_download_urls(time_limit=0)
     assert (
         len(downloadable_urls) == 2
