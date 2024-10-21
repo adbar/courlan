@@ -1035,11 +1035,17 @@ def test_extraction():
         "https://test.com/example",
         "https://test.com/page/2",
     ]
+
     # link filtering
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
-    links, links_priority = filter_links(htmlstring, base_url)
+
+    with pytest.raises(ValueError):
+        filter_links(htmlstring, url=None, base_url=base_url)
+
+    links, links_priority = filter_links(htmlstring, url=base_url)
     assert len(links) == 1 and not links_priority
+
     # link filtering with relative URLs
     url = "https://example.org/page1.html"
     htmlstring = '<html><body><a href="/subpage1"/><a href="/subpage1/"/><a href="https://test.org/page1"/></body></html>'

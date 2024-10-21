@@ -136,6 +136,7 @@ def extract_links(
     pagecontent: str,
     url: Optional[str] = None,
     external_bool: bool = False,
+    *,
     no_filter: bool = False,
     language: Optional[str] = None,
     strict: bool = True,
@@ -227,16 +228,21 @@ def extract_links(
 def filter_links(
     htmlstring: str,
     url: Optional[str],
-    base_url: Optional[str] = None,
+    *,
     lang: Optional[str] = None,
     rules: Optional[RobotFileParser] = None,
     external: bool = False,
     strict: bool = False,
     with_nav: bool = True,
+    base_url: Optional[str] = None,
 ) -> Tuple[List[str], List[str]]:
     "Find links in a HTML document, filter and prioritize them for crawling purposes."
+
+    if base_url:
+        raise ValueError("'base_url' is deprecated, use 'url' instead.")
+
     links, links_priority = [], []
-    url = url or base_url
+    url = url
     for link in extract_links(
         pagecontent=htmlstring,
         url=url,
