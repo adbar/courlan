@@ -862,7 +862,9 @@ def test_external():
 
 def test_extraction():
     """test link comparison in HTML"""
-    assert len(extract_links(None, "https://test.com/", False)) == 0
+    with pytest.raises(ValueError):
+        extract_links(None, base_url="https://test.com/", external_bool=False)
+    assert len(extract_links(None, url="https://test.com/", external_bool=False)) == 0
     assert len(extract_links("", "https://test.com/", False)) == 0
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
@@ -933,7 +935,7 @@ def test_extraction():
         "https://httpbin.org/links/2/1",
     ]
     links = extract_links(
-        pagecontent, base_url="https://httpbin.org", external_bool=False, with_nav=True
+        pagecontent, url="https://httpbin.org", external_bool=False, with_nav=True
     )
     assert sorted(links) == [
         "https://httpbin.org/links/2/0",

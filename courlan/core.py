@@ -5,7 +5,6 @@ Core functions needed to make the module work.
 # import locale
 import logging
 import re
-import warnings
 
 from typing import List, Optional, Set, Tuple
 from urllib.robotparser import RobotFileParser
@@ -136,7 +135,6 @@ def check_url(
 def extract_links(
     pagecontent: str,
     url: Optional[str] = None,
-    base_url: Optional[str] = None,
     external_bool: bool = False,
     no_filter: bool = False,
     language: Optional[str] = None,
@@ -145,6 +143,7 @@ def extract_links(
     with_nav: bool = False,
     redirects: bool = False,
     reference: Optional[str] = None,
+    base_url: Optional[str] = None,
 ) -> Set[str]:
     """Filter links in a HTML document using a series of heuristics
     Args:
@@ -167,9 +166,7 @@ def extract_links(
         Nothing.
     """
     if base_url:
-        warnings.warn(
-            "'base_url' will soon be deprecated, use 'url'.", PendingDeprecationWarning
-        )
+        raise ValueError("'base_url' is deprecated, use 'url' instead.")
 
     base_url = base_url or get_base_url(url)
     url = url or base_url
