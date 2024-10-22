@@ -417,7 +417,7 @@ class UrlStore:
         self,
         time_limit: float = 10.0,
         max_urls: int = 10000,
-    ) -> Optional[List[str]]:
+    ) -> List[str]:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
         urls = []
