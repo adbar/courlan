@@ -169,13 +169,15 @@ def extract_links(
     if base_url:
         raise ValueError("'base_url' is deprecated, use 'url' instead.")
 
-    base_url = base_url or get_base_url(url)
+    base_url = get_base_url(url)
     url = url or base_url
     candidates, validlinks = set(), set()  # type: Set[str], Set[str]
     if not pagecontent:
         return validlinks
+
     # define host reference
     reference = reference or base_url
+
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
         if "rel" in link and "nofollow" in link:
@@ -194,6 +196,7 @@ def extract_links(
             linkmatch = LINK_REGEX.search(link)
             if linkmatch:
                 candidates.add(linkmatch[1])
+
     # filter candidates
     for link in candidates:
         # repair using base
@@ -220,7 +223,7 @@ def extract_links(
         if is_known_link(link, validlinks):
             continue
         validlinks.add(link)
-    # return
+
     LOGGER.info("%s links found – %s valid links", len(candidates), len(validlinks))
     return validlinks
 
@@ -242,7 +245,7 @@ def filter_links(
         raise ValueError("'base_url' is deprecated, use 'url' instead.")
 
     links, links_priority = [], []
-    url = url
+
     for link in extract_links(
         pagecontent=htmlstring,
         url=url,
@@ -261,4 +264,5 @@ def filter_links(
             links_priority.append(link)
         else:
             links.append(link)
+
     return links, links_priority
