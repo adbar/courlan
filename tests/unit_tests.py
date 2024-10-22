@@ -862,7 +862,9 @@ def test_external():
 
 def test_extraction():
     """test link comparison in HTML"""
-    assert len(extract_links(None, "https://test.com/", False)) == 0
+    with pytest.raises(ValueError):
+        extract_links(None, base_url="https://test.com/", external_bool=False)
+    assert len(extract_links(None, url="https://test.com/", external_bool=False)) == 0
     assert len(extract_links("", "https://test.com/", False)) == 0
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
@@ -933,7 +935,7 @@ def test_extraction():
         "https://httpbin.org/links/2/1",
     ]
     links = extract_links(
-        pagecontent, base_url="https://httpbin.org", external_bool=False, with_nav=True
+        pagecontent, url="https://httpbin.org", external_bool=False, with_nav=True
     )
     assert sorted(links) == [
         "https://httpbin.org/links/2/0",
@@ -1033,11 +1035,17 @@ def test_extraction():
         "https://test.com/example",
         "https://test.com/page/2",
     ]
+
     # link filtering
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
-    links, links_priority = filter_links(htmlstring, base_url)
+
+    with pytest.raises(ValueError):
+        filter_links(htmlstring, url=None, base_url=base_url)
+
+    links, links_priority = filter_links(htmlstring, url=base_url)
     assert len(links) == 1 and not links_priority
+
     # link filtering with relative URLs
     url = "https://example.org/page1.html"
     htmlstring = '<html><body><a href="/subpage1"/><a href="/subpage1/"/><a href="https://test.org/page1"/></body></html>'
