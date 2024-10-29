@@ -1,6 +1,13 @@
 ## History / Changelog
 
 
+### 1.3.2
+
+- `UrlStore.get_download_urls()`: `timelimit` removed, fix type hints (#119, 19c580e)
+- `extract_links()`: deprecate `base_url` parameter (#121)
+- setup: simplify workflow (#118)
+
+
 ### 1.3.1
 
 - `UrlStore` compression: make bz2 and zlib optional, update pickle protocol (#113)
