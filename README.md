@@ -411,32 +411,25 @@ Details of strict URL filtering can be reviewed and changed in the file
 locally](https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree).
 
 
-## Contributing
-
-[Contributions](https://github.com/adbar/courlan/blob/master/CONTRIBUTING.md)
-are welcome!
-
-Feel free to file issues on the [dedicated
-page](https://github.com/adbar/courlan/issues).
-
-
 ## Author
 
-Developed with practical applications of academic research in mind, this software
-is part of a broader effort to derive information from web documents.
-Extracting and pre-processing web texts to the exacting standards of
-scientific research presents a substantial challenge.
-This software package simplifies text data collection and enhances corpus quality,
-it is currently used to build [text databases for research](https://www.dwds.de/d/k-web).
+Initially launched to create text databases for research purposes
+at the Berlin-Brandenburg Academy of Sciences (DWDS and ZDL units),
+this package continues to be maintained but its future development
+depends on community support.
 
-- Barbaresi, A. "[Trafilatura: A Web Scraping Library and
-  Command-Line Tool for Text Discovery and
-  Extraction](https://aclanthology.org/2021.acl-demo.15/)."
-  *Proceedings of ACL/IJCNLP 2021: System Demonstrations*, 2021, pp. 122-131.
+**If you value this software or depend on it for your product, consider
+sponsoring it and contributing to its codebase**. Your support
+[on GitHub](https://github.com/sponsors/adbar) or [ko-fi.com](https://ko-fi.com/adbarbaresi)
+will help maintain and enhance this package.
+Visit the [Contributing page](https://github.com/adbar/courlan/blob/master/CONTRIBUTING.md)
+for more information.
 
-Contact: see [homepage](https://adrien.barbaresi.eu/).
+Reach out via the software repository or the [contact
+page](https://adrien.barbaresi.eu/) for inquiries, collaborations, or
+feedback.
 
-Software ecosystem: see [this
+For more on Courlan's' software ecosystem see [this
 graphic](https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png).
 
 
