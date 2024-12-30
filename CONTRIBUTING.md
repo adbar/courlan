@@ -1,25 +1,26 @@
 ## How to contribute
 
-Thank you for considering contributing to coURLan!
+If you value this software or depend on it for your product,
+consider sponsoring it and contributing to its codebase.
+Your support will help ensure the sustainability and growth of the project.
 
-Here are some important resources:
+There are many ways to contribute:
 
-  * [List of currently open issues](https://github.com/adbar/courlan/issues) (no pretention to exhaustivity!)
-  * [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
+  * Sponsor the project: Show your appreciation [on GitHub](https://github.com/sponsors/adbar) or [ko-fi.com](https://ko-fi.com/adbarbaresi).
+  * Find bugs and submit bug reports: Help making Courlan an even more robust tool.
+  * Write code: Fix bugs or add new features by writing [pull requests](https://docs.github.com/en/pull-requests) with a list of what you have done.
 
-There are many ways to contribute, you could:
 
-  * Improve the documentation
-  * Find bugs and submit bug reports
-  * Submit feature requests
-  * Write tutorials or blog posts
-  * Write code
+## Testing and evaluating the code
 
-## Submitting changes
+Here is how you can run the tests and code quality checks. Pull requests will only be accepted if the changes are tested and if they there are no errors.
 
-Please send a [GitHub Pull Request to coURLan](https://github.com/adbar/courlan/pull/new/master) with a clear list of what you've done (read more about [pull requests](http://help.github.com/pull-requests/)).
+1. Install the necessary packages with `pip install courlan[dev]`
+2. Run the tests and code quality tools:
+   - Tests with `pytest`
+   - Type checking with `mypy` on the directory: `mypy courlan/`
+   - Code formatting with `black` on the directory as well
 
-**Working on your first Pull Request?** See this tutorial: [How To Create a Pull Request on GitHub](https://www.digitalocean.com/community/tutorials/how-to-create-a-pull-request-on-github)
 
 For further questions you can contact me by way of [GitHub issues](https://github.com/adbar/courlan/issues), [Twitter](https://twitter.com/adbarbaresi) or [E-Mail](https://adrien.barbaresi.eu/).
 
