@@ -425,11 +425,11 @@ will help maintain and enhance this package.
 Visit the [Contributing page](https://github.com/adbar/courlan/blob/master/CONTRIBUTING.md)
 for more information.
 
-Reach out via ia the software repository or the [contact
+Reach out via the software repository or the [contact
 page](https://adrien.barbaresi.eu/) for inquiries, collaborations, or
-feedback. See also social networks for the latest updates.
+feedback.
 
-Software ecosystem: see [this
+For more on Courlan's' software ecosystem see [this
 graphic](https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png).
 
 
