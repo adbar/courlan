@@ -750,9 +750,9 @@ def test_domain_filter():
 
 def test_urlcheck_redirects():
     "Test redirection checks."
-    assert check_url("https://httpbun.com/status/200", with_redirects=True) == (
-        "https://httpbun.com",
-        "httpbun.com",
+    assert check_url("https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org", with_redirects=True) == (
+        "https://example.org",
+        "example.org",
     )
     assert check_url("https://httpbun.org/status/404", with_redirects=True) is None
     assert check_url("https://www.ht.or", with_redirects=True) is None
