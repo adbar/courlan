@@ -758,6 +758,38 @@ def test_urlcheck_redirects():
     assert check_url("https://www.ht.or", with_redirects=True) is None
 
 
+def test_redirection_fallback_from_head_to_get():
+    """Test that redirection_test falls back to GET when HEAD returns 500."""
+    from unittest.mock import Mock, patch
+    from courlan.network import redirection_test
+    
+    test_url = "https://example.org/test"
+    
+    # Create mock responses
+    mock_head_response = Mock()
+    mock_head_response.status = 500
+    mock_head_response.geturl = Mock(return_value=test_url)
+    
+    mock_get_response = Mock()
+    mock_get_response.status = 200
+    mock_get_response.geturl = Mock(return_value=test_url)
+    
+    # Patch HTTP_POOL.request to return 500 for HEAD, then 200 for GET
+    with patch('courlan.network.HTTP_POOL.request') as mock_request:
+        # Set up side_effect to return different responses for HEAD and GET
+        mock_request.side_effect = [mock_head_response, mock_get_response]
+        
+        result = redirection_test(test_url)
+        
+        # Verify the function returned the correct URL
+        assert result == test_url
+        
+        # Verify that both HEAD and GET were called
+        assert mock_request.call_count == 2
+        assert mock_request.call_args_list[0][0] == ("HEAD", test_url)
+        assert mock_request.call_args_list[1][0] == ("GET", test_url)
+
+
 def test_urlutils():
     """Test URL manipulation tools"""
     # domain extraction

@@ -64,6 +64,13 @@ def redirection_test(url: str) -> str:
         LOGGER.exception("unknown error: %s %s", url, err)
     else:
         # response
+        if rhead.status == 500:
+            # Some sites don't implement HEAD, fallback to GET
+            try:
+                rhead = HTTP_POOL.request("GET", url)  # type:ignore[no-untyped-call]
+            except Exception as err:
+                LOGGER.exception("unknown error: %s %s", url, err)
+                raise ValueError(f"cannot reach URL: ${url}")
         if rhead.status in ACCEPTABLE_CODES:
             LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
             return rhead.geturl()  # type: ignore
