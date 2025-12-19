@@ -750,11 +750,11 @@ def test_domain_filter():
 
 def test_urlcheck_redirects():
     "Test redirection checks."
-    assert check_url("https://www.httpbun.com/status/200", with_redirects=True) == (
-        "https://httpbun.com",
-        "httpbun.com",
+    assert check_url("https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org", with_redirects=True) == (
+        "http://example.org",
+        "example.org",
     )
-    assert check_url("https://www.httpbin.org/status/404", with_redirects=True) is None
+    assert check_url("https://httpbun.org/status/404", with_redirects=True) is None
     assert check_url("https://www.ht.or", with_redirects=True) is None
 
 
@@ -764,11 +764,11 @@ def test_urlutils():
     assert extract_domain("") is None
     assert extract_domain(5) is None
     assert extract_domain("h") is None
-    assert extract_domain("https://httpbin.org/") == "httpbin.org"
-    assert extract_domain("https://www.httpbin.org/", fast=True) == "httpbin.org"
+    assert extract_domain("https://httpbun.org/") == "httpbun.org"
+    assert extract_domain("https://www.httpbun.org/", fast=True) == "httpbun.org"
     assert extract_domain("http://www.mkyong.com.au", fast=True) == "mkyong.com.au"
     assert extract_domain("http://mkyong.t.t.co", fast=True) == "mkyong.t.t.co"
-    assert extract_domain("ftp://www4.httpbin.org", fast=True) == "httpbin.org"
+    assert extract_domain("ftp://www4.httpbun.org", fast=True) == "httpbun.org"
     assert extract_domain("http://w3.example.com", fast=True) == "example.com"
     assert extract_domain("https://de.nachrichten.yahoo.com/", fast=True) == "yahoo.com"
     assert (
@@ -787,7 +787,7 @@ def test_urlutils():
     assert extract_domain("http://example.com?query=one", fast=True) == "example.com"
     assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
     # url parsing
-    result = _parse("https://httpbin.org/")
+    result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
     newresult = _parse(result)
     assert isinstance(result, SplitResult)
@@ -803,9 +803,9 @@ def test_urlutils():
     )
     assert get_host_and_path("https://example.org/") == ("https://example.org", "/")
     assert get_host_and_path("https://example.org") == ("https://example.org", "/")
-    assert get_hostinfo("https://httpbin.org/") == (
-        "httpbin.org",
-        "https://httpbin.org",
+    assert get_hostinfo("https://httpbun.org/") == (
+        "httpbun.org",
+        "https://httpbun.org",
     )
     assert get_hostinfo("https://example.org/path") == (
         "example.org",
@@ -928,29 +928,29 @@ def test_extraction():
     # navigation
     pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
     links = extract_links(
-        pagecontent, "https://httpbin.org", external_bool=False, with_nav=True
+        pagecontent, "https://httpbun.org", external_bool=False, with_nav=True
     )
     assert sorted(links) == [
-        "https://httpbin.org/links/2/0",
-        "https://httpbin.org/links/2/1",
+        "https://httpbun.org/links/2/0",
+        "https://httpbun.org/links/2/1",
     ]
     links = extract_links(
-        pagecontent, url="https://httpbin.org", external_bool=False, with_nav=True
+        pagecontent, url="https://httpbun.org", external_bool=False, with_nav=True
     )
     assert sorted(links) == [
-        "https://httpbin.org/links/2/0",
-        "https://httpbin.org/links/2/1",
+        "https://httpbun.org/links/2/0",
+        "https://httpbun.org/links/2/1",
     ]
     pagecontent = "<html><head><title>Links</title></head><body><a href='links/2/0'>0</a> <a href='links/2/1'>1</a> </body></html>"
     links = extract_links(
         pagecontent,
-        url="https://httpbin.org/page1/",
+        url="https://httpbun.org/page1/",
         external_bool=False,
         with_nav=True,
     )
     assert sorted(links) == [
-        "https://httpbin.org/page1/links/2/0",
-        "https://httpbin.org/page1/links/2/1",
+        "https://httpbun.org/page1/links/2/0",
+        "https://httpbun.org/page1/links/2/1",
     ]
     pagecontent = "<html><head><title>Pages</title></head><body><a href='/page/10'>10</a> <a href='/page/?=11'>11</a></body></html>"
     assert (
@@ -1186,8 +1186,8 @@ def test_examples():
         "test.net",
     )
     assert check_url(
-        "https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org", strict=True
-    ) == ("https://httpbin.org/redirect-to", "httpbin.org")
+        "https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org", strict=True
+    ) == ("https://httpbun.org/redirect-to", "httpbun.org")
     assert clean_url("HTTPS://WWW.DWDS.DE:80/") == "https://www.dwds.de"
     assert validate_url("http://1234") == (False, None)
     assert validate_url("http://www.example.org/")[0] is True
