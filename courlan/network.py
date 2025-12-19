@@ -69,6 +69,9 @@ def redirection_test(url: str) -> str:
         elif rhead.status == 500:
             try:
                 rhead = HTTP_POOL.request("GET", url)  # type:ignore[no-untyped-call]
+                if rhead.status in ACCEPTABLE_CODES:
+                    LOGGER.debug("result found with GET: %s %s", rhead.geturl(), rhead.status)
+                    return rhead.geturl()  # type: ignore
             except Exception as err:
                 LOGGER.exception("unknown GET error: %s %s", url, err)
     # else:
