@@ -53,6 +53,7 @@ LOGGER = logging.getLogger(__name__)
 
 class Compressor:
     "Use system information on available compression modules and define corresponding methods."
+
     __slots__ = ("compressor", "decompressor")
 
     def __init__(self, compression: bool = True) -> None:
@@ -86,6 +87,7 @@ COMPRESSOR = Compressor()
 
 class State(Enum):
     "Record state information about a domain or host."
+
     OPEN = 1
     ALL_VISITED = 2
     BUSTED = 3
@@ -93,6 +95,7 @@ class State(Enum):
 
 class DomainEntry:
     "Class to record host-related information and URL paths."
+
     __slots__ = ("count", "rules", "state", "timestamp", "total", "tuples")
 
     def __init__(self, state: State = State.OPEN) -> None:
@@ -106,6 +109,7 @@ class DomainEntry:
 
 class UrlPathTuple:
     "Class storing information for URL paths relative to a domain/host."
+
     __slots__ = ("urlpath", "visited")
 
     def __init__(self, urlpath: str, visited: bool) -> None:
@@ -119,6 +123,7 @@ class UrlPathTuple:
 
 class UrlStore:
     "Defines a class to store domain-classified URLs and perform checks against it."
+
     __slots__ = (
         "compressed",
         "done",
