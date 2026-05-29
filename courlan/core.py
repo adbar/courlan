@@ -34,7 +34,7 @@ from .urlutils import (
 
 LOGGER = logging.getLogger(__name__)
 
-FIND_LINKS_REGEX = re.compile(r"<a [^<>]+?>", re.I)
+FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
 HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
 LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\' >])', re.I)
 
