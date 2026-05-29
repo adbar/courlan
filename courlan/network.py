@@ -6,7 +6,6 @@ import logging
 
 import urllib3
 
-
 LOGGER = logging.getLogger(__name__)
 urllib3.disable_warnings()
 
@@ -59,13 +58,12 @@ def redirection_test(url: str) -> str:
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
     # })
     try:
-        rhead = HTTP_POOL.request("HEAD", url)  # type:ignore[no-untyped-call]
+        rhead = HTTP_POOL.request("HEAD", url)  # type: ignore[no-untyped-call]
     except Exception as err:
-        LOGGER.exception("unknown error: %s %s", url, err)
-    else:
-        # response
-        if rhead.status in ACCEPTABLE_CODES:
-            LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
-            return rhead.geturl()  # type: ignore
-    # else:
-    raise ValueError(f"cannot reach URL: ${url}")
+        LOGGER.warning("cannot reach URL: %s %s", url, err)
+        raise ValueError(f"cannot reach URL: {url}") from err
+    # response
+    if rhead.status in ACCEPTABLE_CODES:
+        LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
+        return rhead.geturl()  # type: ignore
+    raise ValueError(f"cannot reach URL: {url}")

@@ -7,13 +7,14 @@ import logging
 import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import nullcontext
 from itertools import islice
-from typing import Any, Iterator, List, Optional, Tuple
+from typing import Any
+from collections.abc import Iterator
 
 from .core import check_url
 from .sampling import _make_sample
 from .urlstore import UrlStore
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -77,12 +78,12 @@ def parse_args(args: Any) -> Any:
 
 
 def _cli_check_urls(
-    urls: List[str],
+    urls: list[str],
     strict: bool = False,
     with_redirects: bool = False,
-    language: Optional[str] = None,
+    language: str | None = None,
     with_nav: bool = False,
-) -> List[Tuple[bool, str]]:
+) -> list[tuple[bool, str]]:
     "Internal function to be used with CLI multiprocessing."
     results = []
     for url in urls:
@@ -100,9 +101,9 @@ def _cli_check_urls(
     return results
 
 
-def _batch_lines(inputfile: str) -> Iterator[List[str]]:
+def _batch_lines(inputfile: str) -> Iterator[list[str]]:
     "Read input line in batches"
-    with open(inputfile, "r", encoding="utf-8", errors="ignore") as inputfh:
+    with open(inputfile, encoding="utf-8", errors="ignore") as inputfh:
         while True:
             batch = [line.strip() for line in islice(inputfh, 10**5)]
             if not batch:
@@ -135,15 +136,21 @@ def _cli_sample(args: Any) -> None:
 
 def _cli_process(args: Any) -> None:
     "Read input file bit by bit and process URLs in batches."
-    with ProcessPoolExecutor(max_workers=args.parallel) as executor, open(
-        args.outputfile, "w", encoding="utf-8"
-    ) as outputfh, open(
-        args.inputfile, "r", encoding="utf-8", errors="ignore"
-    ) as inputfh:
+    discard_cm = (
+        open(args.discardedfile, "w", encoding="utf-8")
+        if args.discardedfile is not None
+        else nullcontext()
+    )
+    with (
+        ProcessPoolExecutor(max_workers=args.parallel) as executor,
+        open(args.outputfile, "w", encoding="utf-8") as outputfh,
+        open(args.inputfile, encoding="utf-8", errors="ignore") as inputfh,
+        discard_cm as discardfh,
+    ):
         while True:
-            batches = []  # type: List[List[str]]
+            batches: list[list[str]] = []
             while len(batches) < 1000:
-                line_batch = list(islice(inputfh, 1000))
+                line_batch = [line.strip() for line in islice(inputfh, 1000)]
                 if not line_batch:
                     break
                 batches.append(line_batch)
@@ -166,12 +173,8 @@ def _cli_process(args: Any) -> None:
                 for valid, url in future.result():
                     if valid:
                         outputfh.write(url + "\n")
-                    # proceed with discarded URLs. to be rewritten
-                    elif args.discardedfile is not None:
-                        with open(
-                            args.discardedfile, "a", encoding="utf-8"
-                        ) as discardfh:
-                            discardfh.write(url)
+                    elif discardfh is not None:
+                        discardfh.write(url + "\n")
 
 
 def process_args(args: Any) -> None:

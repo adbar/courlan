@@ -17,13 +17,14 @@ A special thanks to the [contributors](https://github.com/adbar/courlan/graphs/c
 
 ## Testing and evaluating the code
 
-Here is how you can run the tests and code quality checks. Pull requests will only be accepted if the changes are tested and if they there are no errors.
+Courlan requires Python 3.10 or higher. Here is how you can run the tests and code quality checks. Pull requests will only be accepted if the changes are tested and if there are no errors.
 
-1. Install the necessary packages with `pip install courlan[dev]`
+1. Install the package along with its development dependencies from a checkout: `pip install -e ".[dev]"`
 2. Run the tests and code quality tools:
    - Tests with `pytest`
-   - Type checking with `mypy` on the directory: `mypy courlan/`
-   - Code formatting with `black` on the directory as well
+   - Linting with `flake8 .`
+   - Type checking with `mypy -p courlan`
+   - Code formatting with `black courlan`
 
 
 For further questions you can use [GitHub issues](https://github.com/adbar/courlan/issues) or [E-Mail](https://adrien.barbaresi.eu/).

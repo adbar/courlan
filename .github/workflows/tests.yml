@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ master ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
 
@@ -33,29 +37,18 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: pyproject.toml
 
     - name: Upgrade pip
       run: python -m pip install --upgrade pip
-
-    - name: Get pip cache dir
-      id: pip-cache
-      shell: bash
-      run: |
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-
-    - name: pip cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ steps.pip-cache.outputs.dir }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: python -m pip install --upgrade -e ".[dev]"
 
     # tests
     - name: Lint with flake8
+      if: ${{ matrix.python-version == '3.13' }}
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -75,7 +68,7 @@ jobs:
     # coverage
     - name: Upload coverage to Codecov
       if: ${{ matrix.python-version == '3.13' }}
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:

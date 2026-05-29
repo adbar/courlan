@@ -5,13 +5,11 @@ Functions performing URL trimming and cleaning
 import logging
 import re
 
-from typing import Optional, Union
 from urllib.parse import parse_qs, quote, urlencode, urlunsplit, SplitResult
 
 from .filters import is_valid_url
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
 from .urlutils import _parse
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +27,7 @@ PATH1 = re.compile(r"/+")
 PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
 
 # scrub
+CONTROL_CHARS = "".join(map(chr, range(0x20)))
 REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\s]')
@@ -45,7 +44,7 @@ TRACKERS_RE = re.compile(
 )
 
 
-def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
+def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
         return normalize_url(scrub_url(url), False, language)
@@ -57,10 +56,7 @@ def scrub_url(url: str) -> str:
     "Strip unnecessary parts and make sure only one URL is considered"
     # remove leading/trailing space and unescaped control chars
     # strip space in input string
-    url = "".join(url.split()).strip(
-        "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
-    )
+    url = "".join(url.split()).strip(CONTROL_CHARS)
 
     # <![CDATA[http://...]]>
     if url.startswith("<![CDATA["):
@@ -104,7 +100,7 @@ def scrub_url(url: str) -> str:
 
 
 def clean_query(
-    querystring: str, strict: bool = False, language: Optional[str] = None
+    querystring: str, strict: bool = False, language: str | None = None
 ) -> str:
     "Strip unwanted query elements"
     if not querystring:
@@ -160,7 +156,7 @@ def normalize_part(url_part: str) -> str:
     return quote(url_part, safe="/%!=:,-")
 
 
-def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
+def normalize_fragment(fragment: str, language: str | None = None) -> str:
     "Look for trackers in URL fragments using query analysis, normalize the output."
     if "=" in fragment:
         if "&" in fragment:
@@ -171,9 +167,9 @@ def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
 
 
 def normalize_url(
-    parsed_url: Union[SplitResult, str],
+    parsed_url: SplitResult | str,
     strict: bool = False,
-    language: Optional[str] = None,
+    language: str | None = None,
     trailing_slash: bool = True,
 ) -> str:
     "Takes a URL string or a parsed URL and returns a normalized URL string"
@@ -181,17 +177,18 @@ def normalize_url(
     # lowercase + remove fragments + normalize punycode
     scheme = parsed_url.scheme.lower()
     netloc = decode_punycode(parsed_url.netloc.lower())
-    # port
+    # port: strip only the scheme's default port (80 for http, 443 for https)
     try:
-        if parsed_url.port in (80, 443):
-            netloc = NETLOC_RE.sub("", netloc)
+        port = parsed_url.port
     except ValueError:
-        pass  # Port could not be cast to integer value
+        port = None  # port could not be cast to integer value
+    if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
+        netloc = NETLOC_RE.sub("", netloc)
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
     newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
     # strip unwanted query elements
-    newquery = clean_query(parsed_url.query, strict, language) or ""
+    newquery = clean_query(parsed_url.query, strict, language)
     if newquery and not newpath:
         newpath = "/"
     elif (

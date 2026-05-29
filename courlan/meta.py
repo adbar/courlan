@@ -2,9 +2,19 @@
 Meta-functions to be applied module-wide.
 """
 
-from urllib.parse import clear_cache as urllib_clear_cache  # type: ignore[attr-defined]
+import logging
 
 from .filters import langcodes_score
+
+LOGGER = logging.getLogger(__name__)
+
+try:
+    from urllib.parse import clear_cache as urllib_clear_cache  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover
+
+    def urllib_clear_cache() -> None:
+        "Fallback when urllib.parse.clear_cache is unavailable."
+        LOGGER.warning("urllib.parse.clear_cache is unavailable, skipping")
 
 
 def clear_caches() -> None:
