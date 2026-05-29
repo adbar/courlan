@@ -12,6 +12,7 @@ import uuid
 
 from datetime import datetime
 from time import sleep
+from urllib.robotparser import RobotFileParser
 
 import pytest
 
@@ -38,10 +39,12 @@ def test_compressor_zlib(monkeypatch):
 
 @pytest.fixture
 def robots_rules():
-    "Return an unpickled RobotFileParser instance for sitemaps.org."
-    return pickle.loads(
-        b"\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub."
-    )
+    "Return a RobotFileParser with an allow-all ruleset for sitemaps.org."
+    rules = RobotFileParser()
+    rules.set_url("https://sitemaps.org/robots.txt")
+    # empty/allow-all robots.txt; parse() also sets last_checked
+    rules.parse(["User-agent: *", "Disallow:"])
+    return rules
 
 
 def _example_dataset():
