@@ -24,12 +24,12 @@ except ImportError:
 
 
 from collections import defaultdict, deque
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from enum import Enum
 from operator import itemgetter
 from threading import Lock
 from typing import Any
-from collections.abc import Callable
 
 from urllib.robotparser import RobotFileParser
 

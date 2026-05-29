@@ -74,7 +74,7 @@ def parse_args(args: Any) -> Any:
     group3.add_argument(
         "--exclude-min", help="exclude domains with less than n URLs", type=int
     )
-    return argsparser.parse_args()
+    return argsparser.parse_args(args)
 
 
 def _cli_check_urls(

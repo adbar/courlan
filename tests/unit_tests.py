@@ -810,7 +810,7 @@ def test_urlutils():
     result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
     newresult = _parse(result)
-    assert isinstance(result, SplitResult)
+    assert isinstance(newresult, SplitResult)
     with pytest.raises(TypeError):
         result = _parse(1.23)
 
@@ -1095,7 +1095,7 @@ def test_cli():
         "2",
     ]
     with patch.object(sys, "argv", testargs):
-        args = cli.parse_args(testargs)
+        args = cli.parse_args(testargs[1:])
     assert args.inputfile == "input.txt"
     assert args.discardedfile == "discardedfile.txt"
     assert args.outputfile == "output.txt"
@@ -1147,14 +1147,14 @@ def test_cli():
         ]
         f = io.StringIO()
         with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs)
+            args = cli.parse_args(testargs[1:])
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0
 
         testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample", "10"]
         with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs)
+            args = cli.parse_args(testargs[1:])
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0
@@ -1191,7 +1191,7 @@ def test_cli_discardedfile():
     _, discardfile = tempfile.mkstemp(suffix=".txt", text=True)
     testargs = ["", "-i", inputfile, "-o", outputfile, "-d", discardfile, "-p", "1"]
     with patch.object(sys, "argv", testargs):
-        args = cli.parse_args(testargs)
+        args = cli.parse_args(testargs[1:])
     cli._cli_process(args)
     with open(discardfile, encoding="utf-8") as f:
         discarded = [line for line in f.read().splitlines() if line]
