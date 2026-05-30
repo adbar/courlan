@@ -5,11 +5,10 @@ Implements a basic command-line interface.
 import argparse
 import logging
 import sys
-
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from contextlib import nullcontext
-from itertools import islice
 from collections.abc import Iterator, Sequence
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import ExitStack
+from itertools import islice
 
 from .core import check_url
 from .sampling import _make_sample
@@ -135,17 +134,18 @@ def _cli_sample(args: argparse.Namespace) -> None:
 
 def _cli_process(args: argparse.Namespace) -> None:
     "Read input file bit by bit and process URLs in batches."
-    discard_cm = (
-        open(args.discardedfile, "w", encoding="utf-8")
-        if args.discardedfile is not None
-        else nullcontext()
-    )
-    with (
-        ProcessPoolExecutor(max_workers=args.parallel) as executor,
-        open(args.outputfile, "w", encoding="utf-8") as outputfh,
-        open(args.inputfile, encoding="utf-8", errors="ignore") as inputfh,
-        discard_cm as discardfh,
-    ):
+    with ExitStack() as stack:
+        # open the input first so the outputs are not truncated if it is unreadable
+        inputfh = stack.enter_context(
+            open(args.inputfile, encoding="utf-8", errors="ignore")
+        )
+        executor = stack.enter_context(ProcessPoolExecutor(max_workers=args.parallel))
+        outputfh = stack.enter_context(open(args.outputfile, "w", encoding="utf-8"))
+        discardfh = (
+            stack.enter_context(open(args.discardedfile, "w", encoding="utf-8"))
+            if args.discardedfile is not None
+            else None
+        )
         while True:
             batches: list[list[str]] = []
             while len(batches) < 1000:

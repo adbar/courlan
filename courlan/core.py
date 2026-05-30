@@ -5,7 +5,6 @@ Core functions needed to make the module work.
 # import locale
 import logging
 import re
-
 from urllib.robotparser import RobotFileParser
 
 from .clean import normalize_url, scrub_url
@@ -24,8 +23,8 @@ from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import (
     extract_domain,
-    get_base_url,
     fix_relative_urls,
+    get_base_url,
     is_external,
     is_known_link,
 )
@@ -58,7 +57,7 @@ def check_url(
         A tuple consisting of canonical URL and extracted domain
 
     Raises:
-        ValueError, handled in exception.
+        Nothing: invalid URLs are caught internally and None is returned.
     """
 
     # first sanity check
@@ -162,7 +161,7 @@ def extract_links(
         A set containing filtered HTTP links checked for sanity and consistency.
 
     Raises:
-        Nothing.
+        ValueError: if the deprecated 'base_url' argument is provided.
     """
     if base_url:
         raise ValueError("'base_url' is deprecated, use 'url' instead.")

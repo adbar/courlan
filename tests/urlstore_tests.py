@@ -8,8 +8,8 @@ import pickle
 import signal
 import sys
 import tempfile
+import threading
 import uuid
-
 from datetime import datetime
 from time import sleep
 from urllib.robotparser import RobotFileParser
@@ -17,7 +17,7 @@ from urllib.robotparser import RobotFileParser
 import pytest
 
 from courlan import UrlStore
-from courlan.urlstore import Compressor, State, load_store, HAS_BZ2, HAS_ZLIB
+from courlan.urlstore import HAS_BZ2, HAS_ZLIB, Compressor, State, load_store
 
 
 def test_compressor():
@@ -478,7 +478,7 @@ def test_from_html(robots_rules):
 def test_persistance():
     "Test writing and loading to/from disk."
     url_store = UrlStore(
-        compressed=True, language="de", strict=True, trailing=True, verbose=True
+        compressed=True, language="de", strict=True, trailing_slash=True, verbose=True
     )
     example_urls = [f"https://www.example.org/{str(a)}" for a in range(100)]
     test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(100)]
@@ -503,3 +503,19 @@ def test_persistance():
     urls = set(new_store.dump_urls())
     assert new_store.total_url_number() == len(urls) == 200
     assert "https://www.example.org/99" in urls
+
+
+def test_urlstore_thread_construction():
+    "Constructing a verbose UrlStore off the main thread must not crash on signal setup."
+    errors: list[Exception] = []
+
+    def build() -> None:
+        try:
+            UrlStore(verbose=True)
+        except Exception as exc:  # pragma: no cover
+            errors.append(exc)
+
+    thread = threading.Thread(target=build)
+    thread.start()
+    thread.join()
+    assert not errors

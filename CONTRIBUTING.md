@@ -22,9 +22,9 @@ Courlan requires Python 3.10 or higher. Here is how you can run the tests and co
 1. Install the package along with its development dependencies from a checkout: `pip install -e ".[dev]"`
 2. Run the tests and code quality tools:
    - Tests with `pytest`
-   - Linting with `flake8 .`
+   - Linting and import sorting with `ruff check courlan tests`
+   - Code formatting with `ruff format courlan tests`
    - Type checking with `mypy -p courlan`
-   - Code formatting with `black courlan`
 
 
 For further questions you can use [GitHub issues](https://github.com/adbar/courlan/issues) or [E-Mail](https://adrien.barbaresi.eu/).

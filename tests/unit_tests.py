@@ -8,33 +8,32 @@ import os
 import subprocess
 import sys
 import tempfile
-
 from contextlib import redirect_stdout
 from unittest.mock import MagicMock, patch
 from urllib.parse import SplitResult, urlsplit
 
 import pytest
 
-from courlan import cli
 from courlan import (
-    clean_url,
-    normalize_url,
-    scrub_url,
     check_url,
-    is_external,
-    sample_urls,
-    validate_url,
-    is_valid_url,
-    extract_links,
+    clean_url,
+    cli,
     extract_domain,
+    extract_links,
     filter_urls,
     fix_relative_urls,
     get_base_url,
     get_host_and_path,
     get_hostinfo,
+    is_external,
     is_navigation_page,
     is_not_crawlable,
+    is_valid_url,
     lang_filter,
+    normalize_url,
+    sample_urls,
+    scrub_url,
+    validate_url,
 )
 from courlan.core import filter_links
 from courlan.filters import (
@@ -858,6 +857,10 @@ def test_urlutils():
     assert is_known_link("http://test.org", known_links) is True
     assert is_known_link("http://test.org/", known_links) is True
     assert is_known_link("https://test.org/", known_links) is True
+    # protocol variant: known as http, queried as https (and the reverse)
+    assert is_known_link("https://test.org/1", {"http://test.org/1"}) is True
+    assert is_known_link("http://test.org/1", {"https://test.org/1"}) is True
+    assert is_known_link("https://test.org/1", {"http://test.org/1/"}) is True
     # filter URLs
     # unique and sorted URLs
     myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]

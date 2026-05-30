@@ -52,7 +52,7 @@ def redirection_test(url: str) -> str:
         The final URL seen.
 
     Raises:
-        Nothing.
+        ValueError: if the URL cannot be reached or returns an unacceptable status.
     """
     # headers.update({
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent

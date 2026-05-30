@@ -4,7 +4,7 @@
 [![Python package](https://img.shields.io/pypi/v/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Python versions](https://img.shields.io/pypi/pyversions/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Code Coverage](https://img.shields.io/codecov/c/github/adbar/courlan.svg)](https://codecov.io/gh/adbar/courlan)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 
 ## Why coURLan?
@@ -60,19 +60,20 @@ CC BY 2.0).
 
 ## Installation
 
-This package is compatible with with all common versions of Python, it
-is tested on Linux, macOS and Windows systems.
+This package requires Python 3.10 or higher and is tested on Linux, macOS
+and Windows systems.
 
 Courlan is available on the package repository [PyPI](https://pypi.org/)
 and can notably be installed with the Python package manager `pip`:
 
 ``` bash
-$ pip install courlan # pip3 install on systems where both Python 2 and 3 are installed
+$ pip install courlan
 $ pip install --upgrade courlan # to make sure you have the latest version
 $ pip install git+https://github.com/adbar/courlan.git # latest available code (see build status above)
 ```
 
 The last version to support Python 3.6 and 3.7 is `courlan==1.2.0`.
+The last version to support Python 3.8 and 3.9 is `courlan==1.3.2`.
 
 
 ## Python

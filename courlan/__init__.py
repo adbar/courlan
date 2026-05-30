@@ -12,7 +12,7 @@ __version__ = "1.3.2"
 
 # imports
 from .clean import clean_url, normalize_url, scrub_url
-from .core import check_url, extract_links
+from .core import check_url, extract_links, filter_links
 from .filters import (
     is_navigation_page,
     is_not_crawlable,
@@ -38,6 +38,7 @@ __all__ = [
     "scrub_url",
     "check_url",
     "extract_links",
+    "filter_links",
     "is_navigation_page",
     "is_not_crawlable",
     "is_valid_url",

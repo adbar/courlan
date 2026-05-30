@@ -4,10 +4,9 @@ Bundles functions needed to target text content and validate the input.
 
 import logging
 import re
-
 from functools import lru_cache
 from ipaddress import ip_address
-from urllib.parse import urlsplit, SplitResult
+from urllib.parse import SplitResult, urlsplit
 
 from babel import Locale, UnknownLocaleError
 
