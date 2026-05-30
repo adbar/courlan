@@ -7,7 +7,6 @@ import os
 import pickle
 import signal
 import sys
-import tempfile
 import threading
 import uuid
 from datetime import datetime
@@ -50,7 +49,7 @@ def robots_rules():
 def _example_dataset():
     "Build a large set of example and (random) test URLs for store tests."
     example_domain = "https://www.example.org"
-    example_urls = [f"{example_domain}/{str(a)}" for a in range(10000)]
+    example_urls = [f"{example_domain}/{a}" for a in range(10000)]
     test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(10000)]
     return example_domain, example_urls, test_urls
 
@@ -76,7 +75,7 @@ def test_urlstore_basics():
     num, _, _ = gc.get_count()
     my_urls.reset()
     num2, _, _ = gc.get_count()
-    assert len(my_urls.urldict) == 0
+    assert not my_urls.urldict
     assert num2 < num
 
     candidates = [
@@ -223,12 +222,12 @@ def test_urlstore():
     my_urls.urldict["https://visited.com"].state = State.ALL_VISITED
 
     # test extension
-    extension_urls = [f"{example_domain}/1/{str(a)}" for a in range(10)]
+    extension_urls = [f"{example_domain}/1/{a}" for a in range(10)]
     my_urls.add_urls(extension_urls)
     assert len(my_urls._load_urls(example_domain)) == len(example_urls) + 10
     # test extension + deduplication
     my_urls.trailing_slash = False
-    extension_urls = [f"{example_domain}/1/{str(a)}/" for a in range(11)]
+    extension_urls = [f"{example_domain}/1/{a}/" for a in range(11)]
     my_urls.add_urls(appendleft=extension_urls)
     url_tuples = my_urls._load_urls(example_domain)
     assert len(url_tuples) == len(example_urls) + 11
@@ -358,7 +357,7 @@ def test_urlstore():
         and test_urls.urldict["https://test.org"].count == 1
     )
     downloadable_urls = test_urls.get_download_urls()
-    assert len(downloadable_urls) == 0
+    assert not downloadable_urls
 
     other_store = UrlStore()
     downloadable_urls = other_store.get_download_urls()
@@ -475,26 +474,22 @@ def test_from_html(robots_rules):
     assert not url_store.find_known_urls(base_url)
 
 
-def test_persistance():
+def test_persistance(tmp_path):
     "Test writing and loading to/from disk."
     url_store = UrlStore(
         compressed=True, language="de", strict=True, trailing_slash=True, verbose=True
     )
-    example_urls = [f"https://www.example.org/{str(a)}" for a in range(100)]
+    example_urls = [f"https://www.example.org/{a}" for a in range(100)]
     test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(100)]
     url_store.add_urls(example_urls + test_urls)
 
-    _, tmp = tempfile.mkstemp()
+    tmp = str(tmp_path / "urlstore.pickle")
     url_store.write(tmp)
     # the original store must stay usable after write()
     # (regression: write() used to delete self._lock, breaking later calls)
     url_store.add_urls(["https://www.example.org/after-write"])
     assert url_store.is_known("https://www.example.org/after-write")
     new_store = load_store(tmp)
-    try:
-        os.remove(tmp)
-    except PermissionError:
-        pass  # Windows
 
     assert new_store.compressed is True
     assert new_store.language == "de"
@@ -519,3 +514,22 @@ def test_urlstore_thread_construction():
     thread.start()
     thread.join()
     assert not errors
+
+
+def test_urlstore_open_but_all_visited():
+    "An OPEN domain whose URLs are all visited yields nothing and self-corrects its state."
+    store = UrlStore()
+    store.add_urls(["https://example.org/1"])
+    entry = store.urldict["https://example.org"]
+    entry.tuples[0].visited = True  # mark the only URL as visited
+    entry.state = State.OPEN  # but leave the domain marked OPEN
+    # get_download_urls -> get_url finds nothing, returns None, and fixes the state
+    assert store.get_download_urls() == []
+    assert entry.state == State.ALL_VISITED
+
+
+def test_urlstore_store_non_http_domain():
+    "_store_urls tolerates a domain without an http(s) scheme (defensive fall-through)."
+    store = UrlStore()
+    store._store_urls("ftp://example.org")
+    assert "ftp://example.org" in store.urldict
