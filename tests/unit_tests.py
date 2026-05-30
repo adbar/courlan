@@ -45,6 +45,7 @@ from courlan.filters import (
     type_filter,
 )
 from courlan.meta import clear_caches
+from courlan.network import redirection_test
 from courlan.urlutils import _parse, is_known_link
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -774,6 +775,25 @@ def test_urlcheck_redirects():
         # transport failure: redirection_test raises ValueError, check_url returns None
         mock_request.side_effect = Exception("unreachable")
         assert check_url("https://www.ht.or", with_redirects=True) is None
+
+
+def test_redirection(httpserver):
+    "Test redirection_test against a real local HTTP server (no external network)."
+    httpserver.expect_request("/redirect", method="HEAD").respond_with_data(
+        "", status=302, headers={"Location": httpserver.url_for("/final")}
+    )
+    httpserver.expect_request("/final", method="HEAD").respond_with_data("", status=200)
+    httpserver.expect_request("/missing", method="HEAD").respond_with_data(
+        "", status=404
+    )
+
+    # the redirect is actually followed by urllib3 to the final URL
+    assert redirection_test(httpserver.url_for("/redirect")) == httpserver.url_for(
+        "/final"
+    )
+    # an unacceptable status code raises
+    with pytest.raises(ValueError):
+        redirection_test(httpserver.url_for("/missing"))
 
 
 def test_urlutils():

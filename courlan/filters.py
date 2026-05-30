@@ -259,8 +259,7 @@ def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
         return False, None
 
     if len(parsed_url.netloc) < 5 or (
-        parsed_url.netloc.startswith("www.")  # type: ignore
-        and len(parsed_url.netloc) < 8
+        parsed_url.netloc.startswith("www.") and len(parsed_url.netloc) < 8
     ):
         return False, None
 

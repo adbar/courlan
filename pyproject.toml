@@ -78,7 +78,7 @@ dev = [
     "mypy==2.1.0",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
-    "types-urllib3==1.26.25.14",
+    "pytest-httpserver==1.1.5",
 ]
 
 [tool.pytest.ini_options]

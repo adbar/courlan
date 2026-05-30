@@ -91,7 +91,7 @@ class DomainEntry:
         self.count: int = 0
         self.rules: RobotFileParser | None = None
         self.state: State = state
-        self.timestamp: Any | None = None
+        self.timestamp: datetime | None = None
         self.total: int = 0
         self.tuples: deque[UrlPathTuple] = deque()
 
@@ -262,9 +262,7 @@ class UrlStore:
                 if self.done:
                     self.done = False
 
-    def _search_urls(
-        self, urls: list[str], switch: int | None = None
-    ) -> list[Any | str]:
+    def _search_urls(self, urls: list[str], switch: int | None = None) -> list[str]:
         # init
         last_domain: str | None = None
         known_paths: dict[str, bool | None] = {}
@@ -380,7 +378,7 @@ class UrlStore:
         "Take a list of URLs and return the currently unknown ones."
         return self._search_urls(urls, switch=1)
 
-    def filter_unvisited_urls(self, urls: list[str]) -> list[Any | str]:
+    def filter_unvisited_urls(self, urls: list[str]) -> list[str]:
         "Take a list of URLs and return the currently unvisited ones."
         return self._search_urls(urls, switch=2)
 
@@ -570,4 +568,4 @@ def load_store(filename: str) -> UrlStore:
     "Load a URL store from disk."
     with open(filename, "rb") as output:
         url_store = pickle.load(output)
-    return url_store  # type: ignore[no-any-return]
+    return url_store

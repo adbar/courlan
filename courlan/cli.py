@@ -9,8 +9,7 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
 from itertools import islice
-from typing import Any
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 from .core import check_url
 from .sampling import _make_sample
@@ -19,7 +18,7 @@ from .urlstore import UrlStore
 LOGGER = logging.getLogger(__name__)
 
 
-def parse_args(args: Any) -> Any:
+def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
     """Define parser for command-line arguments"""
     argsparser = argparse.ArgumentParser(
         description="Command-line interface for Courlan"
@@ -111,7 +110,7 @@ def _batch_lines(inputfile: str) -> Iterator[list[str]]:
             yield batch
 
 
-def _cli_sample(args: Any) -> None:
+def _cli_sample(args: argparse.Namespace) -> None:
     "Sample URLs on the CLI."
     if args.verbose:
         LOGGER.setLevel(logging.DEBUG)
@@ -134,7 +133,7 @@ def _cli_sample(args: Any) -> None:
             outputfh.write(url + "\n")
 
 
-def _cli_process(args: Any) -> None:
+def _cli_process(args: argparse.Namespace) -> None:
     "Read input file bit by bit and process URLs in batches."
     discard_cm = (
         open(args.discardedfile, "w", encoding="utf-8")
@@ -177,7 +176,7 @@ def _cli_process(args: Any) -> None:
                         discardfh.write(url + "\n")
 
 
-def process_args(args: Any) -> None:
+def process_args(args: argparse.Namespace) -> None:
     """Start processing according to the arguments"""
     if args.sample:
         _cli_sample(args)
