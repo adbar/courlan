@@ -12,6 +12,7 @@ import uuid
 
 from datetime import datetime
 from time import sleep
+from urllib.robotparser import RobotFileParser
 
 import pytest
 
@@ -29,10 +30,33 @@ def test_compressor():
         assert comp.decompress(comp.compress(data)) == data
 
 
-def test_urlstore():
-    "Test all functionality related to the class."
+def test_compressor_zlib(monkeypatch):
+    "Test the zlib compression fallback when bz2 is unavailable."
+    monkeypatch.setattr("courlan.urlstore.HAS_BZ2", False)
+    comp = Compressor(compression=True)
+    assert comp.decompress(comp.compress(1234)) == 1234
 
-    # sanity checks
+
+@pytest.fixture
+def robots_rules():
+    "Return a RobotFileParser with an allow-all ruleset for sitemaps.org."
+    rules = RobotFileParser()
+    rules.set_url("https://sitemaps.org/robots.txt")
+    # empty/allow-all robots.txt; parse() also sets last_checked
+    rules.parse(["User-agent: *", "Disallow:"])
+    return rules
+
+
+def _example_dataset():
+    "Build a large set of example and (random) test URLs for store tests."
+    example_domain = "https://www.example.org"
+    example_urls = [f"{example_domain}/{str(a)}" for a in range(10000)]
+    test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(10000)]
+    return example_domain, example_urls, test_urls
+
+
+def test_urlstore_basics():
+    "Test basic addition and reset of the URL store."
     my_urls = UrlStore()
     candidates = [
         "123",
@@ -65,17 +89,19 @@ def test_urlstore():
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
 
-    # rules
-    rules = pickle.loads(
-        b"\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub."
-    )
-    my_urls.store_rules("https://example.org", rules)
+
+def test_urlstore_rules(robots_rules):
+    "Test storage and retrieval of crawling rules."
+    my_urls = UrlStore()
+    my_urls.add_urls(["https://example.org/", "https://example.org/1"])
+
+    my_urls.store_rules("https://example.org", robots_rules)
     assert my_urls.get_rules("http://test.org") is None
     assert my_urls.urldict["https://example.org"].rules is not None
     assert (
         my_urls.get_rules("https://example.org")
         == my_urls.urldict["https://example.org"].rules
-        == rules
+        == robots_rules
     )
     assert my_urls.get_crawl_delay("http://test.org", default=2) == 2
     assert my_urls.get_crawl_delay("https://example.org") == 5
@@ -84,13 +110,15 @@ def test_urlstore():
     my_urls.urldict["https://example.org"].rules = None
 
     my_urls.compressed = True
-    my_urls.store_rules("https://example.org", rules)
+    my_urls.store_rules("https://example.org", robots_rules)
     assert my_urls.urldict["https://example.org"].rules is not None
     # no identity check since different location after compression
-    assert my_urls.get_rules("https://example.org").mtime() == rules.mtime()
+    assert my_urls.get_rules("https://example.org").mtime() == robots_rules.mtime()
     my_urls.compressed = False
 
-    # filters
+
+def test_urlstore_filters():
+    "Test language and strictness filters applied on insertion."
     my_urls = UrlStore(language="en", strict=True)
     candidates = [
         "https://de.wikipedia.org/",
@@ -109,10 +137,10 @@ def test_urlstore():
     my_urls._set_done()
     assert my_urls.done
 
-    # try example URLs
-    example_domain = "https://www.example.org"
-    example_urls = [f"{example_domain}/{str(a)}" for a in range(10000)]
-    test_urls = [f"https://test.org/{str(uuid.uuid4())[:20]}" for _ in range(10000)]
+
+def test_urlstore_compression():
+    "Test that compression reduces the in-memory footprint."
+    example_domain, example_urls, test_urls = _example_dataset()
     urls = example_urls + test_urls
 
     # test loading
@@ -124,8 +152,6 @@ def test_urlstore():
     url_buffer = UrlStore()._buffer_urls(example_urls)
     my_urls.add_urls(example_urls)
     assert my_urls.total_url_number() == len(example_urls)
-    # necessary to pickle
-    my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
     assert my_urls.is_known(f"{example_domain}/100") is True
     # compression 2
@@ -133,11 +159,14 @@ def test_urlstore():
     url_buffer = UrlStore()._buffer_urls(test_urls)
     my_urls.add_urls(test_urls)
     assert my_urls.total_url_number() == len(test_urls)
-    # necessary to pickle
-    my_urls._lock = None
     assert len(pickle.dumps(my_urls)) < len(pickle.dumps(url_buffer))
 
-    # test discard
+
+def test_urlstore_discard():
+    "Test discarding domains and pruning the store."
+    _, example_urls, test_urls = _example_dataset()
+    urls = example_urls + test_urls
+
     my_urls = UrlStore()
     my_urls.add_urls(urls)
     ref_num_domains = my_urls.get_known_domains()
@@ -159,6 +188,12 @@ def test_urlstore():
         and my_urls.get_unvisited_domains() == ["https://www.other.org"]
         and my_urls.done is False
     )
+
+
+def test_urlstore():
+    "Test crawl-oriented retrieval and scheduling on the URL store."
+    example_domain, example_urls, test_urls = _example_dataset()
+    urls = example_urls + test_urls
 
     my_urls = UrlStore()
     my_urls.add_urls(urls)
@@ -396,7 +431,7 @@ def test_dbdump(capsys):
         assert captured.out.strip().endswith("https://www.test.org/2")
 
 
-def test_from_html():
+def test_from_html(robots_rules):
     "Test link extraction procedures."
     url_store = UrlStore()
     url_store.trailing_slash = False
@@ -404,10 +439,7 @@ def test_from_html():
     htmlstring = '<html><body><a href="https://example.com/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
     # 1 internal link in total
     url_store.add_from_html(htmlstring, base_url)
-    rules = pickle.loads(
-        b"\x80\x03curllib.robotparser\nRobotFileParser\nq\x00)\x81q\x01}q\x02(X\x07\x00\x00\x00entriesq\x03]q\x04X\r\x00\x00\x00default_entryq\x05NX\x0c\x00\x00\x00disallow_allq\x06\x89X\t\x00\x00\x00allow_allq\x07\x89X\x03\x00\x00\x00urlq\x08X\x1f\x00\x00\x00https://sitemaps.org/robots.txtq\tX\x04\x00\x00\x00hostq\nX\x0c\x00\x00\x00sitemaps.orgq\x0bX\x04\x00\x00\x00pathq\x0cX\x0b\x00\x00\x00/robots.txtq\rX\x0c\x00\x00\x00last_checkedq\x0eGA\xd8\x87\xf5\xdc\xab\xd5\x00ub."
-    )
-    url_store.store_rules("https://example.org", rules)
+    url_store.store_rules("https://example.org", robots_rules)
     assert len(url_store.find_known_urls(base_url)) == 1
     assert len(url_store.find_unvisited_urls(base_url)) == 1
     # same with content already seen
@@ -454,6 +486,10 @@ def test_persistance():
 
     _, tmp = tempfile.mkstemp()
     url_store.write(tmp)
+    # the original store must stay usable after write()
+    # (regression: write() used to delete self._lock, breaking later calls)
+    url_store.add_urls(["https://www.example.org/after-write"])
+    assert url_store.is_known("https://www.example.org/after-write")
     new_store = load_store(tmp)
     try:
         os.remove(tmp)

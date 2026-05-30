@@ -7,11 +7,9 @@ import re
 
 from functools import lru_cache
 from ipaddress import ip_address
-from typing import Any, Optional, Tuple
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, SplitResult
 
 from babel import Locale, UnknownLocaleError
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -146,7 +144,7 @@ def basic_filter(url: str) -> bool:
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
     # IPv4 or IPv6
-    if not set(domain).difference(IP_SET):
+    if set(domain) <= IP_SET:
         try:
             ip_address(domain)
         except ValueError:
@@ -192,7 +190,7 @@ def langcodes_score(language: str, segment: str, score: int) -> int:
 
 def lang_filter(
     url: str,
-    language: Optional[str] = None,
+    language: str | None = None,
     strict: bool = False,
     trailing_slash: bool = True,
 ) -> bool:
@@ -250,7 +248,7 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
     return True
 
 
-def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
+def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     "Parse and validate the input."
     try:
         parsed_url = urlsplit(url)
@@ -261,15 +259,14 @@ def validate_url(url: Optional[str]) -> Tuple[bool, Any]:
         return False, None
 
     if len(parsed_url.netloc) < 5 or (
-        parsed_url.netloc.startswith("www.")  # type: ignore
-        and len(parsed_url.netloc) < 8
+        parsed_url.netloc.startswith("www.") and len(parsed_url.netloc) < 8
     ):
         return False, None
 
     return True, parsed_url
 
 
-def is_valid_url(url: Optional[str]) -> bool:
+def is_valid_url(url: str | None) -> bool:
     "Determine if a given string is a valid URL."
     return validate_url(url)[0]
 

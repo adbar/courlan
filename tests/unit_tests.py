@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 from contextlib import redirect_stdout
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.parse import SplitResult, urlsplit
 
 import pytest
@@ -45,8 +45,8 @@ from courlan.filters import (
     type_filter,
 )
 from courlan.meta import clear_caches
+from courlan.network import redirection_test
 from courlan.urlutils import _parse, is_known_link
-
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 RESOURCES_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
@@ -173,6 +173,8 @@ def test_scrub():
         == "https://www.dwds.de/garbled"
     )
     assert scrub_url("https://g__https://www.dwds.de/") == "https://www.dwds.de"
+    # double URL where neither candidate is valid: left untouched
+    assert scrub_url("https://g__https://h__") == "https://g__https://h__"
     # exception for archive URLs
     assert (
         scrub_url("https://web.archive.org/web/20131021165347/https://www.imdb.com/")
@@ -210,33 +212,25 @@ def test_scrub():
 
 
 def test_extension_filter():
-    validation_test, parsed_url = validate_url("http://www.example.org/test.js")
+    _, parsed_url = validate_url("http://www.example.org/test.js")
     assert extension_filter(parsed_url.path) is False
-    validation_test, parsed_url = validate_url(
-        "http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett"
-    )
+    _, parsed_url = validate_url("http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett")
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url(
+    _, parsed_url = validate_url(
         "https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp"
     )
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url("http://www.example.org/test.shtml")
+    _, parsed_url = validate_url("http://www.example.org/test.shtml")
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url(
-        "http://de.artsdot.com/ADC/Art.nsf/O/8EWETN"
-    )
+    _, parsed_url = validate_url("http://de.artsdot.com/ADC/Art.nsf/O/8EWETN")
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url(
-        "http://de.artsdot.com/ADC/Art.nsf?param1=test"
-    )
+    _, parsed_url = validate_url("http://de.artsdot.com/ADC/Art.nsf?param1=test")
     assert extension_filter(parsed_url.path) is False
-    validation_test, parsed_url = validate_url(
-        "http://www.example.org/test.xhtml?param1=this"
-    )
+    _, parsed_url = validate_url("http://www.example.org/test.xhtml?param1=this")
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url("http://www.example.org/test.php5")
+    _, parsed_url = validate_url("http://www.example.org/test.php5")
     assert extension_filter(parsed_url.path) is True
-    validation_test, parsed_url = validate_url("http://www.example.org/test.php6")
+    _, parsed_url = validate_url("http://www.example.org/test.php6")
     assert extension_filter(parsed_url.path) is True
 
 
@@ -579,8 +573,9 @@ def test_qelems():
         == "http://test.net/foo.html?itemid=10&lang=en&page=2"
     )
     with pytest.raises(ValueError):
-        assert normalize_url("http://test.net/foo.html?page=2&lang=en", language="de")
-        assert normalize_url(
+        normalize_url("http://test.net/foo.html?page=2&lang=en", language="de")
+    with pytest.raises(ValueError):
+        normalize_url(
             "http://www.evolanguage.de/index.php?page=deutschkurse_fuer_aerzte&amp;language=ES",
             language="de",
         )
@@ -604,7 +599,9 @@ def test_urlcheck():
     assert check_url("http://twitter.com/", strict=True) is None
     assert check_url("http://twitter.com/", strict=False) is not None
 
-    # recheck type and spam filters
+
+def test_urlcheck_type_and_spam():
+    "Recheck type and spam filters through check_url."
     assert check_url("http://example.org/wp-json/oembed/") is None
     assert check_url("http://livecams.com/", strict=False) == (
         "http://livecams.com",
@@ -619,7 +616,10 @@ def test_urlcheck():
         )
         is not None
     )
-    # language and internationalization
+
+
+def test_urlcheck_language():
+    "Test language and internationalization handling in check_url."
     assert check_url("http://example.com/test.html?lang=en", language="de") is None
     assert check_url("http://example.com/test.html?lang=en", language=None) is not None
     assert check_url("http://example.com/test.html?lang=en", language="en") is not None
@@ -697,7 +697,9 @@ def test_urlcheck():
     )
     # assert check_url('http://www.immobilienscout24.de/de/ueberuns/presseservice/pressestimmen/2_halbjahr_2000.jsp;jsessionid=287EC625A45BD5A243352DD8C86D25CC.worker2', language='de', strict=True) is not None
 
-    # domain name
+
+def test_urlcheck_domain():
+    "Test domain and host name validation through check_url."
     assert check_url("http://-100x100.webp") is None
     assert check_url("http://0.gravata.html") is None
     assert check_url("http://https:") is None
@@ -709,7 +711,9 @@ def test_urlcheck():
     assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
     assert check_url("http://1:2:3:4:5:6:7:8:9") is None
 
-    # port
+
+def test_urlcheck_port():
+    "Test port handling through check_url."
     assert check_url("http://example.com:80") is not None
     assert check_url("http://example.com:80:80") is None
 
@@ -749,13 +753,47 @@ def test_domain_filter():
 
 
 def test_urlcheck_redirects():
-    "Test redirection checks."
-    assert check_url("https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org", with_redirects=True) == (
-        "http://example.org",
-        "example.org",
+    "Test redirection checks with a mocked HTTP pool."
+
+    def _fake_head(status, location):
+        "Stand-in for a urllib3 HEAD response."
+        resp = MagicMock()
+        resp.status = status
+        resp.geturl.return_value = location
+        return resp
+
+    with patch("courlan.network.HTTP_POOL.request") as mock_request:
+        # acceptable status code: resolve to the final URL
+        mock_request.return_value = _fake_head(200, "http://example.org")
+        assert check_url(
+            "https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org",
+            with_redirects=True,
+        ) == ("http://example.org", "example.org")
+        # unacceptable status code: rejected
+        mock_request.return_value = _fake_head(404, "https://httpbun.org/status/404")
+        assert check_url("https://httpbun.org/status/404", with_redirects=True) is None
+        # transport failure: redirection_test raises ValueError, check_url returns None
+        mock_request.side_effect = Exception("unreachable")
+        assert check_url("https://www.ht.or", with_redirects=True) is None
+
+
+def test_redirection(httpserver):
+    "Test redirection_test against a real local HTTP server (no external network)."
+    httpserver.expect_request("/redirect", method="HEAD").respond_with_data(
+        "", status=302, headers={"Location": httpserver.url_for("/final")}
     )
-    assert check_url("https://httpbun.org/status/404", with_redirects=True) is None
-    assert check_url("https://www.ht.or", with_redirects=True) is None
+    httpserver.expect_request("/final", method="HEAD").respond_with_data("", status=200)
+    httpserver.expect_request("/missing", method="HEAD").respond_with_data(
+        "", status=404
+    )
+
+    # the redirect is actually followed by urllib3 to the final URL
+    assert redirection_test(httpserver.url_for("/redirect")) == httpserver.url_for(
+        "/final"
+    )
+    # an unacceptable status code raises
+    with pytest.raises(ValueError):
+        redirection_test(httpserver.url_for("/missing"))
 
 
 def test_urlutils():
@@ -786,11 +824,13 @@ def test_urlutils():
     )
     assert extract_domain("http://example.com?query=one", fast=True) == "example.com"
     assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
+    # fast-path match yields an empty domain -> falls back to the slow path
+    assert extract_domain("http://exam.p@", fast=True) is None
     # url parsing
     result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
     newresult = _parse(result)
-    assert isinstance(result, SplitResult)
+    assert isinstance(newresult, SplitResult)
     with pytest.raises(TypeError):
         result = _parse(1.23)
 
@@ -925,7 +965,10 @@ def test_extraction():
         )
         == 2
     )
-    # navigation
+
+
+def test_extraction_navigation():
+    "Test link extraction for navigation and CMS edge cases."
     pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
     links = extract_links(
         pagecontent, "https://httpbun.org", external_bool=False, with_nav=True
@@ -1036,7 +1079,9 @@ def test_extraction():
         "https://test.com/page/2",
     ]
 
-    # link filtering
+
+def test_filter_links():
+    "Test the filter_links helper."
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
 
@@ -1070,7 +1115,7 @@ def test_cli():
         "2",
     ]
     with patch.object(sys, "argv", testargs):
-        args = cli.parse_args(testargs)
+        args = cli.parse_args(testargs[1:])
     assert args.inputfile == "input.txt"
     assert args.discardedfile == "discardedfile.txt"
     assert args.outputfile == "output.txt"
@@ -1122,14 +1167,14 @@ def test_cli():
         ]
         f = io.StringIO()
         with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs)
+            args = cli.parse_args(testargs[1:])
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0
 
         testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample", "10"]
         with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs)
+            args = cli.parse_args(testargs[1:])
         with redirect_stdout(f):
             cli.process_args(args)
         assert len(f.getvalue()) == 0
@@ -1142,6 +1187,40 @@ def test_cli():
         os.remove(temp_outputfile)
     except PermissionError:
         print("couldn't delete temp file")
+
+
+def test_cli_main():
+    """test the main() entry point"""
+    inputfile = os.path.join(RESOURCES_DIR, "input.txt")
+    _, temp_outputfile = tempfile.mkstemp(suffix=".txt", text=True)
+    testargs = ["", "-i", inputfile, "-o", temp_outputfile, "--sample", "10"]
+    with patch.object(sys, "argv", testargs):
+        cli.main()
+    try:
+        os.remove(temp_outputfile)
+    except (PermissionError, FileNotFoundError):
+        pass
+
+
+def test_cli_discardedfile():
+    """discarded URLs are written newline-separated to the discard file"""
+    _, inputfile = tempfile.mkstemp(suffix=".txt", text=True)
+    with open(inputfile, "w", encoding="utf-8") as f:
+        f.write("https://example.org/valid\nhttp://ab\nnot-a-url\n")
+    _, outputfile = tempfile.mkstemp(suffix=".txt", text=True)
+    _, discardfile = tempfile.mkstemp(suffix=".txt", text=True)
+    testargs = ["", "-i", inputfile, "-o", outputfile, "-d", discardfile, "-p", "1"]
+    with patch.object(sys, "argv", testargs):
+        args = cli.parse_args(testargs[1:])
+    cli._cli_process(args)
+    with open(discardfile, encoding="utf-8") as f:
+        discarded = [line for line in f.read().splitlines() if line]
+    assert "http://ab" in discarded and "not-a-url" in discarded
+    for path in (inputfile, outputfile, discardfile):
+        try:
+            os.remove(path)
+        except (PermissionError, FileNotFoundError):
+            pass
 
 
 def test_sample():
@@ -1188,7 +1267,8 @@ def test_examples():
     assert check_url(
         "https://httpbun.org/redirect-to?url=http%3A%2F%2Fexample.org", strict=True
     ) == ("https://httpbun.org/redirect-to", "httpbun.org")
-    assert clean_url("HTTPS://WWW.DWDS.DE:80/") == "https://www.dwds.de"
+    # non-default port for the scheme is preserved (:80 on https)
+    assert clean_url("HTTPS://WWW.DWDS.DE:80/") == "https://www.dwds.de:80"
     assert validate_url("http://1234") == (False, None)
     assert validate_url("http://www.example.org/")[0] is True
     assert (
@@ -1205,15 +1285,14 @@ def test_meta():
     _ = langcodes_score("en", "en_HK", 0)
     _ = _parse("https://example.net/123/abc")
 
+    # urlsplit is only an lru_cache wrapper on some Python versions
+    has_urlsplit_cache = hasattr(urlsplit, "cache_info")
     assert langcodes_score.cache_info().currsize > 0
-    try:
-        urlsplit_lrucache = True
+    if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize > 0
-    except AttributeError:  # newer Python versions only
-        urlsplit_lrucache = False
 
     clear_caches()
 
     assert langcodes_score.cache_info().currsize == 0
-    if urlsplit_lrucache:
+    if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0

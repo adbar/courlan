@@ -6,7 +6,6 @@ import logging
 
 # from functools import cmp_to_key
 from random import sample
-from typing import List, Optional
 
 from .urlstore import UrlStore
 
@@ -16,9 +15,9 @@ LOGGER = logging.getLogger(__name__)
 def _make_sample(
     urlstore: UrlStore,
     samplesize: int,
-    exclude_min: Optional[int],
-    exclude_max: Optional[int],
-) -> List[str]:
+    exclude_min: int | None,
+    exclude_max: int | None,
+) -> list[str]:
     "Iterate through the hosts in store and draw samples."
     output_urls = []
     for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
@@ -53,13 +52,13 @@ def _make_sample(
 
 
 def sample_urls(
-    input_urls: List[str],
+    input_urls: list[str],
     samplesize: int,
-    exclude_min: Optional[int] = None,
-    exclude_max: Optional[int] = None,
+    exclude_min: int | None = None,
+    exclude_max: int | None = None,
     strict: bool = False,
     verbose: bool = False,
-) -> List[str]:
+) -> list[str]:
     """Sample a list of URLs by domain name, optionally using constraints on their number"""
     # logging
     if verbose:

@@ -5,11 +5,9 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 
 from html import unescape
-from typing import Any, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
 
 from tld import get_tld
-
 
 DOMAIN_REGEX = re.compile(
     r"(?:(?:f|ht)tp)s?://"  # protocols
@@ -24,9 +22,7 @@ CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
-def get_tldinfo(
-    url: str, fast: bool = False
-) -> Union[Tuple[None, None], Tuple[str, str]]:
+def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
     """Cached function to extract top-level domain info"""
     if not url or not isinstance(url, str):
         return None, None
@@ -47,8 +43,8 @@ def get_tldinfo(
 
 
 def extract_domain(
-    url: str, blacklist: Optional[Set[str]] = None, fast: bool = False
-) -> Optional[str]:
+    url: str, blacklist: set[str] | None = None, fast: bool = False
+) -> str | None:
     """Extract domain name information using top-level domain info"""
     if blacklist is None:
         blacklist = set()
@@ -62,7 +58,7 @@ def extract_domain(
     )
 
 
-def _parse(url: Any) -> SplitResult:
+def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
         parsed_url = urlsplit(unescape(url))
@@ -73,7 +69,7 @@ def _parse(url: Any) -> SplitResult:
     return parsed_url
 
 
-def get_base_url(url: Any) -> str:
+def get_base_url(url: str | SplitResult) -> str:
     """Strip URL of some of its parts to get base URL.
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
@@ -84,7 +80,7 @@ def get_base_url(url: Any) -> str:
     return scheme + parsed_url.netloc
 
 
-def get_host_and_path(url: Any) -> Tuple[str, str]:
+def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
     """Decompose URL in two parts: protocol + host/domain and path.
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
@@ -100,7 +96,7 @@ def get_host_and_path(url: Any) -> Tuple[str, str]:
     return hostname, pathval
 
 
-def get_hostinfo(url: str) -> Tuple[Optional[str], str]:
+def get_hostinfo(url: str) -> tuple[str | None, str]:
     "Convenience function returning domain and host info (protocol + host/domain) from a URL."
     domainname = extract_domain(url, fast=True)
     base_url = get_base_url(url)
@@ -123,7 +119,7 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     return urljoin(baseurl, url)
 
 
-def filter_urls(link_list: List[str], urlfilter: Optional[str]) -> List[str]:
+def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
     "Return a list of links corresponding to the given substring pattern."
     if urlfilter is None:
         return sorted(set(link_list))
@@ -146,7 +142,7 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     return domain != ref
 
 
-def is_known_link(link: str, known_links: Set[str]) -> bool:
+def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     # check exact link
     if link in known_links:
