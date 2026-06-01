@@ -30,7 +30,6 @@ from enum import Enum
 from operator import itemgetter
 from threading import Lock
 from typing import Any
-
 from urllib.robotparser import RobotFileParser
 
 from .clean import normalize_url
@@ -128,14 +127,14 @@ class UrlStore:
         compressed: bool = False,
         language: str | None = None,
         strict: bool = False,
-        trailing: bool = True,
+        trailing_slash: bool = True,
         verbose: bool = False,
     ) -> None:
         self.compressed: bool = compressed
         self.done: bool = False
         self.language: str | None = language
         self.strict: bool = strict
-        self.trailing_slash: bool = trailing
+        self.trailing_slash: bool = trailing_slash
         self.urldict: defaultdict[str, DomainEntry] = defaultdict(DomainEntry)
         self._lock: Lock = Lock()
 
@@ -149,8 +148,12 @@ class UrlStore:
 
         # don't use the following on Windows
         if verbose and not sys.platform.startswith("win"):
-            signal.signal(signal.SIGINT, dump_unvisited_urls)
-            signal.signal(signal.SIGTERM, dump_unvisited_urls)
+            try:
+                signal.signal(signal.SIGINT, dump_unvisited_urls)
+                signal.signal(signal.SIGTERM, dump_unvisited_urls)
+            except ValueError:
+                # signal handlers can only be registered in the main thread
+                LOGGER.warning("Cannot set signal handlers outside the main thread")
 
     def __getstate__(self) -> dict[str, Any]:
         "Return the picklable state, excluding the unpicklable lock."

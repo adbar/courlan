@@ -1,6 +1,18 @@
 ## History / Changelog
 
 
+### 1.4.0
+
+- **Breaking change**: `UrlStore()` parameter `trailing` renamed to `trailing_slash`, for consistency with `check_url()`, `normalize_url()` and `extract_links()`
+- drop support for Python 3.8 and 3.9: Python 3.10 or higher is now required (the last version to support 3.8/3.9 is `courlan==1.3.2`)
+- `filter_links()` and `load_store()` are now exported at the top level (e.g. `from courlan import filter_links`)
+- fix `is_known_link()`: http/https protocol variants of a link are now recognized again
+- `redirection_test()`: more robust error handling, support for urllib3 1.26+ and 2.x
+- more robust `FIND_LINKS_REGEX` expression (#130)
+- robustness: `UrlStore(verbose=True)` no longer fails when created outside the main thread, harden CLI file handling
+- maintenance: code hardening, modernized type hints and more tests (#131); switch linting and formatting to `ruff`; update CI pipeline and contributing guidelines (#124, #125, #127)
+
+
 ### 1.3.2
 
 - `UrlStore.get_download_urls()`: `timelimit` removed, fix type hints (#119, 19c580e)

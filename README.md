@@ -4,7 +4,7 @@
 [![Python package](https://img.shields.io/pypi/v/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Python versions](https://img.shields.io/pypi/pyversions/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Code Coverage](https://img.shields.io/codecov/c/github/adbar/courlan.svg)](https://codecov.io/gh/adbar/courlan)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 
 ## Why coURLan?
@@ -60,19 +60,20 @@ CC BY 2.0).
 
 ## Installation
 
-This package is compatible with with all common versions of Python, it
-is tested on Linux, macOS and Windows systems.
+This package requires Python 3.10 or higher and is tested on Linux, macOS
+and Windows systems.
 
 Courlan is available on the package repository [PyPI](https://pypi.org/)
 and can notably be installed with the Python package manager `pip`:
 
 ``` bash
-$ pip install courlan # pip3 install on systems where both Python 2 and 3 are installed
+$ pip install courlan
 $ pip install --upgrade courlan # to make sure you have the latest version
 $ pip install git+https://github.com/adbar/courlan.git # latest available code (see build status above)
 ```
 
 The last version to support Python 3.6 and 3.7 is `courlan==1.2.0`.
+The last version to support Python 3.8 and 3.9 is `courlan==1.3.2`.
 
 
 ## Python
@@ -168,8 +169,19 @@ Link extraction and preprocessing:
 # other options: external_bool, no_filter, language, strict, redirects, ...
 ```
 
-The `filter_links()` function provides additional filters for crawling purposes:
-use of robots.txt rules and link priorization. See `courlan.core` for details.
+The `filter_links()` function provides additional filters for crawling
+purposes: use of robots.txt rules and link prioritization. It returns two
+lists: regular links and priority (navigation) links.
+
+``` python
+>>> from courlan import filter_links
+>>> doc = '<html><body><a href="page1.html">1</a><a href="/tag/listing">Tag</a></body></html>'
+>>> links, links_priority = filter_links(doc, "https://example.org")
+>>> links
+['https://example.org/page1.html']
+>>> links_priority
+['https://example.org/tag/listing']
+```
 
 Determine if a link leads to another host:
 
@@ -238,7 +250,7 @@ Helper function, scrub and normalize:
 
 ``` python
 >>> from courlan import clean_url
->>> clean_url('HTTPS://WWW.DWDS.DE:80/')
+>>> clean_url('HTTPS://WWW.DWDS.DE:443/')
 'https://www.dwds.de'
 ```
 
@@ -290,7 +302,7 @@ the path `/path/testpage` within the domain `https://example.org`. It
 features the following methods:
 
 - URL management
-   - `add_urls(urls=[], appendleft=None, visited=False)`: Add a
+   - `add_urls(urls=None, appendleft=None, visited=False)`: Add a
      list of URLs to the (possibly) existing one. Optional:
      append certain URLs to the left, specify if the URLs have
      already been visited.
@@ -311,16 +323,15 @@ features the following methods:
    - `find_known_urls(domain)`: Get all already known URLs for the
      given domain (ex. `https://example.org`).
    - `find_unvisited_urls(domain)`: Get all unvisited URLs for the given domain.
-   - `get_unvisited_domains()`: Return all domains which have not been all visited.
    - `reset()`: Re-initialize the URL store.
 
 - Crawling and downloads
    - `get_url(domain)`: Retrieve a single URL and consider it to
      be visited (with corresponding timestamp).
    - `get_rules(domain)`: Return the stored crawling rules for the given website.
-   - `store_rules(website, rules=None)`: Store crawling rules for a given website.
+   - `store_rules(website, rules)`: Store crawling rules for a given website.
    - `get_crawl_delay()`: Return the delay as extracted from robots.txt, or a given default.
-   - `get_download_urls(max_urls=100, time_limit=10)`: Get a list of immediately
+   - `get_download_urls(time_limit=10, max_urls=10000)`: Get a list of immediately
      downloadable URLs according to the given time limit per domain.
    - `establish_download_schedule(max_urls=100, time_limit=10)`:
      Get up to the specified number of URLs along with a suitable

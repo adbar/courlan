@@ -73,8 +73,7 @@ courlan = "courlan.cli:main"
 # Development extras
 [project.optional-dependencies]
 dev = [
-    "black==26.5.1",
-    "flake8==7.3.0",
+    "ruff==0.15.15",
     "mypy==2.1.0",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
@@ -84,16 +83,24 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = "tests/*test*.py"
 
-[tool.black]
-target-version = ["py310"]
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+# ruff defaults (E4, E7, E9, F) plus import sorting (I),
+# pyupgrade (UP) and bugbear (B)
+extend-select = ["I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.10"
 ignore_missing_imports = true
 pretty = true
+warn_unused_ignores = true
+warn_redundant_casts = true
 
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]
+branch = true
 source = ["courlan"]
 omit = ["tests/*", "setup.py"]
 

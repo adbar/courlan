@@ -9,7 +9,7 @@ from .filters import langcodes_score
 LOGGER = logging.getLogger(__name__)
 
 try:
-    from urllib.parse import clear_cache as urllib_clear_cache  # type: ignore[attr-defined]
+    from urllib.parse import clear_cache as urllib_clear_cache  # type: ignore
 except ImportError:  # pragma: no cover
 
     def urllib_clear_cache() -> None:

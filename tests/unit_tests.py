@@ -7,34 +7,32 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
-
 from contextlib import redirect_stdout
 from unittest.mock import MagicMock, patch
 from urllib.parse import SplitResult, urlsplit
 
 import pytest
 
-from courlan import cli
 from courlan import (
-    clean_url,
-    normalize_url,
-    scrub_url,
     check_url,
-    is_external,
-    sample_urls,
-    validate_url,
-    is_valid_url,
-    extract_links,
+    clean_url,
+    cli,
     extract_domain,
+    extract_links,
     filter_urls,
     fix_relative_urls,
     get_base_url,
     get_host_and_path,
     get_hostinfo,
+    is_external,
     is_navigation_page,
     is_not_crawlable,
+    is_valid_url,
     lang_filter,
+    normalize_url,
+    sample_urls,
+    scrub_url,
+    validate_url,
 )
 from courlan.core import filter_links
 from courlan.filters import (
@@ -858,6 +856,12 @@ def test_urlutils():
     assert is_known_link("http://test.org", known_links) is True
     assert is_known_link("http://test.org/", known_links) is True
     assert is_known_link("https://test.org/", known_links) is True
+    # protocol variant: known as http, queried as https (and the reverse)
+    assert is_known_link("https://test.org/1", {"http://test.org/1"}) is True
+    assert is_known_link("http://test.org/1", {"https://test.org/1"}) is True
+    assert is_known_link("https://test.org/1", {"http://test.org/1/"}) is True
+    # an empty link must not raise and is never "known"
+    assert is_known_link("", known_links) is False
     # filter URLs
     # unique and sorted URLs
     myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]
@@ -904,24 +908,28 @@ def test_extraction():
     """test link comparison in HTML"""
     with pytest.raises(ValueError):
         extract_links(None, base_url="https://test.com/", external_bool=False)
-    assert len(extract_links(None, url="https://test.com/", external_bool=False)) == 0
-    assert len(extract_links("", "https://test.com/", False)) == 0
+    assert not extract_links(None, url="https://test.com/", external_bool=False)
+    assert not extract_links("", "https://test.com/", False)
+    # anchor tags matched by the regex but without an href yield no candidate
+    pagecontent = '<html><a class="logo">home</a><a name="x">y</a></html>'
+    assert not extract_links(pagecontent, "https://test.com/", False)
+    # hreflang matches the target language but the tag has no href
+    pagecontent = '<html><a hreflang="de-DE">no href</a></html>'
+    assert not extract_links(pagecontent, "https://test.com/", False, language="de")
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
     assert len(extract_links(pagecontent, "https://test.org", False)) == 1
     # nofollow
     pagecontent = '<html><a href="https://test.com/example" rel="nofollow ugc"/></html>'
-    assert len(extract_links(pagecontent, "https://test.com/", False)) == 0
+    assert not extract_links(pagecontent, "https://test.com/", False)
     # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
-    assert len(extract_links(pagecontent, "https://test.com/", True)) == 0
+    assert not extract_links(pagecontent, "https://test.com/", True)
     assert (
         len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
     )
-    assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="en")) == 0
-    )
+    assert not extract_links(pagecontent, "https://test.com/", False, language="en")
     pagecontent = "<html><a href=https://test.com/example hreflang=de-DE/></html>"
     assert (
         len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
@@ -1046,10 +1054,8 @@ def test_extraction_navigation():
     pagecontent = (
         '<html><a href="{privacy}" target="_privacy">{privacy-link}</a></html>'
     )
-    assert (
-        len(extract_links(pagecontent, "https://test.com/", external_bool=False)) == 0
-    )
-    assert len(extract_links(pagecontent, "https://test.com/", external_bool=True)) == 0
+    assert not extract_links(pagecontent, "https://test.com/", external_bool=False)
+    assert not extract_links(pagecontent, "https://test.com/", external_bool=True)
     # links without quotes
     pagecontent = "<html><a href=/link>Link</a></html>"
     assert extract_links(pagecontent, "https://test.com/", external_bool=False) == {
@@ -1098,24 +1104,43 @@ def test_filter_links():
     assert len(links) == 1 and not links_priority
 
 
-def test_cli():
+def test_filter_links_with_rules():
+    "filter_links drops robots.txt-disallowed links and honors the external flag."
+    from urllib.robotparser import RobotFileParser
+
+    rules = RobotFileParser()
+    rules.parse(["User-agent: *", "Disallow: /private/"])
+    htmlstring = (
+        "<html><body>"
+        '<a href="https://example.org/public/page">pub</a>'
+        '<a href="https://example.org/private/secret">priv</a>'
+        "</body></html>"
+    )
+    links, _ = filter_links(htmlstring, url="https://example.org", rules=rules)
+    assert links == ["https://example.org/public/page"]
+
+    # external flag: keep only links leading to another host (or only internal ones)
+    htmlstring = (
+        '<html><body><a href="https://other.org/x">ext</a>'
+        '<a href="https://example.org/y">int</a></body></html>'
+    )
+    external, _ = filter_links(htmlstring, url="https://example.org", external=True)
+    internal, _ = filter_links(htmlstring, url="https://example.org", external=False)
+    assert external == ["https://other.org/x"]
+    assert internal == ["https://example.org/y"]
+
+
+def test_cli(tmp_path):
     """test the command-line interface"""
     testargs = [
-        "",
-        "-i",
-        "input.txt",
-        "-d",
-        "discardedfile.txt",
-        "--outputfile",
-        "output.txt",
+        "-i", "input.txt",
+        "-d", "discardedfile.txt",
+        "--outputfile", "output.txt",
         "-v",
-        "--language",
-        "en",
-        "--parallel",
-        "2",
-    ]
-    with patch.object(sys, "argv", testargs):
-        args = cli.parse_args(testargs[1:])
+        "--language", "en",
+        "--parallel", "2",
+    ]  # fmt: skip
+    args = cli.parse_args(testargs)
     assert args.inputfile == "input.txt"
     assert args.discardedfile == "discardedfile.txt"
     assert args.outputfile == "output.txt"
@@ -1132,9 +1157,9 @@ def test_cli():
 
     # testfile
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")
-    os_handle, temp_outputfile = tempfile.mkstemp(suffix=".txt", text=True)
+    outputfile = str(tmp_path / "output.txt")
     env = os.environ.copy()
-    # Force encoding to utf-8 for Windows (seem to be a problem only in GitHub Actions)
+    # Force encoding to utf-8 for Windows (seems to be a problem only in GitHub Actions)
     if os.name == "nt":
         env["PYTHONIOENCODING"] = "utf-8"
         courlan_bin = os.path.join(sys.prefix, "Scripts", "courlan")
@@ -1143,84 +1168,75 @@ def test_cli():
     # test for Windows and the rest
     assert (
         subprocess.run(
-            [courlan_bin, "-i", inputfile, "-o", temp_outputfile, "-p", "1"], env=env
+            [courlan_bin, "-i", inputfile, "-o", outputfile, "-p", "1"], env=env
         ).returncode
         == 0
     )
 
     # tests without Windows
     if os.name != "nt":
-        # dry runs (writes to /tmp/)
-        testargs = [
-            "",
-            "-i",
-            inputfile,
-            "-d",
-            "/tmp/tralala1.txt",
-            "-o",
-            temp_outputfile,
-            "--language",
-            "en",
-            "--strict",
-            "-p",
-            "1",
-        ]
         f = io.StringIO()
-        with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs[1:])
+        # dry run with processing
+        testargs = [
+            "-i", inputfile,
+            "-d", str(tmp_path / "discarded.txt"),
+            "-o", outputfile,
+            "--language", "en",
+            "--strict",
+            "-p", "1",
+        ]  # fmt: skip
         with redirect_stdout(f):
-            cli.process_args(args)
-        assert len(f.getvalue()) == 0
+            cli.process_args(cli.parse_args(testargs))
+        assert not f.getvalue()
 
-        testargs = ["", "-i", inputfile, "-o", "/tmp/tralala.txt", "--sample", "10"]
-        with patch.object(sys, "argv", testargs):
-            args = cli.parse_args(testargs[1:])
+        # dry run with sampling
+        testargs = ["-i", inputfile, "-o", str(tmp_path / "sample.txt"), "--sample", "10"]  # fmt: skip
+        args = cli.parse_args(testargs)
         with redirect_stdout(f):
             cli.process_args(args)
-        assert len(f.getvalue()) == 0
+        assert not f.getvalue()
         args.verbose = True
         with redirect_stdout(f):
             cli.process_args(args)
-        assert len(f.getvalue()) == 0
-    # delete temporary output file
-    try:
-        os.remove(temp_outputfile)
-    except PermissionError:
-        print("couldn't delete temp file")
+        assert not f.getvalue()
 
 
-def test_cli_main():
+def test_cli_main(tmp_path):
     """test the main() entry point"""
     inputfile = os.path.join(RESOURCES_DIR, "input.txt")
-    _, temp_outputfile = tempfile.mkstemp(suffix=".txt", text=True)
-    testargs = ["", "-i", inputfile, "-o", temp_outputfile, "--sample", "10"]
+    outputfile = str(tmp_path / "output.txt")
+    testargs = ["", "-i", inputfile, "-o", outputfile, "--sample", "10"]
     with patch.object(sys, "argv", testargs):
         cli.main()
-    try:
-        os.remove(temp_outputfile)
-    except (PermissionError, FileNotFoundError):
-        pass
 
 
-def test_cli_discardedfile():
+def test_cli_discardedfile(tmp_path):
     """discarded URLs are written newline-separated to the discard file"""
-    _, inputfile = tempfile.mkstemp(suffix=".txt", text=True)
-    with open(inputfile, "w", encoding="utf-8") as f:
-        f.write("https://example.org/valid\nhttp://ab\nnot-a-url\n")
-    _, outputfile = tempfile.mkstemp(suffix=".txt", text=True)
-    _, discardfile = tempfile.mkstemp(suffix=".txt", text=True)
-    testargs = ["", "-i", inputfile, "-o", outputfile, "-d", discardfile, "-p", "1"]
-    with patch.object(sys, "argv", testargs):
-        args = cli.parse_args(testargs[1:])
-    cli._cli_process(args)
-    with open(discardfile, encoding="utf-8") as f:
-        discarded = [line for line in f.read().splitlines() if line]
+    inputfile = tmp_path / "input.txt"
+    inputfile.write_text("https://example.org/valid\nhttp://ab\nnot-a-url\n")
+    outputfile = tmp_path / "output.txt"
+    discardfile = tmp_path / "discarded.txt"
+    testargs = [
+        "-i", str(inputfile),
+        "-o", str(outputfile),
+        "-d", str(discardfile),
+        "-p", "1",
+    ]  # fmt: skip
+    cli._cli_process(cli.parse_args(testargs))
+    discarded = discardfile.read_text().splitlines()
     assert "http://ab" in discarded and "not-a-url" in discarded
-    for path in (inputfile, outputfile, discardfile):
-        try:
-            os.remove(path)
-        except (PermissionError, FileNotFoundError):
-            pass
+
+
+def test_cli_no_discardfile(tmp_path):
+    """invalid URLs are dropped silently when no discard file is given"""
+    inputfile = tmp_path / "input.txt"
+    inputfile.write_text("https://example.org/valid\nnot-a-url\n")
+    outputfile = tmp_path / "output.txt"
+    testargs = ["-i", str(inputfile), "-o", str(outputfile), "-p", "1"]
+    args = cli.parse_args(testargs)
+    assert args.discardedfile is None
+    cli._cli_process(args)
+    assert outputfile.read_text().splitlines() == ["https://example.org/valid"]
 
 
 def test_sample():
@@ -1239,9 +1255,9 @@ def test_sample():
     assert not sample_urls(mylist, 1, exclude_min=10, verbose=True)
     assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 1
 
-    test_urls = [f"https://test.org/{str(a)}" for a in range(1000)]
-    example_urls = [f"https://www.example.org/{str(a)}" for a in range(100)]
-    other_urls = [f"https://www.other.org/{str(a)}" for a in range(10000)]
+    test_urls = [f"https://test.org/{a}" for a in range(1000)]
+    example_urls = [f"https://www.example.org/{a}" for a in range(100)]
+    other_urls = [f"https://www.other.org/{a}" for a in range(10000)]
     urls = test_urls + example_urls + other_urls
     sample = sample_urls(urls, 10)
     assert len([u for u in sample if "test.org" in u]) == 10

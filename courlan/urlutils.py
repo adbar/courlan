@@ -3,9 +3,8 @@ Functions related to URL manipulation and extraction of URL parts.
 """
 
 import re
-
 from html import unescape
-from urllib.parse import urljoin, urlsplit, urlunsplit, SplitResult
+from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 from tld import get_tld
 
@@ -124,10 +123,12 @@ def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
     if urlfilter is None:
         return sorted(set(link_list))
     # filter links
-    filtered_list = [l for l in link_list if urlfilter in l]
+    filtered_list = [link for link in link_list if urlfilter in link]
     # feedburner option: filter and wildcards for feeds
     if not filtered_list:
-        filtered_list = [l for l in link_list if FEED_WHITELIST_REGEX.search(l)]
+        filtered_list = [
+            link for link in link_list if FEED_WHITELIST_REGEX.search(link)
+        ]
     return sorted(set(filtered_list))
 
 
@@ -144,6 +145,8 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
 
 def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
+    if not link:
+        return False
     # check exact link
     if link in known_links:
         return True
@@ -156,7 +159,7 @@ def is_known_link(link: str, known_links: set[str]) -> bool:
     # check link and variants with modified protocol
     if link.startswith("http"):
         protocol_test = (
-            "http" + link[:5] if link.startswith("https") else "https" + link[4:]
+            "http" + link[5:] if link.startswith("https") else "https" + link[4:]
         )
         slash_test = (
             protocol_test.rstrip("/")

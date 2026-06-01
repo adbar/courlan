@@ -4,8 +4,7 @@ Functions performing URL trimming and cleaning
 
 import logging
 import re
-
-from urllib.parse import parse_qs, quote, urlencode, urlunsplit, SplitResult
+from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
 
 from .filters import is_valid_url
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
