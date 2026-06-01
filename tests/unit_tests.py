@@ -860,6 +860,8 @@ def test_urlutils():
     assert is_known_link("https://test.org/1", {"http://test.org/1"}) is True
     assert is_known_link("http://test.org/1", {"https://test.org/1"}) is True
     assert is_known_link("https://test.org/1", {"http://test.org/1/"}) is True
+    # an empty link must not raise and is never "known"
+    assert is_known_link("", known_links) is False
     # filter URLs
     # unique and sorted URLs
     myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]
@@ -1100,6 +1102,32 @@ def test_filter_links():
     htmlstring = '<html><body><a href="/subpage1"/><a href="/subpage1/"/><a href="https://test.org/page1"/></body></html>'
     links, links_priority = filter_links(htmlstring, url=url)
     assert len(links) == 1 and not links_priority
+
+
+def test_filter_links_with_rules():
+    "filter_links drops robots.txt-disallowed links and honors the external flag."
+    from urllib.robotparser import RobotFileParser
+
+    rules = RobotFileParser()
+    rules.parse(["User-agent: *", "Disallow: /private/"])
+    htmlstring = (
+        "<html><body>"
+        '<a href="https://example.org/public/page">pub</a>'
+        '<a href="https://example.org/private/secret">priv</a>'
+        "</body></html>"
+    )
+    links, _ = filter_links(htmlstring, url="https://example.org", rules=rules)
+    assert links == ["https://example.org/public/page"]
+
+    # external flag: keep only links leading to another host (or only internal ones)
+    htmlstring = (
+        '<html><body><a href="https://other.org/x">ext</a>'
+        '<a href="https://example.org/y">int</a></body></html>'
+    )
+    external, _ = filter_links(htmlstring, url="https://example.org", external=True)
+    internal, _ = filter_links(htmlstring, url="https://example.org", external=False)
+    assert external == ["https://other.org/x"]
+    assert internal == ["https://example.org/y"]
 
 
 def test_cli(tmp_path):

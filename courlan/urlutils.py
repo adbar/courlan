@@ -145,6 +145,8 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
 
 def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
+    if not link:
+        return False
     # check exact link
     if link in known_links:
         return True

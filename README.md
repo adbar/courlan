@@ -169,8 +169,19 @@ Link extraction and preprocessing:
 # other options: external_bool, no_filter, language, strict, redirects, ...
 ```
 
-The `filter_links()` function provides additional filters for crawling purposes:
-use of robots.txt rules and link priorization. See `courlan.core` for details.
+The `filter_links()` function provides additional filters for crawling
+purposes: use of robots.txt rules and link prioritization. It returns two
+lists: regular links and priority (navigation) links.
+
+``` python
+>>> from courlan import filter_links
+>>> doc = '<html><body><a href="page1.html">1</a><a href="/tag/listing">Tag</a></body></html>'
+>>> links, links_priority = filter_links(doc, "https://example.org")
+>>> links
+['https://example.org/page1.html']
+>>> links_priority
+['https://example.org/tag/listing']
+```
 
 Determine if a link leads to another host:
 
@@ -239,7 +250,7 @@ Helper function, scrub and normalize:
 
 ``` python
 >>> from courlan import clean_url
->>> clean_url('HTTPS://WWW.DWDS.DE:80/')
+>>> clean_url('HTTPS://WWW.DWDS.DE:443/')
 'https://www.dwds.de'
 ```
 
@@ -291,7 +302,7 @@ the path `/path/testpage` within the domain `https://example.org`. It
 features the following methods:
 
 - URL management
-   - `add_urls(urls=[], appendleft=None, visited=False)`: Add a
+   - `add_urls(urls=None, appendleft=None, visited=False)`: Add a
      list of URLs to the (possibly) existing one. Optional:
      append certain URLs to the left, specify if the URLs have
      already been visited.
@@ -312,16 +323,15 @@ features the following methods:
    - `find_known_urls(domain)`: Get all already known URLs for the
      given domain (ex. `https://example.org`).
    - `find_unvisited_urls(domain)`: Get all unvisited URLs for the given domain.
-   - `get_unvisited_domains()`: Return all domains which have not been all visited.
    - `reset()`: Re-initialize the URL store.
 
 - Crawling and downloads
    - `get_url(domain)`: Retrieve a single URL and consider it to
      be visited (with corresponding timestamp).
    - `get_rules(domain)`: Return the stored crawling rules for the given website.
-   - `store_rules(website, rules=None)`: Store crawling rules for a given website.
+   - `store_rules(website, rules)`: Store crawling rules for a given website.
    - `get_crawl_delay()`: Return the delay as extracted from robots.txt, or a given default.
-   - `get_download_urls(max_urls=100, time_limit=10)`: Get a list of immediately
+   - `get_download_urls(time_limit=10, max_urls=10000)`: Get a list of immediately
      downloadable URLs according to the given time limit per domain.
    - `establish_download_schedule(max_urls=100, time_limit=10)`:
      Get up to the specified number of URLs along with a suitable

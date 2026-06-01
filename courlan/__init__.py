@@ -7,7 +7,7 @@ __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
 __license__ = "Apache-2.0"
 __copyright__ = "Copyright 2020-present, Adrien Barbaresi"
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 
 # imports
@@ -21,7 +21,7 @@ from .filters import (
     validate_url,
 )
 from .sampling import sample_urls
-from .urlstore import UrlStore
+from .urlstore import UrlStore, load_store
 from .urlutils import (
     extract_domain,
     filter_urls,
@@ -46,6 +46,7 @@ __all__ = [
     "validate_url",
     "sample_urls",
     "UrlStore",
+    "load_store",
     "extract_domain",
     "filter_urls",
     "fix_relative_urls",

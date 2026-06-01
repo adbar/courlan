@@ -15,8 +15,8 @@ from urllib.robotparser import RobotFileParser
 
 import pytest
 
-from courlan import UrlStore
-from courlan.urlstore import HAS_BZ2, HAS_ZLIB, Compressor, State, load_store
+from courlan import UrlStore, load_store
+from courlan.urlstore import HAS_BZ2, HAS_ZLIB, Compressor, State
 
 
 def test_compressor():
@@ -498,6 +498,18 @@ def test_persistance(tmp_path):
     urls = set(new_store.dump_urls())
     assert new_store.total_url_number() == len(urls) == 200
     assert "https://www.example.org/99" in urls
+
+
+def test_load_store_export(tmp_path):
+    "`load_store` is exposed at the top level of the package and round-trips a store."
+    import courlan
+
+    assert "load_store" in courlan.__all__
+    store = UrlStore()
+    store.add_urls(["https://example.org/1"])
+    path = str(tmp_path / "store.pickle")
+    store.write(path)
+    assert load_store(path).is_known("https://example.org/1")
 
 
 def test_urlstore_thread_construction():

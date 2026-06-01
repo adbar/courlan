@@ -148,7 +148,7 @@ def _cli_process(args: argparse.Namespace) -> None:
         )
         while True:
             batches: list[list[str]] = []
-            while len(batches) < 1000:
+            while len(batches) < 1000:  # pragma: no branch
                 line_batch = [line.strip() for line in islice(inputfh, 1000)]
                 if not line_batch:
                     break
