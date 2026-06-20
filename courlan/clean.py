@@ -46,7 +46,7 @@ TRACKERS_RE = re.compile(
 def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
-        return normalize_url(scrub_url(url), False, language)
+        return normalize_url(scrub_url(url), False, language, False)
     except (AttributeError, ValueError):
         return None
 
@@ -190,12 +190,7 @@ def normalize_url(
     newquery = clean_query(parsed_url.query, strict, language)
     if newquery and not newpath:
         newpath = "/"
-    elif (
-        not trailing_slash
-        and not newquery
-        and len(newpath) > 1
-        and newpath.endswith("/")
-    ):
+    elif not trailing_slash and not newquery and newpath.endswith("/"):
         newpath = newpath.rstrip("/")
     # fragment
     newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)

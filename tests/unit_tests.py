@@ -159,6 +159,19 @@ def test_scrub():
         clean_url("https://example.org:443/file.html?p=100&abc=1#frag")
         == "https://example.org/file.html?abc=1&p=100#frag"
     )
+    # clean_url must be idempotent: stripping every query parameter from a
+    # root path used to leave a trailing slash that a second pass removed,
+    # so the canonical form depended on how many times it was applied.
+    for url in (
+        "http://test.org/?s_cid=123&clickid=1",
+        "http://test.org/?utm_source=&utm_medium=",
+        "http://test.org/#partnerid=123",
+    ):
+        cleaned = clean_url(url)
+        assert cleaned == "http://test.org"
+        assert clean_url(cleaned) == cleaned
+    # a surviving (non-tracker) query still keeps the root slash
+    assert clean_url("http://test.org/?p=1") == "http://test.org/?p=1"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
     assert scrub_url("<![CDATA[https://www.dwds.de]]>") == "https://www.dwds.de"
