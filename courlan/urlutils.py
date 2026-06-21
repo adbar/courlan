@@ -22,7 +22,8 @@ FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
 def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
-    """Cached function to extract top-level domain info"""
+    """Extract domain info, returning a ``(domain, full_domain)`` tuple.
+    With ``fast=True`` a regex shortcut is tried before the ``tld`` library."""
     if not url or not isinstance(url, str):
         return None, None
     if fast:

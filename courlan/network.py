@@ -7,7 +7,8 @@ import logging
 import urllib3
 
 LOGGER = logging.getLogger(__name__)
-urllib3.disable_warnings()
+# only silence the warning triggered by cert_reqs="CERT_NONE" triggers
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 RETRY_STRATEGY = urllib3.util.Retry(

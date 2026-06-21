@@ -142,13 +142,17 @@ def basic_filter(url: str) -> bool:
 
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
+    # no valid FQDN exceeds the DNS length limit
+    if len(domain) > 253:
+        return False
     # IPv4 or IPv6
-    if set(domain) <= IP_SET:
+    if all(c in IP_SET for c in domain):
         try:
             ip_address(domain)
+            return True
         except ValueError:
-            return False
-        return True
+            # hex-only string that is not an IP (e.g. "abc.de") → keep validating
+            pass
 
     # malformed domains
     if not VALID_DOMAIN_PORT.match(domain):
@@ -163,13 +167,13 @@ def domain_filter(domain: str) -> bool:
         return False
 
     # extensions
-    extension_match = EXTENSION_REGEX.search(domain)
+    extension_match = EXTENSION_REGEX.search(domain.lower())
     return not extension_match or extension_match[0] not in WHITELISTED_EXTENSIONS
 
 
 def extension_filter(urlpath: str) -> bool:
     "Filter based on file extension."
-    extension_match = EXTENSION_REGEX.search(urlpath)
+    extension_match = EXTENSION_REGEX.search(urlpath.lower())
     return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
@@ -254,11 +258,16 @@ def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     except ValueError:
         return False, None
 
-    if not parsed_url.scheme or parsed_url.scheme not in PROTOCOLS:
+    if parsed_url.scheme not in PROTOCOLS:
         return False, None
 
-    if len(parsed_url.netloc) < 5 or (
-        parsed_url.netloc.startswith("www.") and len(parsed_url.netloc) < 8
+    # plausibility checks on the network location (case-insensitive for "www.")
+    netloc = parsed_url.netloc
+    if (
+        len(netloc) < 4
+        or (netloc.lower().startswith("www.") and len(netloc) < 8)
+        # reject dotless/colonless hosts (e.g. "1234", "localhost")
+        or ("." not in netloc and ":" not in netloc)
     ):
         return False, None
 

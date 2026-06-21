@@ -110,7 +110,10 @@ class UrlPathTuple:
 
 
 class UrlStore:
-    "Defines a class to store domain-classified URLs and perform checks against it."
+    """Defines a class to store domain-classified URLs and perform checks against it.
+
+    Thread-safety: readers are safe and writers are serialized, but a logical
+    write is not globally atomic — drive mutations from a single writer thread."""
 
     __slots__ = (
         "compressed",
@@ -226,10 +229,11 @@ class UrlStore:
                 domain = candidate
         elif domain.startswith("https://"):
             candidate = "http" + domain[5:]
-            # replace entry
-            if candidate in self.urldict:
-                self.urldict[domain] = self.urldict[candidate]
-                del self.urldict[candidate]
+            # replace entry: check-and-swap must be atomic against other writers
+            with self._lock:
+                if candidate in self.urldict:
+                    self.urldict[domain] = self.urldict[candidate]
+                    del self.urldict[candidate]
 
         # load URLs or create entry
         if domain in self.urldict:

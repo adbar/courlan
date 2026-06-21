@@ -243,6 +243,10 @@ def test_extension_filter():
     assert extension_filter(parsed_url.path) is True
     _, parsed_url = validate_url("http://www.example.org/test.php6")
     assert extension_filter(parsed_url.path) is True
+    # uppercase extensions are treated like their lowercase forms
+    assert extension_filter("/photo.JPG") is False
+    assert extension_filter("/page.HTML") is True
+    assert extension_filter("/index.PHP") is True
 
 
 def test_spam_filter():
@@ -491,6 +495,18 @@ def test_validate():
     assert not is_valid_url("http://www.test[.org/test")
     assert is_valid_url("http://test.org/test")
 
+    # verdict no longer flips on port/userinfo/case; short valid domains accepted
+    assert is_valid_url("http://t.co/")
+    assert is_valid_url("http://t.co:80/")
+    assert is_valid_url("http://user@t.co/")
+    assert is_valid_url("http://g.co/")
+    assert not is_valid_url("http://WWW.a.b/")
+    assert not is_valid_url("http://www.a.b/")
+    # dotless/colonless and too-short hosts stay rejected
+    assert not is_valid_url("http://1234")
+    assert not is_valid_url("http://localhost/")
+    assert not is_valid_url("http://a.b/")
+
 
 def test_normalization():
     assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de/"
@@ -517,6 +533,12 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+
+    # IPv6: default port stripped (was missed by the old \w-lookbehind regex)
+    assert normalize_url("http://[::1]:80/") == "http://[::1]/"
+    assert normalize_url("https://[::1]:443/") == "https://[::1]/"
+    # non-default port preserved
+    assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080/"
 
     # punycode
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
@@ -732,6 +754,7 @@ def test_urlcheck_port():
 def test_domain_filter():
     "Test filters related to domain and hostnames."
     assert domain_filter("") is False
+    assert domain_filter("a" * 254 + ".com") is False  # exceeds DNS length limit
     assert domain_filter("too-long" + "g" * 60 + ".org") is False
     assert domain_filter("long" + "g" * 50 + ".org") is True
     assert domain_filter("example.-com") is False
@@ -752,9 +775,15 @@ def test_domain_filter():
     assert domain_filter("https:") is False
 
     assert domain_filter("127.0.0.1") is True
+    assert domain_filter("::1") is True
     assert domain_filter("900.200.100.75") is False
     assert domain_filter("111.111.111") is False
     assert domain_filter("0127.0.0.1") is False
+
+    # hex-only strings that are not IPs must still be validated as domains
+    assert domain_filter("abc.de") is True
+    assert domain_filter("aced.de") is True
+    assert domain_filter("dead.beef") is True
 
     assert domain_filter("example.jpg") is False
     assert domain_filter("example.html") is False
