@@ -19,7 +19,6 @@ SELECTION = re.compile(
 )
 
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
-NETLOC_RE = re.compile(r"(?<=\w):(?:80|443)")
 
 # path
 PATH1 = re.compile(r"/+")
@@ -182,7 +181,8 @@ def normalize_url(
     except ValueError:
         port = None  # port could not be cast to integer value
     if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
-        netloc = NETLOC_RE.sub("", netloc)
+        # strip the trailing default port (IPv6-safe)
+        netloc = netloc.rsplit(":", 1)[0]
     # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
     newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
