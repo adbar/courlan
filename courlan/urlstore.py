@@ -88,11 +88,11 @@ class DomainEntry:
 
     def __init__(self, state: State = State.OPEN) -> None:
         self.count: int = 0
-        self.rules: RobotFileParser | None = None
+        self.rules: bytes | RobotFileParser | None = None
         self.state: State = state
         self.timestamp: datetime | None = None
         self.total: int = 0
-        self.tuples: deque[UrlPathTuple] = deque()
+        self.tuples: bytes | deque[UrlPathTuple] = deque()
 
 
 class UrlPathTuple:
@@ -203,11 +203,12 @@ class UrlStore:
         return inputdict
 
     def _load_urls(self, domain: str) -> deque[UrlPathTuple]:
-        if domain in self.urldict:
-            if self.compressed:
-                return COMPRESSOR.decompress(self.urldict[domain].tuples)  # type: ignore
-            return self.urldict[domain].tuples
-        return deque()
+        if domain not in self.urldict:
+            return deque()
+        raw = self.urldict[domain].tuples
+        if isinstance(raw, bytes):  # compressed
+            return COMPRESSOR.decompress(raw)
+        return raw
 
     def _set_done(self) -> None:
         if not self.done and all(v.state != State.OPEN for v in self.urldict.values()):
@@ -220,6 +221,7 @@ class UrlStore:
         to_right: deque[UrlPathTuple] | None = None,
         timestamp: datetime | None = None,
         to_left: deque[UrlPathTuple] | None = None,
+        replace: bool = False,
     ) -> None:
         # http/https switch
         if domain.startswith("http://"):
@@ -236,21 +238,24 @@ class UrlStore:
                     del self.urldict[candidate]
 
         # load URLs or create entry
-        if domain in self.urldict:
-            # discard if busted
-            if self.urldict[domain].state is State.BUSTED:
-                return
-            urls = self._load_urls(domain)
-            known = {u.path() for u in urls}
+        if domain in self.urldict and self.urldict[domain].state is State.BUSTED:
+            return
+        if replace and to_right is not None:
+            urls = to_right  # skip dedup: store caller's already-mutated deque
         else:
-            urls = deque()
-            known = set()
+            if domain in self.urldict:
+                urls = self._load_urls(domain)
+                known = {u.path() for u in urls}
+            else:
+                urls = deque()
+                known = set()
 
-        # check if the link or its variants are known
-        if to_right is not None:
-            urls.extend(t for t in to_right if not is_known_link(t.path(), known))
-        if to_left is not None:
-            urls.extendleft(t for t in to_left if not is_known_link(t.path(), known))
+            if to_right is not None:
+                urls.extend(t for t in to_right if not is_known_link(t.path(), known))
+            if to_left is not None:
+                urls.extendleft(
+                    t for t in to_left if not is_known_link(t.path(), known)
+                )
 
         with self._lock:
             if self.compressed:
@@ -414,7 +419,9 @@ class UrlStore:
                         url.visited = True
                         with self._lock:
                             self.urldict[domain].count += 1
-                        self._store_urls(domain, url_tuples, timestamp=datetime.now())
+                        self._store_urls(
+                            domain, url_tuples, timestamp=datetime.now(), replace=True
+                        )
                     return domain + url.path()
         # nothing to draw from
         with self._lock:
@@ -447,7 +454,7 @@ class UrlStore:
 
     def establish_download_schedule(
         self, max_urls: int = 100, time_limit: int = 10
-    ) -> list[str]:
+    ) -> list[tuple[float, str]]:
         """Get up to the specified number of URLs along with a suitable
         backoff schedule (in seconds)."""
         # see which domains are free
@@ -492,10 +499,10 @@ class UrlStore:
             # calculate difference and offset last addition
             total_diff = now + timedelta(0, schedule_secs - time_limit)
             # store new info
-            self._store_urls(domain, url_tuples, timestamp=total_diff)
+            self._store_urls(domain, url_tuples, timestamp=total_diff, replace=True)
         # sort by first tuple element (time in secs)
         self._set_done()
-        return sorted(targets, key=itemgetter(1))  # type: ignore[arg-type]
+        return sorted(targets, key=itemgetter(0))
 
     # CRAWLING
 
@@ -507,22 +514,20 @@ class UrlStore:
 
     def get_rules(self, website: str) -> RobotFileParser | None:
         "Return the stored crawling rules for the given website."
-        if website in self.urldict:
-            if self.compressed:
-                return COMPRESSOR.decompress(self.urldict[website].rules)  # type: ignore
-            return self.urldict[website].rules
-        return None
+        if website not in self.urldict:
+            return None
+        raw = self.urldict[website].rules
+        if isinstance(raw, bytes):  # compressed
+            return COMPRESSOR.decompress(raw)
+        return raw
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
         "Return the delay as extracted from robots.txt, or a given default."
-        delay = None
         rules = self.get_rules(website)
-        try:
-            delay = rules.crawl_delay("*")  # type: ignore[union-attr]
-        except AttributeError:  # no rules or no crawl delay
-            pass
-        # backup
-        return delay or default  # type: ignore[return-value]
+        if rules is None:
+            return default
+        delay = rules.crawl_delay("*")
+        return float(delay) if delay is not None else default
 
     # GENERAL INFO
 

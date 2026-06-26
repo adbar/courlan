@@ -6,7 +6,7 @@ import re
 from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from tld import get_tld
+from tld import Result, get_tld
 
 DOMAIN_REGEX = re.compile(
     r"(?:(?:f|ht)tp)s?://"  # protocols
@@ -36,10 +36,10 @@ def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
                 return clean_match, full_domain
     # fallback
     tldinfo = get_tld(url, as_object=True, fail_silently=True)
-    if tldinfo is None:
+    if not isinstance(tldinfo, Result):
         return None, None
     # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_FLD_REGEX.sub("", tldinfo.fld)  # type: ignore[union-attr]
+    return tldinfo.domain, CLEAN_FLD_REGEX.sub("", tldinfo.fld)
 
 
 def extract_domain(
@@ -108,13 +108,14 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     if url.startswith("{"):
         return url
 
-    base_netloc = urlsplit(baseurl).netloc
+    parsed_base = urlsplit(baseurl)
+    base_netloc = parsed_base.netloc
     split_url = urlsplit(url)
 
     if split_url.netloc not in (base_netloc, ""):
         if split_url.scheme:
             return url
-        return urlunsplit(split_url._replace(scheme="http"))
+        return urlunsplit(split_url._replace(scheme=parsed_base.scheme or "http"))
 
     return urljoin(baseurl, url)
 

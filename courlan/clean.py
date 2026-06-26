@@ -14,9 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 # parsing
 PROTOCOLS = re.compile(r"https?://")
-SELECTION = re.compile(
-    r'(https?://[^">&? ]+?)(?:https?://)|(?:https?://[^/]+?/[^/]+?[&?]u(rl)?=)(https?://[^"> ]+)'
-)
+SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)')
 
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
 
@@ -36,7 +34,7 @@ TRAILING_PARTS = re.compile(r'(.*?)[<>"\s]')
 TRACKERS_RE = re.compile(
     r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
     r"^(?:click|gbra|msclk|igsh|partner|wbra)id|"
-    r"^(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
+    r"^(?:ads?|mc|ga|gs|itm|mkt|ml|mtm|oly|pk|utm|vero)_|"
     r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|"
     r"kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
 )
@@ -89,7 +87,6 @@ def scrub_url(url: str) -> str:
         url = match[1]
     if len(url) > 500:  # arbitrary choice
         LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
-
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
         url = url.rstrip("/")
