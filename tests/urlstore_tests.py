@@ -540,6 +540,55 @@ def test_urlstore_open_but_all_visited():
     assert entry.state == State.ALL_VISITED
 
 
+def test_urlstore_compressed_defaults(robots_rules):
+    "Compressed store handles unset rules/tuples and discard gracefully."
+    s = UrlStore(compressed=True)
+    s.add_urls(["http://x.com/a"])
+
+    assert s.get_rules("http://x.com") is None
+    assert s.get_crawl_delay("http://x.com") == 5
+
+    s.discard(["http://x.com"])
+    assert s.dump_urls() == []
+
+    zero_rules = RobotFileParser()
+    zero_rules.parse(["User-agent: *", "Disallow:", "Crawl-delay: 0"])
+    delay_store = UrlStore()
+    delay_store.add_urls(["http://x.com/a"])
+    delay_store.store_rules("http://x.com", zero_rules)
+    assert delay_store.get_crawl_delay("http://x.com") == 0
+
+
+def test_schedule_time_ordering():
+    "establish_download_schedule returns entries sorted by scheduled time, not URL string."
+    s = UrlStore()
+    s.add_urls(["http://x.com/z", "http://x.com/a"])  # /z first: deque ≠ alpha order
+    schedule = s.establish_download_schedule(max_urls=10, time_limit=10)
+    assert len(schedule) == 2
+    assert schedule[0][0] <= schedule[1][0], "entries must be time-ordered"
+    assert schedule[0][1].endswith("/z")  # /z inserted first → time 0.0
+
+
+def test_urlstore_compressed_crawl():
+    "get_url and establish_download_schedule persist visited flags in compressed mode."
+    s = UrlStore(compressed=True)
+    s.add_urls(["http://x.com/a", "http://x.com/b"])
+    u1 = s.get_url("http://x.com")
+    u2 = s.get_url("http://x.com")
+    u3 = s.get_url("http://x.com")
+    assert u1 != u2
+    assert u3 is None
+    assert s.is_exhausted_domain("http://x.com")
+    assert s.urldict["http://x.com"].count == 2
+
+    s2 = UrlStore(compressed=True)
+    s2.add_urls(["http://y.com/a", "http://y.com/b"])
+    run1 = s2.establish_download_schedule(max_urls=10, time_limit=10)
+    run2 = s2.establish_download_schedule(max_urls=10, time_limit=10)
+    assert len(run1) == 2
+    assert len(run2) == 0
+
+
 def test_urlstore_store_non_http_domain():
     "_store_urls tolerates a domain without an http(s) scheme (defensive fall-through)."
     store = UrlStore()

@@ -178,13 +178,14 @@ def extract_links(
 
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
-        if "rel" in link and "nofollow" in link:
+        if "rel=" in link and "nofollow" in link:
             continue
         # https://en.wikipedia.org/wiki/Hreflang
         if no_filter is False and language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)
             if langmatch and (
-                langmatch[1].startswith(language) or langmatch[1] == "x-default"
+                (lang := langmatch[1].lower()).startswith(language)
+                or lang == "x-default"
             ):
                 linkmatch = LINK_REGEX.search(link)
                 if linkmatch:
@@ -214,7 +215,7 @@ def extract_links(
                 continue
             link = checked[0]
             # external/internal links
-            if external_bool != is_external(
+            if reference and external_bool != is_external(
                 url=link, reference=reference, ignore_suffix=True
             ):
                 continue

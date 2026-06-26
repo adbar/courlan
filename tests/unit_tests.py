@@ -125,7 +125,14 @@ def test_fix_relative():
     )
     assert (
         fix_relative_urls("https://example.org", "//www.eff.org")
-        == "http://www.eff.org"
+        == "https://www.eff.org"
+    )
+    assert (
+        fix_relative_urls("http://example.org", "//www.eff.org") == "http://www.eff.org"
+    )
+    assert (
+        fix_relative_urls("http://example.org", "https://www.eff.org")
+        == "https://www.eff.org"
     )
     # looks like an absolute URL but is actually a valid relative URL
     assert (
@@ -755,6 +762,11 @@ def test_domain_filter():
     "Test filters related to domain and hostnames."
     assert domain_filter("") is False
     assert domain_filter("a" * 254 + ".com") is False  # exceeds DNS length limit
+    d_ok = "a." * 125 + "abc"  # 253 chars — at the DNS length limit
+    d_long = "a." * 125 + "abcd"  # 254 chars — over
+    assert len(d_ok) == 253 and len(d_long) == 254
+    assert domain_filter(d_ok) is True
+    assert domain_filter(d_long) is False
     assert domain_filter("too-long" + "g" * 60 + ".org") is False
     assert domain_filter("long" + "g" * 50 + ".org") is True
     assert domain_filter("example.-com") is False
@@ -815,6 +827,13 @@ def test_urlcheck_redirects():
         # transport failure: redirection_test raises ValueError, check_url returns None
         mock_request.side_effect = Exception("unreachable")
         assert check_url("https://www.ht.or", with_redirects=True) is None
+        # geturl() returns None in urllib3 2.x
+        mock_request.side_effect = None
+        mock_request.return_value = _fake_head(200, None)
+        assert check_url("http://example.org/page", with_redirects=True) == (
+            "http://example.org/page",
+            "example.org",
+        )
 
 
 def test_redirection(httpserver):
@@ -964,6 +983,8 @@ def test_extraction():
     # nofollow
     pagecontent = '<html><a href="https://test.com/example" rel="nofollow ugc"/></html>'
     assert not extract_links(pagecontent, "https://test.com/", False)
+    pagecontent = '<html><a href="https://test.com/rel/nofollow-guide"/></html>'
+    assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
     # language
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
     assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
@@ -985,6 +1006,17 @@ def test_extraction():
     )
     assert (
         len(extract_links(pagecontent, "https://test.com/", False, language="en")) == 1
+    )
+    pagecontent = '<html><a href="https://test.com/example" hreflang="DE-DE"/></html>'
+    assert (
+        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+    )
+    assert not extract_links(pagecontent, "https://test.com/", False, language="en")
+    pagecontent = (
+        '<html><a href="https://test.com/example" hreflang="X-DEFAULT"/></html>'
+    )
+    assert (
+        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
     )
     # language + content
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
@@ -1116,6 +1148,10 @@ def test_extraction_navigation():
     assert extract_links(pagecontent, "https://knoema.com/", external_bool=True) == {
         "https://knoema.recruitee.com"
     }
+    # without url, external_bool must not filter (no reference to compare)
+    pagecontent = '<html><a href="https://example.com/page"/><a href="https://other.org/post"/></html>'
+    assert len(extract_links(pagecontent)) == 2
+    assert len(extract_links(pagecontent, external_bool=True)) == 2
     # return all links without filters
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="/page/2"/><a href="https://example.com/gallery/"/></html>'
     result = extract_links(
@@ -1296,6 +1332,9 @@ def test_sample():
     assert len(sample_urls(mylist, 1, verbose=True)) == 2
     assert not sample_urls(mylist, 1, exclude_min=10, verbose=True)
     assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 1
+    bound_urls = [f"http://bound.org/{i}" for i in range(3)]
+    assert len(sample_urls(bound_urls, 10, exclude_min=3)) == 3
+    assert not sample_urls(bound_urls, 10, exclude_min=4)
 
     test_urls = [f"https://test.org/{a}" for a in range(1000)]
     example_urls = [f"https://www.example.org/{a}" for a in range(100)]

@@ -21,11 +21,7 @@ def _make_sample(
     "Iterate through the hosts in store and draw samples."
     output_urls = []
     for domain in urlstore.urldict:  # key=cmp_to_key(locale.strcoll)
-        urlpaths = [
-            p.path()
-            for p in urlstore._load_urls(domain)
-            if p.urlpath not in (b"/", None)
-        ]
+        urlpaths = [p.path() for p in urlstore._load_urls(domain) if p.urlpath != b"/"]
         # too few or too many URLs
         if (
             not urlpaths
