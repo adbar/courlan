@@ -11,7 +11,7 @@ license = "Apache-2.0"
 dynamic = ["version"]
 requires-python = ">=3.10"
 authors = [
-  {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
+  {name = "Adrien Barbaresi"}
 ]
 keywords=[
     "cleaner",
@@ -41,6 +41,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Security",
@@ -74,7 +75,6 @@ courlan = "courlan.cli:main"
 dev = [
     "ruff==0.15.15",
     "mypy==2.1.0",
-    "mutmut==3.6.0",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
     "pytest-httpserver==1.1.5",
@@ -97,15 +97,6 @@ ignore_missing_imports = true
 pretty = true
 warn_unused_ignores = true
 warn_redundant_casts = true
-
-[tool.mutmut]
-source_paths = ["courlan"]
-only_mutate = ["courlan/tld.py"]
-pytest_add_cli_args_test_selection = [
-    "tests/unit_tests.py::test_tld",
-    "tests/unit_tests.py::test_urlutils",
-    "tests/unit_tests.py::test_external",
-]
 
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]
