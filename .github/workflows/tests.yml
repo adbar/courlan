@@ -45,7 +45,7 @@ jobs:
         cache-dependency-glob: pyproject.toml
 
     - name: Install dependencies
-      run: uv pip install --system -e ".[dev, docs]"
+      run: uv pip install --system -e ".[dev]"
 
     # tests
     - name: Lint, format check and type checking
@@ -58,6 +58,13 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pytest --cov=./ --cov-report=xml
+
+    - name: Test docs
+      # version matches .readthedocs.yml
+      if: ${{ matrix.python-version == '3.11' }}
+      run: |
+        uv pip install --system -e ".[docs]"
+        pytest docs/test_docs.py
 
     # coverage
     - name: Upload coverage to Codecov

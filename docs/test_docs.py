@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-DOCS_SOURCE = Path(__file__).parent.parent / "docs" / "source"
-DOCS_BUILD = Path(__file__).parent.parent / "docs" / "_build"
+DOCS_SOURCE = Path(__file__).parent / "source"
+DOCS_BUILD = Path(__file__).parent / "_build"
 DOCS_HTML = DOCS_BUILD / "html"
 
 
