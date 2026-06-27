@@ -6,7 +6,7 @@ import re
 from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from tld import Result, get_tld
+from .tld import STRIP_PORT_REGEX, get_registrable_domain
 
 DOMAIN_REGEX = re.compile(
     r"(?:(?:f|ht)tp)s?://"  # protocols
@@ -16,14 +16,12 @@ DOMAIN_REGEX = re.compile(
     r"[0-9a-f:]{16,})"  # IPv6
     r"(?:/|$)"  # slash or end of string
 )
-STRIP_PORT_REGEX = re.compile(r"(?<=\D):\d+")
-CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
 def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
     """Extract domain info, returning a ``(domain, full_domain)`` tuple.
-    With ``fast=True`` a regex shortcut is tried before the ``tld`` library."""
+    With ``fast=True`` a regex shortcut is tried first."""
     if not url or not isinstance(url, str):
         return None, None
     if fast:
@@ -34,12 +32,8 @@ def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
             clean_match = full_domain.split(".")[0]
             if clean_match:
                 return clean_match, full_domain
-    # fallback
-    tldinfo = get_tld(url, as_object=True, fail_silently=True)
-    if not isinstance(tldinfo, Result):
-        return None, None
-    # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_FLD_REGEX.sub("", tldinfo.fld)
+    # fallback: pure-Python eTLD+1 using curated compound-suffix set
+    return get_registrable_domain(urlsplit(unescape(url)).netloc)
 
 
 def extract_domain(
