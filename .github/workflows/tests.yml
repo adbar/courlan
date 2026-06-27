@@ -45,7 +45,7 @@ jobs:
         cache-dependency-glob: pyproject.toml
 
     - name: Install dependencies
-      run: uv pip install --system -e ".[dev]"
+      run: uv pip install --system -e ".[dev, docs]"
 
     # tests
     - name: Lint, format check and type checking
