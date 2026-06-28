@@ -61,7 +61,7 @@ jobs:
 
     - name: Test docs
       # version matches .readthedocs.yml
-      if: ${{ matrix.python-version == '3.11' }}
+      if: ${{ matrix.python-version == '3.13' }}
       run: |
         uv pip install --system -e ".[docs]"
         pytest docs/test_docs.py
