@@ -8,7 +8,7 @@ from functools import lru_cache
 from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit
 
-from babel import Locale, UnknownLocaleError
+from .langcodes import ISO_LANGS, ISO_TERRS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -179,16 +179,17 @@ def extension_filter(urlpath: str) -> bool:
 
 @lru_cache(maxsize=1024)
 def langcodes_score(language: str, segment: str, score: int) -> int:
-    "Use locale parser to assess the plausibility of the chosen URL segment."
+    "Assess the plausibility of a URL segment as a language indicator."
+    if not isinstance(segment, str):
+        return score
     delimiter = "_" if "_" in segment else "-"
-    try:
-        if Locale.parse(segment, sep=delimiter).language == language:
-            score += 1
-        else:
-            score -= 1
-    except (TypeError, UnknownLocaleError):
-        pass
-    return score
+    lang, _, territory = segment.partition(delimiter)
+    lang = lang.lower()
+    if lang not in ISO_LANGS:
+        return score
+    if territory and territory.upper() not in ISO_TERRS:
+        return score
+    return score + (1 if lang == language else -1)
 
 
 def lang_filter(
@@ -215,7 +216,7 @@ def lang_filter(
             score = langcodes_score(language, match[1], score)
         elif len(occurrences) == 2:
             for occurrence in occurrences:
-                score = langcodes_score(language, occurrence, score)
+                score = langcodes_score(language, occurrence[0] + occurrence[1], score)
         # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
     if strict:
