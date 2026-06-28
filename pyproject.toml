@@ -79,6 +79,12 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest-httpserver==1.1.5",
 ]
+docs = [
+    "sphinx>=6.2",
+    "myst-parser>=0.19.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "sphinx-copybutton>=0.5.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = "tests/*test*.py"
