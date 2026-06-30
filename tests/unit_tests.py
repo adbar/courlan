@@ -472,8 +472,11 @@ def test_lang_filter():
     assert lang_filter("https://x.com/fr/x/de/", "en") is False
     # invalid territory (en_XY) is not a confident match, so the de segment wins (0, -1 → -1)
     assert lang_filter("https://x.com/en_XY/x/de/", "en") is False
+    # >2 candidates: unreliable, score stays 0
+    assert lang_filter("https://x.com/en/x/de/x/fr/", "en") is True
 
-    # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
+    # /ch/ is not a language code, no rejection
+    assert lang_filter("http://www.verfassungen.de/ch/basel/verf03.htm", "de") is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
 
