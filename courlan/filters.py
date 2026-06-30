@@ -8,7 +8,7 @@ from functools import lru_cache
 from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit
 
-from babel import Locale, UnknownLocaleError
+from .langcodes import ISO_LANGS, ISO_TERRS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ ADULT_AND_VIDEOS = re.compile(
 
 # language filter
 PATH_LANG_FILTER = re.compile(
-    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2,3})?(?:/|$)", re.IGNORECASE
+    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
 ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
@@ -178,17 +178,18 @@ def extension_filter(urlpath: str) -> bool:
 
 
 @lru_cache(maxsize=1024)
-def langcodes_score(language: str, segment: str, score: int) -> int:
-    "Use locale parser to assess the plausibility of the chosen URL segment."
+def langcodes_score(language: str, segment: str) -> int:
+    "Score a URL segment as a language indicator: +1 if it is a plausible matching locale, -1 if a mismatching one, 0 if not a recognizable locale."
+    if not isinstance(segment, str):
+        return 0
     delimiter = "_" if "_" in segment else "-"
-    try:
-        if Locale.parse(segment, sep=delimiter).language == language:
-            score += 1
-        else:
-            score -= 1
-    except (TypeError, UnknownLocaleError):
-        pass
-    return score
+    lang, _, territory = segment.partition(delimiter)
+    lang = lang.lower()
+    if lang not in ISO_LANGS:
+        return 0
+    if territory and territory.upper() not in ISO_TERRS:
+        return 0
+    return 1 if lang == language else -1
 
 
 def lang_filter(
@@ -212,10 +213,10 @@ def lang_filter(
         else:
             occurrences = ALL_PATH_LANGS_NO_TRAILING.findall(url)
         if len(occurrences) == 1:
-            score = langcodes_score(language, match[1], score)
+            score += langcodes_score(language, match[1] + (match[2] or ""))
         elif len(occurrences) == 2:
             for occurrence in occurrences:
-                score = langcodes_score(language, occurrence, score)
+                score += langcodes_score(language, occurrence[0] + occurrence[1])
         # don't perform the test if there are too many candidates: > 2
     # second test: prepended language cues
     if strict:
