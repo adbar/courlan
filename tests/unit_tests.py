@@ -468,16 +468,26 @@ def test_lang_filter():
         lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=True)
         is False
     )
-    assert langcodes_score("en", "en_HK", 0) == 1
-    assert langcodes_score("en", "en-HK", 0) == 1
-    assert langcodes_score("en", "en_XY", 0) == 0
-    assert langcodes_score("en", "en-XY", 0) == 0
-    assert langcodes_score("en", "de_DE", 0) == -1
-    assert langcodes_score("en", "de-DE", 0) == -1
+    # both path segments differ from target — was always True when two-occurrence branch was dead
+    assert lang_filter("https://x.com/fr/x/de/", "en") is False
+    # invalid territory (en_XY) is not a confident match, so the de segment wins (0, -1 → -1)
+    assert lang_filter("https://x.com/en_XY/x/de/", "en") is False
 
     # assert lang_filter('http://www.verfassungen.de/ch/basel/verf03.htm'. 'de') is True
     # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
     # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
+
+
+def test_langcodes_score():
+    assert langcodes_score("en", "en_HK") == 1
+    assert langcodes_score("en", "en-HK") == 1
+    assert langcodes_score("en", "de_DE") == -1
+    assert langcodes_score("en", "de-DE") == -1
+    assert langcodes_score("en", "en_XY") == 0  # invalid territory
+    assert langcodes_score("en", "en-XY") == 0
+    assert langcodes_score("en", "xx") == 0  # invalid language
+    assert langcodes_score("en", "xx_US") == 0
+    assert langcodes_score("en", None) == 0  # non-string input
 
 
 def test_navigation():
@@ -1379,7 +1389,7 @@ def test_examples():
 
 def test_meta():
     "Test package meta functions."
-    _ = langcodes_score("en", "en_HK", 0)
+    _ = langcodes_score("en", "en_HK")
     _ = _parse("https://example.net/123/abc")
 
     # urlsplit is only an lru_cache wrapper on some Python versions
