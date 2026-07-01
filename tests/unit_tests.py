@@ -44,6 +44,7 @@ from courlan.filters import (
 )
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
+from courlan.tld import get_registrable_domain
 from courlan.urlutils import _parse, is_known_link
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -885,6 +886,23 @@ def test_urlutils():
     assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
     # fast-path match yields an empty domain -> falls back to the slow path
     assert extract_domain("http://exam.p@", fast=True) is None
+    # compound-suffix resolution via the fallback (fast=False)
+    assert extract_domain("https://news.bbc.co.uk/") == "bbc.co.uk"
+    assert extract_domain("https://www.google.co.uk/") == "google.co.uk"
+    assert extract_domain("https://foo.ne.jp/") == "foo.ne.jp"
+    assert extract_domain("https://shop.example.org.au/") == "example.org.au"
+    assert extract_domain("https://example.co.za/") == "example.co.za"
+    # full-PSL coverage: ccTLDs outside the old curated set now resolve
+    assert extract_domain("https://foo.co.bw/") == "foo.co.bw"
+    assert extract_domain("https://x.co.tz/") == "x.co.tz"
+    # 3-label suffix handled correctly via longest-match
+    assert extract_domain("https://school.act.edu.au/") == "school.act.edu.au"
+    # IP literals return None via fallback (regression guard)
+    assert extract_domain("https://192.168.0.1/") is None
+    assert extract_domain("http://111.2.33.44/test") is None
+    assert extract_domain("https://[2001:db8::1]/") is None
+    # unvalidated TLDs accepted by design (no PSL TLD-existence check)
+    assert extract_domain("http://domain.test/") == "domain.test"
     # url parsing
     result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
@@ -933,6 +951,59 @@ def test_urlutils():
     assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
 
 
+def test_tld():
+    """Test get_registrable_domain helper directly"""
+    cases = {
+        # standard cases
+        "www.bbc.co.uk": ("bbc", "bbc.co.uk"),
+        "example.com": ("example", "example.com"),
+        "a.b.example.com": ("example", "example.com"),
+        "foo.ne.jp": ("foo", "foo.ne.jp"),
+        "shop.example.org.au": ("example", "example.org.au"),
+        # case-lowering
+        "EXAMPLE.COM": ("example", "example.com"),
+        "Example.Co.UK": ("example", "example.co.uk"),
+        # port and auth stripping
+        "host.tld:8080": ("host", "host.tld"),
+        "user@host.tld": ("host", "host.tld"),
+        "user:pass@domain.test:81": ("domain", "domain.test"),
+        # IPv4 / numeric final label rejected (even with non-numeric labels)
+        "192.168.0.1": (None, None),
+        "111.2.33.44": (None, None),
+        "example.42": (None, None),
+        "www.example.42": (None, None),
+        # IPv6 literals are never a registrable domain, incl. IPv4-mapped forms
+        # with embedded dots that could otherwise be mis-split
+        "[2001:db8::1]": (None, None),
+        "[2001:db8::1]:8080": (None, None),
+        "[::ffff:192.0.2.128]:8080": (None, None),
+        # trailing-dot FQDN is normalized
+        "www.example.com.": ("example", "example.com"),
+        # malformed / edge cases
+        "": (None, None),
+        "localhost": (None, None),
+        "a..b.com": (None, None),
+        # suffix-set boundary: last two labels not a known compound suffix
+        "sub.unknown.xyz": ("unknown", "unknown.xyz"),
+        "blog.ax": ("blog", "blog.ax"),
+        # a bare public suffix has no registrable domain
+        "co.uk": (None, None),
+        # full-PSL coverage: ccTLDs outside the old ~208-entry curated set
+        "foo.co.bw": ("foo", "foo.co.bw"),
+        "x.co.tz": ("x", "x.co.tz"),
+        # 3-label suffix resolved via longest-match (was mis-split under the
+        # old fixed 2-label span logic)
+        "school.act.edu.au": ("school", "school.act.edu.au"),
+        # ICANN-only: private-suffix hosts resolve as ordinary domains
+        "user.github.io": ("github", "github.io"),
+        # deferred to Phase 1b: wildcard rules (e.g. "*.ck") are not yet
+        # recognized, so this falls back to the implicit-last-label suffix
+        "www.foo.ck": ("foo", "foo.ck"),
+    }
+    for host, expected in cases.items():
+        assert get_registrable_domain(host) == expected, host
+
+
 def test_external():
     """test domain comparison"""
     assert is_external("", "https://www.microsoft.com/") is True
@@ -960,6 +1031,17 @@ def test_external():
             "https://google.com/", "https://www.google.co.uk/", ignore_suffix=False
         )
         is True
+    )
+    # compound suffixes: same registrable domain, different subdomains
+    assert (
+        is_external(
+            "https://a.example.co.uk/", "https://b.example.co.uk/", ignore_suffix=False
+        )
+        is False
+    )
+    # compound suffixes: different registrable domains under same ccSLD
+    assert (
+        is_external("https://x.co.uk/", "https://y.co.uk/", ignore_suffix=False) is True
     )
     # malformed URLs
     assert is_external("h1234", "https://www.google.co.uk/", ignore_suffix=True) is True
