@@ -892,6 +892,11 @@ def test_urlutils():
     assert extract_domain("https://foo.ne.jp/") == "foo.ne.jp"
     assert extract_domain("https://shop.example.org.au/") == "example.org.au"
     assert extract_domain("https://example.co.za/") == "example.co.za"
+    # full-PSL coverage: ccTLDs outside the old curated set now resolve
+    assert extract_domain("https://foo.co.bw/") == "foo.co.bw"
+    assert extract_domain("https://x.co.tz/") == "x.co.tz"
+    # 3-label suffix handled correctly via longest-match
+    assert extract_domain("https://school.act.edu.au/") == "school.act.edu.au"
     # IP literals return None via fallback (regression guard)
     assert extract_domain("https://192.168.0.1/") is None
     assert extract_domain("http://111.2.33.44/test") is None
@@ -967,6 +972,11 @@ def test_tld():
         "111.2.33.44": (None, None),
         "example.42": (None, None),
         "www.example.42": (None, None),
+        # IPv6 literals are never a registrable domain, incl. IPv4-mapped forms
+        # with embedded dots that could otherwise be mis-split
+        "[2001:db8::1]": (None, None),
+        "[2001:db8::1]:8080": (None, None),
+        "[::ffff:192.0.2.128]:8080": (None, None),
         # trailing-dot FQDN is normalized
         "www.example.com.": ("example", "example.com"),
         # malformed / edge cases
@@ -976,8 +986,19 @@ def test_tld():
         # suffix-set boundary: last two labels not a known compound suffix
         "sub.unknown.xyz": ("unknown", "unknown.xyz"),
         "blog.ax": ("blog", "blog.ax"),
-        # bare compound suffix must not over-read past the available labels
-        "co.uk": ("co", "co.uk"),
+        # a bare public suffix has no registrable domain
+        "co.uk": (None, None),
+        # full-PSL coverage: ccTLDs outside the old ~208-entry curated set
+        "foo.co.bw": ("foo", "foo.co.bw"),
+        "x.co.tz": ("x", "x.co.tz"),
+        # 3-label suffix resolved via longest-match (was mis-split under the
+        # old fixed 2-label span logic)
+        "school.act.edu.au": ("school", "school.act.edu.au"),
+        # ICANN-only: private-suffix hosts resolve as ordinary domains
+        "user.github.io": ("github", "github.io"),
+        # deferred to Phase 1b: wildcard rules (e.g. "*.ck") are not yet
+        # recognized, so this falls back to the implicit-last-label suffix
+        "www.foo.ck": ("foo", "foo.ck"),
     }
     for host, expected in cases.items():
         assert get_registrable_domain(host) == expected, host
