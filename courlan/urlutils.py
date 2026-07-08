@@ -2,38 +2,48 @@
 Functions related to URL manipulation and extraction of URL parts.
 """
 
+import ipaddress
 import re
 from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from .tld import STRIP_PORT_REGEX, get_registrable_domain
+from .tld import get_registrable_domain
 
-DOMAIN_REGEX = re.compile(
-    r"(?:(?:f|ht)tp)s?://"  # protocols
-    r"(?:[^/?#]{,63}\.)?"  # subdomain, www, etc.
-    r"([^/?#.]{4,63}\.[^/?#]{2,63}|"  # domain and extension
-    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|"  # IPv4
-    r"[0-9a-f:]{16,})"  # IPv6
-    r"(?:/|$)"  # slash or end of string
-)
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
+
+
+def _canonical_ip(candidate: str) -> str | None:
+    "Return the canonical form of an IP literal, or None if it isn't one."
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
 
 
 def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
     """Extract domain info, returning a ``(domain, full_domain)`` tuple.
-    With ``fast=True`` a regex shortcut is tried first."""
+    ``fast`` is accepted for backward compatibility but no longer changes the
+    result: extraction always goes through the public-suffix lookup."""
     if not url or not isinstance(url, str):
         return None, None
-    if fast:
-        # try with regexes
-        domain_match = DOMAIN_REGEX.match(url)
-        if domain_match:
-            full_domain = STRIP_PORT_REGEX.sub("", domain_match[1].split("@")[-1])
-            clean_match = full_domain.split(".")[0]
-            if clean_match:
-                return clean_match, full_domain
-    # fallback: pure-Python eTLD+1 using curated compound-suffix set
-    return get_registrable_domain(urlsplit(unescape(url)).netloc)
+    try:
+        parsed = urlsplit(unescape(url))
+        host = parsed.hostname
+    except ValueError:  # e.g. unbalanced brackets in the netloc
+        return None, None
+    # IP literals are returned in canonical form; gates avoid the exception
+    # cost of ip_address() on the common non-IP case
+    if host and (":" in host or host[-1].isdigit()):
+        ip = _canonical_ip(host)
+        if ip:
+            return ip, ip
+    # unbracketed IPv6 isn't in hostname; retry against the raw netloc
+    if parsed.netloc.count(":") >= 2:
+        netloc_host = parsed.netloc.rsplit("@", 1)[-1]
+        ip = _canonical_ip(netloc_host)
+        if ip:
+            return ip, ip
+    return get_registrable_domain(host)
 
 
 def extract_domain(
@@ -42,7 +52,6 @@ def extract_domain(
     """Extract domain name information using top-level domain info"""
     if blacklist is None:
         blacklist = set()
-    # new code: Python >= 3.6 with tld module
     domain, full_domain = get_tldinfo(url, fast=fast)
 
     return (

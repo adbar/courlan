@@ -15,8 +15,13 @@ from pathlib import Path
 
 import urllib3
 
+REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+from courlan.tld import EXCEPTIONS, WILDCARD_BASES, _idna_encode  # noqa: E402
+
 SOURCE_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
-OUTPUT_PATH = Path(__file__).resolve().parent.parent / "courlan" / "_psl_data.py"
+OUTPUT_PATH = Path(REPO_ROOT) / "courlan" / "_psl_data.py"
 
 HEADER = '''"""
 Generated public-suffix data. Do not edit by hand -- run
@@ -76,22 +81,39 @@ def extract_icann_rules(raw: str) -> list[str]:
     return rules
 
 
-def idna_normalize(rule: str) -> str:
-    "Encode a rule's labels to punycode/ASCII where needed."
-    return ".".join(
-        label.encode("idna").decode() if not label.isascii() else label
-        for label in rule.split(".")
-    )
+def idna_normalize(rule: str) -> str | None:
+    "Punycode a rule via the runtime encoder; None if a label can't be encoded."
+    try:
+        return ".".join(_idna_encode(label) for label in rule.split("."))
+    except UnicodeError:
+        return None
 
 
 def build_suffix_set(rules: list[str]) -> list[str]:
-    "Filter to multi-label rules only, normalize, sort, and dedupe."
-    entries = {
-        idna_normalize(rule)
-        for rule in rules
-        if not rule.startswith(("*", "!")) and rule.count(".") >= 1
-    }
+    "Filter to multi-label rules, normalize, sort, dedupe; skip un-encodable ones."
+    entries, skipped = set(), []
+    for rule in rules:
+        if rule.startswith(("*", "!")) or rule.count(".") < 1:
+            continue
+        normalized = idna_normalize(rule)
+        if normalized is None:
+            skipped.append(rule)
+        else:
+            entries.add(normalized)
+    if skipped:
+        print(f"warning: skipped {len(skipped)} un-encodable rule(s): {skipped}")
     return sorted(entries)
+
+
+def check_wildcard_drift(rules: list[str]) -> None:
+    "Warn if the PSL's wildcard/exception rules differ from courlan.tld's sets."
+    # drop un-encodable rules (idna_normalize -> None) so sorted() stays sane
+    psl_wild = {n for r in rules if r.startswith("*.") if (n := idna_normalize(r[2:]))}
+    psl_exc = {n for r in rules if r.startswith("!") if (n := idna_normalize(r[1:]))}
+    if psl_wild != set(WILDCARD_BASES):
+        print(f"warning: WILDCARD_BASES drift -- PSL now has {sorted(psl_wild)}")
+    if psl_exc != set(EXCEPTIONS):
+        print(f"warning: EXCEPTIONS drift -- PSL now has {sorted(psl_exc)}")
 
 
 def render(entries: list[str], version: str, commit: str) -> str:
@@ -107,7 +129,9 @@ def render(entries: list[str], version: str, commit: str) -> str:
 def main() -> int:
     raw = fetch_psl()
     version, commit = extract_version_commit(raw)
-    entries = build_suffix_set(extract_icann_rules(raw))
+    icann_rules = extract_icann_rules(raw)
+    check_wildcard_drift(icann_rules)
+    entries = build_suffix_set(icann_rules)
     content = render(entries, version, commit)
 
     if "--check" in sys.argv[1:]:
