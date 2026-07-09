@@ -16,6 +16,7 @@ from pathlib import Path
 import urllib3
 
 from courlan.network import RETRY_STRATEGY
+from courlan.tld import _idna_encode
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
@@ -98,15 +99,16 @@ def extract_icann_rules(raw: str) -> list[str]:
     return rules
 
 
-def idna_normalize(rule: str) -> str | None:
-    "Punycode a rule; None if a label can't be encoded (mirrors courlan.tld._idna_label)."
+def idna_normalize(rule: str) -> str:
+    "Punycode a rule via the shared runtime encoder; hard-fail on any problem."
     try:
-        return ".".join(
-            label if label.isascii() else label.encode("idna").decode("ascii")
-            for label in rule.split(".")
-        )
-    except UnicodeError:
-        return None
+        encoded = ".".join(_idna_encode(label) for label in rule.split("."))
+    except UnicodeError as err:
+        raise RuntimeError(f"cannot encode rule {rule!r}: {err}") from err
+    # reject lossy encodings (ß->ss, ς->σ, ZWJ/ZWNJ) that diverge from UTS-46
+    if not rule.isascii() and encoded.encode("ascii").decode("idna") != rule:
+        raise RuntimeError(f"lossy IDNA encoding in rule {rule!r}")
+    return encoded
 
 
 def build_rule_sets(rules: list[str]) -> tuple[list[str], list[str], list[str]]:
@@ -114,7 +116,6 @@ def build_rule_sets(rules: list[str]) -> tuple[list[str], list[str], list[str]]:
     suffixes: set[str] = set()
     wildcards: set[str] = set()
     exceptions: set[str] = set()
-    skipped = []
     for rule in rules:
         if rule.startswith("*."):
             target, rule = wildcards, rule[2:]
@@ -124,13 +125,7 @@ def build_rule_sets(rules: list[str]) -> tuple[list[str], list[str], list[str]]:
             continue
         else:
             target = suffixes
-        normalized = idna_normalize(rule)
-        if normalized is None:
-            skipped.append(rule)
-        else:
-            target.add(normalized)
-    if skipped:
-        print(f"warning: skipped {len(skipped)} un-encodable rule(s): {skipped}")
+        target.add(idna_normalize(rule))
     return sorted(suffixes), sorted(wildcards), sorted(exceptions)
 
 

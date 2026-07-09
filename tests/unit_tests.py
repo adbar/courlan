@@ -44,7 +44,14 @@ from courlan.filters import (
 )
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
-from courlan.tld import EXCEPTIONS, WILDCARD_BASES, _idna_label, get_registrable_domain
+from courlan.tld import (
+    EXCEPTIONS,
+    MULTI_PART_SUFFIXES,
+    WILDCARD_BASES,
+    _idna_encode,
+    _idna_label,
+    get_registrable_domain,
+)
 from courlan.urlutils import _parse, is_known_link
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -1069,6 +1076,19 @@ def test_tld_exceptions(exception):
     domain = exception.split(".")[0]
     assert get_registrable_domain(exception) == (domain, exception)
     assert get_registrable_domain(f"sub.{exception}") == (domain, exception)
+
+
+def test_psl_data_encoder_consistency():
+    "Generated data must be ASCII and its xn-- labels must round-trip through the runtime encoder."
+    checked = 0
+    for ruleset in (MULTI_PART_SUFFIXES, WILDCARD_BASES, EXCEPTIONS):
+        for rule in ruleset:
+            assert rule.isascii(), rule
+            for label in rule.split("."):
+                if label.startswith("xn--"):
+                    assert _idna_encode(label.encode("ascii").decode("idna")) == label
+                    checked += 1
+    assert checked  # the data does contain punycode entries
 
 
 def test_external():

@@ -14,12 +14,15 @@ _MAX_RULE_LABELS = 1 + max(
 )
 
 
+def _idna_encode(label: str) -> str:
+    "Encode one label to ASCII/punycode; raise UnicodeError if it can't be."
+    return label if label.isascii() else label.encode("idna").decode("ascii")
+
+
 def _idna_label(label: str) -> str:
     "Punycode a non-ASCII label for suffix matching; pass ASCII through."
-    if label.isascii():
-        return label
     try:
-        return label.encode("idna").decode("ascii")
+        return _idna_encode(label)
     except UnicodeError:
         return label
 
