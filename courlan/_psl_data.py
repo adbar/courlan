@@ -3,11 +3,10 @@ Generated public-suffix data. Do not edit by hand -- run
 scripts/update_psl.py to regenerate.
 """
 
-# Multi-label public suffixes from the Mozilla Public Suffix List (PSL),
-# ICANN section only (private-domain rules such as "github.io" excluded).
-# Single-label TLDs, wildcard ("*.") and exception ("!") rules are excluded
-# and handled by the implicit-* fallback / are deferred (see project notes).
-# All entries are IDNA/punycode-normalized.
+# Rules from the Mozilla Public Suffix List (PSL), ICANN section only
+# (private-domain rules such as "github.io" excluded). Single-label TLDs
+# are excluded and handled by the implicit-* fallback. All entries are
+# IDNA/punycode-normalized.
 #
 # Source: https://publicsuffix.org/list/public_suffix_list.dat (pull only from this URL,
 # per the list's own header instructions).
@@ -17,6 +16,8 @@ scripts/update_psl.py to regenerate.
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Multi-label public suffixes.
 MULTI_PART_SUFFIXES = frozenset(
     """
 0.bg
@@ -5488,5 +5489,41 @@ zp.ua
 zpisdn.gov.pl
 zt.ua
 zushi.kanagawa.jp
+""".split()
+)
+
+# Wildcard ("*.") rule bases: every direct child label is a public suffix.
+WILDCARD_BASES = frozenset(
+    """
+ck
+er
+fk
+jm
+kawasaki.jp
+kitakyushu.jp
+kobe.jp
+mm
+nagoya.jp
+nom.br
+np
+pg
+sapporo.jp
+sch.uk
+sendai.jp
+yokohama.jp
+""".split()
+)
+
+# Exception ("!") rules: hosts exempted from a wildcard rule above.
+EXCEPTIONS = frozenset(
+    """
+city.kawasaki.jp
+city.kitakyushu.jp
+city.kobe.jp
+city.nagoya.jp
+city.sapporo.jp
+city.sendai.jp
+city.yokohama.jp
+www.ck
 """.split()
 )

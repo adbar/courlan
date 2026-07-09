@@ -20,6 +20,11 @@ def _canonical_ip(candidate: str) -> str | None:
         return None
 
 
+def _strip_trailing_dot(host: str) -> str:
+    "Drop a single trailing dot (FQDN form); multiple trailing dots stay invalid."
+    return host[:-1] if host.endswith(".") and not host.endswith("..") else host
+
+
 def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
     """Extract domain info, returning a ``(domain, full_domain)`` tuple.
     ``fast`` is accepted for backward compatibility but no longer changes the
@@ -27,19 +32,22 @@ def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
     if not url or not isinstance(url, str):
         return None, None
     try:
-        parsed = urlsplit(unescape(url))
+        parsed = _parse(url)
         host = parsed.hostname
     except ValueError:  # e.g. unbalanced brackets in the netloc
         return None, None
+    if host:
+        host = _strip_trailing_dot(host)  # FQDN form would defeat the IP gate below
     # IP literals are returned in canonical form; gates avoid the exception
     # cost of ip_address() on the common non-IP case
     if host and (":" in host or host[-1].isdigit()):
         ip = _canonical_ip(host)
         if ip:
             return ip, ip
-    # unbracketed IPv6 isn't in hostname; retry against the raw netloc
+    # unbracketed IPv6 isn't captured by .hostname; retry against the raw netloc,
+    # with the same trailing-dot normalization as the hostname path above
     if parsed.netloc.count(":") >= 2:
-        netloc_host = parsed.netloc.rsplit("@", 1)[-1]
+        netloc_host = _strip_trailing_dot(parsed.netloc.rsplit("@", 1)[-1])
         ip = _canonical_ip(netloc_host)
         if ip:
             return ip, ip

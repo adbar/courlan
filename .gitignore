@@ -14,7 +14,6 @@ build/
 .eggs/
 .tox/
 .coverage
-mutants/
 
 # docs
 docs/_autosummary/

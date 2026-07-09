@@ -15,24 +15,24 @@ from pathlib import Path
 
 import urllib3
 
-REPO_ROOT = str(Path(__file__).resolve().parent.parent)
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-from courlan.tld import EXCEPTIONS, WILDCARD_BASES, _idna_encode  # noqa: E402
+from courlan.network import RETRY_STRATEGY
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
-OUTPUT_PATH = Path(REPO_ROOT) / "courlan" / "_psl_data.py"
+OUTPUT_PATH = REPO_ROOT / "courlan" / "_psl_data.py"
+# refuse to write if the fetched list shrinks implausibly
+# (~5,470 suffixes, 16 wildcard and 8 exception rules as of 2026)
+MIN_SUFFIXES, MIN_WILDCARDS, MIN_EXCEPTIONS = 5000, 10, 5
 
-HEADER = '''"""
+TEMPLATE = '''"""
 Generated public-suffix data. Do not edit by hand -- run
 scripts/update_psl.py to regenerate.
 """
 
-# Multi-label public suffixes from the Mozilla Public Suffix List (PSL),
-# ICANN section only (private-domain rules such as "github.io" excluded).
-# Single-label TLDs, wildcard ("*.") and exception ("!") rules are excluded
-# and handled by the implicit-* fallback / are deferred (see project notes).
-# All entries are IDNA/punycode-normalized.
+# Rules from the Mozilla Public Suffix List (PSL), ICANN section only
+# (private-domain rules such as "github.io" excluded). Single-label TLDs
+# are excluded and handled by the implicit-* fallback. All entries are
+# IDNA/punycode-normalized.
 #
 # Source: {source_url} (pull only from this URL,
 # per the list's own header instructions).
@@ -42,11 +42,25 @@ scripts/update_psl.py to regenerate.
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Multi-label public suffixes.
 MULTI_PART_SUFFIXES = frozenset(
     """
-'''
+{suffixes}
+""".split()
+)
 
-FOOTER = '''
+# Wildcard ("*.") rule bases: every direct child label is a public suffix.
+WILDCARD_BASES = frozenset(
+    """
+{wildcards}
+""".split()
+)
+
+# Exception ("!") rules: hosts exempted from a wildcard rule above.
+EXCEPTIONS = frozenset(
+    """
+{exceptions}
 """.split()
 )
 '''
@@ -54,7 +68,10 @@ FOOTER = '''
 
 def fetch_psl() -> str:
     "Download the raw PSL text from the canonical source."
-    resp = urllib3.PoolManager().request("GET", SOURCE_URL, timeout=30.0)
+    pool = urllib3.PoolManager(retries=RETRY_STRATEGY)
+    resp = pool.request("GET", SOURCE_URL, timeout=30.0)
+    if resp.status != 200:
+        raise RuntimeError(f"PSL download failed: HTTP {resp.status}")
     return resp.data.decode("utf-8")
 
 
@@ -82,68 +99,83 @@ def extract_icann_rules(raw: str) -> list[str]:
 
 
 def idna_normalize(rule: str) -> str | None:
-    "Punycode a rule via the runtime encoder; None if a label can't be encoded."
+    "Punycode a rule; None if a label can't be encoded (mirrors courlan.tld._idna_label)."
     try:
-        return ".".join(_idna_encode(label) for label in rule.split("."))
+        return ".".join(
+            label if label.isascii() else label.encode("idna").decode("ascii")
+            for label in rule.split(".")
+        )
     except UnicodeError:
         return None
 
 
-def build_suffix_set(rules: list[str]) -> list[str]:
-    "Filter to multi-label rules, normalize, sort, dedupe; skip un-encodable ones."
-    entries, skipped = set(), []
+def build_rule_sets(rules: list[str]) -> tuple[list[str], list[str], list[str]]:
+    "Split rules into (suffixes, wildcard bases, exceptions), normalized and sorted."
+    suffixes: set[str] = set()
+    wildcards: set[str] = set()
+    exceptions: set[str] = set()
+    skipped = []
     for rule in rules:
-        if rule.startswith(("*", "!")) or rule.count(".") < 1:
+        if rule.startswith("*."):
+            target, rule = wildcards, rule[2:]
+        elif rule.startswith("!"):
+            target, rule = exceptions, rule[1:]
+        elif rule.count(".") < 1:  # single-label TLDs: implicit-* fallback
             continue
+        else:
+            target = suffixes
         normalized = idna_normalize(rule)
         if normalized is None:
             skipped.append(rule)
         else:
-            entries.add(normalized)
+            target.add(normalized)
     if skipped:
         print(f"warning: skipped {len(skipped)} un-encodable rule(s): {skipped}")
-    return sorted(entries)
+    return sorted(suffixes), sorted(wildcards), sorted(exceptions)
 
 
-def check_wildcard_drift(rules: list[str]) -> None:
-    "Warn if the PSL's wildcard/exception rules differ from courlan.tld's sets."
-    # drop un-encodable rules (idna_normalize -> None) so sorted() stays sane
-    psl_wild = {n for r in rules if r.startswith("*.") if (n := idna_normalize(r[2:]))}
-    psl_exc = {n for r in rules if r.startswith("!") if (n := idna_normalize(r[1:]))}
-    if psl_wild != set(WILDCARD_BASES):
-        print(f"warning: WILDCARD_BASES drift -- PSL now has {sorted(psl_wild)}")
-    if psl_exc != set(EXCEPTIONS):
-        print(f"warning: EXCEPTIONS drift -- PSL now has {sorted(psl_exc)}")
-
-
-def render(entries: list[str], version: str, commit: str) -> str:
+def render(
+    suffixes: list[str],
+    wildcards: list[str],
+    exceptions: list[str],
+    version: str,
+    commit: str,
+) -> str:
     "Render the generated module source."
-    body = "\n".join(entries)
-    return (
-        HEADER.format(source_url=SOURCE_URL, version=version, commit=commit)
-        + body
-        + FOOTER
+    return TEMPLATE.format(
+        source_url=SOURCE_URL,
+        version=version,
+        commit=commit,
+        suffixes="\n".join(suffixes),
+        wildcards="\n".join(wildcards),
+        exceptions="\n".join(exceptions),
     )
 
 
 def main() -> int:
     raw = fetch_psl()
     version, commit = extract_version_commit(raw)
-    icann_rules = extract_icann_rules(raw)
-    check_wildcard_drift(icann_rules)
-    entries = build_suffix_set(icann_rules)
-    content = render(entries, version, commit)
+    suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
+    counts = f"{len(suffixes)}/{len(wildcards)}/{len(exceptions)} rules"
+    if (
+        len(suffixes) < MIN_SUFFIXES
+        or len(wildcards) < MIN_WILDCARDS
+        or len(exceptions) < MIN_EXCEPTIONS
+    ):
+        print(f"error: implausibly small rule set ({counts}), refusing to continue.")
+        return 1
+    content = render(suffixes, wildcards, exceptions, version, commit)
 
     if "--check" in sys.argv[1:]:
         current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
         if content != current:
-            print(f"{OUTPUT_PATH} is stale ({len(entries)} entries available).")
+            print(f"{OUTPUT_PATH} is stale ({counts} available).")
             return 1
-        print(f"{OUTPUT_PATH} is up to date ({len(entries)} entries).")
+        print(f"{OUTPUT_PATH} is up to date ({counts}).")
         return 0
 
     OUTPUT_PATH.write_text(content)
-    print(f"wrote {OUTPUT_PATH} ({len(entries)} entries).")
+    print(f"wrote {OUTPUT_PATH} ({counts}).")
     return 0
 
 

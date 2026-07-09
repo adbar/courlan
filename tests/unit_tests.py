@@ -916,6 +916,11 @@ def test_urlutils():
     # port must be stripped cleanly, not glued onto the last label
     assert extract_domain("https://192.168.0.1/") == "192.168.0.1"
     assert extract_domain("http://192.168.0.1:8080/test") == "192.168.0.1"
+    # trailing-dot FQDN spelling of an IP is the same address
+    assert extract_domain("http://192.168.0.1./") == "192.168.0.1"
+    assert extract_domain("http://example.com../") is None
+    # hex IPv4 literals are rejected, not mistaken for domains
+    assert extract_domain("http://0xc0.0xa8.0x0.0x1/") is None
     assert extract_domain("https://[2001:db8::1]/") == "2001:db8::1"
     assert extract_domain("https://[2001:db8::1]:8080/") == "2001:db8::1"
     assert extract_domain("https://user:pass@www.example.com:81/") == "example.com"
@@ -991,6 +996,10 @@ def test_tld():
         # IPv4 / numeric final label rejected (even with non-numeric labels)
         "192.168.0.1": (None, None),
         "www.example.42": (None, None),
+        # hex IPv4 (browser-resolvable) rejected like decimal
+        "0xc0.0xa8.0x0.0x1": (None, None),
+        "foo.0x1": (None, None),
+        "foo.0x": (None, None),
         # IPv6 (brackets already stripped) carries colons, rejected
         "2001:db8::1": (None, None),
         "::ffff:192.0.2.128": (None, None),
@@ -1011,6 +1020,12 @@ def test_tld():
         # www IS the registrable label here (old CLEAN_FLD_REGEX wrongly stripped it)
         "www.co.uk": ("www", "www.co.uk"),
         "www.gov.uk": ("www", "www.gov.uk"),
+        # matching is case-insensitive, original case kept in the result
+        "BBC.CO.UK": ("BBC", "BBC.CO.UK"),
+        "Example.COM": ("Example", "Example.COM"),
+        "FOO.CK": (None, None),
+        "X.CITY.KOBE.JP": ("CITY", "CITY.KOBE.JP"),
+        "FOO.LØDINGEN.NO": ("FOO", "FOO.LØDINGEN.NO"),
         # full-PSL coverage: ccTLDs outside the old ~208-entry curated set
         "x.co.tz": ("x", "x.co.tz"),
         # 3-label suffix resolved via longest-match (was mis-split under the
@@ -1097,6 +1112,7 @@ def test_external():
     )
     # same IP in different textual forms is the same host
     assert is_external("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/") is False
+    assert is_external("http://192.168.0.1/", "http://192.168.0.1./") is False
     # malformed URLs
     assert is_external("h1234", "https://www.google.co.uk/", ignore_suffix=True) is True
     # stray bracket in the netloc must not raise

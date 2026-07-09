@@ -2,33 +2,41 @@
 Top-level domain utilities: public-suffix data and eTLD+1 extraction.
 """
 
-from ._psl_data import MULTI_PART_SUFFIXES
+from functools import lru_cache
 
-# PSL wildcard (*.)/exception (!) rules, ICANN section. Stable enough to keep
-# hardcoded rather than generated; scripts/update_psl.py --check warns on drift.
-WILDCARD_BASES = frozenset(
-    "nom.br ck er fk jm kawasaki.jp kitakyushu.jp kobe.jp nagoya.jp "
-    "sapporo.jp sendai.jp yokohama.jp mm np pg sch.uk".split()
+from ._psl_data import EXCEPTIONS, MULTI_PART_SUFFIXES, WILDCARD_BASES
+
+# longest rule across all sets bounds how many label-suffixes can ever match
+_MAX_RULE_LABELS = 1 + max(
+    rule.count(".")
+    for rules in (MULTI_PART_SUFFIXES, WILDCARD_BASES, EXCEPTIONS)
+    for rule in rules
 )
-EXCEPTIONS = frozenset(
-    "www.ck city.kawasaki.jp city.kitakyushu.jp city.kobe.jp city.nagoya.jp "
-    "city.sapporo.jp city.sendai.jp city.yokohama.jp".split()
-)
-
-
-def _idna_encode(label: str) -> str:
-    "Encode one label to ASCII/punycode; raise UnicodeError if it can't be."
-    return label if label.isascii() else label.encode("idna").decode("ascii")
 
 
 def _idna_label(label: str) -> str:
     "Punycode a non-ASCII label for suffix matching; pass ASCII through."
+    if label.isascii():
+        return label
     try:
-        return _idna_encode(label)
+        return label.encode("idna").decode("ascii")
     except UnicodeError:
         return label
 
 
+_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _is_numeric_label(label: str) -> bool:
+    "IPv4 candidate per WHATWG: decimal/octal digits, or 0x/0X plus hex digits."
+    if label.isdigit():
+        return True
+    if label[:2].lower() != "0x":
+        return False
+    return all(c in _HEX_DIGITS for c in label[2:].lower())
+
+
+@lru_cache(maxsize=1024)
 def get_registrable_domain(host: str | None) -> tuple[str | None, str | None]:
     "Return (domain_label, registrable_domain) from a host name."
     # host is pre-cleaned (urlsplit().hostname); a colon means IPv6, never a domain
@@ -36,13 +44,19 @@ def get_registrable_domain(host: str | None) -> tuple[str | None, str | None]:
         return None, None
     labels = host.strip(".").split(".")
     n = len(labels)
-    if n < 2 or labels[-1].isdigit():  # reject IPv4 / numeric TLD
+    if n < 2 or _is_numeric_label(labels[-1]):  # reject IPv4 (incl. hex) / numeric TLD
         return None, None
-    # match punycode form, keep original form for the result (Unicode in/out)
-    lookup = [_idna_label(label) for label in labels]
+    # match lowercase punycode form, keep original form for the result
+    lookup = (
+        labels
+        if host.isascii() and host.islower()
+        else [_idna_label(label.lower()) for label in labels]
+    )
     psl_len = 1
     # first match wins: exception (!) -1 label, wildcard (*.) +1, else implicit last
-    for i in range(n):  # range(n): a single-label wildcard base matches at i=n-1
+    # suffixes longer than the longest rule can't match; single-label wildcard
+    # bases still match at i=n-1
+    for i in range(max(0, n - _MAX_RULE_LABELS), n):
         cand = ".".join(lookup[i:])
         if cand in EXCEPTIONS:
             psl_len = n - i - 1
