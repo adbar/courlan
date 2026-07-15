@@ -4,8 +4,8 @@ Meta-functions to be applied module-wide.
 
 import logging
 
-from .filters import langcodes_score
-from .tld import get_registrable_domain
+from .hosts import get_registrable_domain
+from .langcodes import langcodes_score
 
 LOGGER = logging.getLogger(__name__)
 

@@ -38,13 +38,10 @@ from courlan.core import filter_links
 from courlan.filters import (
     domain_filter,
     extension_filter,
-    langcodes_score,
     path_filter,
     type_filter,
 )
-from courlan.meta import clear_caches
-from courlan.network import redirection_test
-from courlan.tld import (
+from courlan.hosts import (
     EXCEPTIONS,
     MULTI_PART_SUFFIXES,
     WILDCARD_BASES,
@@ -52,6 +49,9 @@ from courlan.tld import (
     _idna_label,
     get_registrable_domain,
 )
+from courlan.langcodes import langcodes_score
+from courlan.meta import clear_caches
+from courlan.network import redirection_test
 from courlan.urlutils import _parse, is_known_link
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -482,6 +482,10 @@ def test_lang_filter():
     assert lang_filter("https://x.com/en_XY/x/de/", "en") is False
     # >2 candidates: unreliable, score stays 0
     assert lang_filter("https://x.com/en/x/de/x/fr/", "en") is True
+    # adjacent segments: the matching /en/ must still be seen despite the shared
+    # slash (regression: consuming regex counted /de/en/ as one occurrence)
+    assert lang_filter("https://x.com/de/en/", "en") is True
+    assert lang_filter("https://x.com/de/fr/", "en") is False
 
     # /ch/ is not a language code, no rejection
     assert lang_filter("http://www.verfassungen.de/ch/basel/verf03.htm", "de") is True
@@ -499,6 +503,11 @@ def test_langcodes_score():
     assert langcodes_score("en", "xx") == 0  # invalid language
     assert langcodes_score("en", "xx_US") == 0
     assert langcodes_score("en", None) == 0  # non-string input
+    # major territories must be recognized (regression: the biased en_XX-generated
+    # ISO_TERRS was missing CN/JP/BR/… so these scored 0 instead of ±1)
+    assert langcodes_score("pt", "pt-BR") == 1
+    assert langcodes_score("zh", "zh-CN") == 1
+    assert langcodes_score("en", "zh-CN") == -1
 
 
 def test_navigation():
@@ -780,6 +789,8 @@ def test_urlcheck_port():
     "Test port handling through check_url."
     assert check_url("http://example.com:80") is not None
     assert check_url("http://example.com:80:80") is None
+    # IPv4 host with a port must not be rejected as a bad domain
+    assert check_url("http://127.0.0.1:8080/x") is not None
 
 
 def test_domain_filter():
@@ -815,6 +826,9 @@ def test_domain_filter():
     assert domain_filter("900.200.100.75") is False
     assert domain_filter("111.111.111") is False
     assert domain_filter("0127.0.0.1") is False
+    # IPv4 with a port is accepted like the portless form (was wrongly rejected)
+    assert domain_filter("127.0.0.1:8080") is True
+    assert domain_filter("900.200.100.75:8080") is False  # invalid IP, with port
 
     # hex-only strings that are not IPs must still be validated as domains
     assert domain_filter("abc.de") is True
@@ -1003,6 +1017,8 @@ def test_tld():
         # IPv4 / numeric final label rejected (even with non-numeric labels)
         "192.168.0.1": (None, None),
         "www.example.42": (None, None),
+        # only ASCII digits count as numeric (WHATWG); fullwidth is an ordinary label
+        "example.４２": ("example", "example.４２"),
         # hex IPv4 (browser-resolvable) rejected like decimal
         "0xc0.0xa8.0x0.0x1": (None, None),
         "foo.0x1": (None, None),
@@ -1554,16 +1570,19 @@ def test_examples():
 def test_meta():
     "Test package meta functions."
     _ = langcodes_score("en", "en_HK")
+    _ = get_registrable_domain("www.example.com")
     _ = _parse("https://example.net/123/abc")
 
     # urlsplit is only an lru_cache wrapper on some Python versions
     has_urlsplit_cache = hasattr(urlsplit, "cache_info")
     assert langcodes_score.cache_info().currsize > 0
+    assert get_registrable_domain.cache_info().currsize > 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize > 0
 
     clear_caches()
 
     assert langcodes_score.cache_info().currsize == 0
+    assert get_registrable_domain.cache_info().currsize == 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0

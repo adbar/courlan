@@ -4,38 +4,18 @@ Bundles functions needed to target text content and validate the input.
 
 import logging
 import re
-from functools import lru_cache
-from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit
 
-from .langcodes import ISO_LANGS, ISO_TERRS
+from .hosts import _canonical_ip, _idna_encode
+from .langcodes import langcodes_score
 
 LOGGER = logging.getLogger(__name__)
 
 
 PROTOCOLS = {"http", "https"}
 
-# domain/host names
-IP_SET = {
-    ".",
-    ":",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-}
+# cheap char gate for IP literals, before the exact _canonical_ip() check
+IP_SET = frozenset("0123456789abcdef.:")
 
 # https://github.com/python-validators/validators/blob/master/src/validators/domain.py
 VALID_DOMAIN_PORT = re.compile(
@@ -81,9 +61,10 @@ ADULT_AND_VIDEOS = re.compile(
 PATH_LANG_FILTER = re.compile(
     r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
-ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)", re.IGNORECASE)
+# lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
+ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+    r"(?:/)([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
@@ -145,21 +126,23 @@ def domain_filter(domain: str) -> bool:
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
-    # IPv4 or IPv6
-    if all(c in IP_SET for c in domain):
-        try:
-            ip_address(domain)
+    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET,
+    # so reuse the gate; IPv6+port needs brackets, handled at the URL layer)
+    is_ip_literal = all(c in IP_SET for c in domain)
+    if is_ip_literal and _canonical_ip(domain):
+        return True
+    if is_ip_literal:
+        head, sep, tail = domain.rpartition(":")
+        if sep and tail.isdigit() and _canonical_ip(head):
             return True
-        except ValueError:
-            # hex-only string that is not an IP (e.g. "abc.de") → keep validating
-            pass
 
-    # malformed domains
+    # malformed domains: retry against the punycode form before rejecting
     if not VALID_DOMAIN_PORT.match(domain):
         try:
-            if not VALID_DOMAIN_PORT.match(domain.encode("idna").decode("utf-8")):
-                return False
+            ascii_domain = _idna_encode(domain)
         except UnicodeError:
+            return False
+        if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
     # unsuitable content
@@ -175,21 +158,6 @@ def extension_filter(urlpath: str) -> bool:
     "Filter based on file extension."
     extension_match = EXTENSION_REGEX.search(urlpath.lower())
     return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
-
-
-@lru_cache(maxsize=1024)
-def langcodes_score(language: str, segment: str) -> int:
-    "Score a URL segment as a language indicator: +1 if it is a plausible matching locale, -1 if a mismatching one, 0 if not a recognizable locale."
-    if not isinstance(segment, str):
-        return 0
-    delimiter = "_" if "_" in segment else "-"
-    lang, _, territory = segment.partition(delimiter)
-    lang = lang.lower()
-    if lang not in ISO_LANGS:
-        return 0
-    if territory and territory.upper() not in ISO_TERRS:
-        return 0
-    return 1 if lang == language else -1
 
 
 def lang_filter(

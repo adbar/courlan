@@ -2,22 +2,13 @@
 Functions related to URL manipulation and extraction of URL parts.
 """
 
-import ipaddress
 import re
 from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from .tld import get_registrable_domain
+from .hosts import _canonical_ip, get_registrable_domain
 
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
-
-
-def _canonical_ip(candidate: str) -> str | None:
-    "Return the canonical form of an IP literal, or None if it isn't one."
-    try:
-        return str(ipaddress.ip_address(candidate))
-    except ValueError:
-        return None
 
 
 def _strip_trailing_dot(host: str) -> str:
@@ -40,16 +31,12 @@ def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
         host = _strip_trailing_dot(host)  # FQDN form would defeat the IP gate below
     # IP literals are returned in canonical form; gates avoid the exception
     # cost of ip_address() on the common non-IP case
-    if host and (":" in host or host[-1].isdigit()):
-        ip = _canonical_ip(host)
-        if ip:
-            return ip, ip
-    # unbracketed IPv6 isn't captured by .hostname; retry against the raw netloc,
-    # with the same trailing-dot normalization as the hostname path above
+    if host and (":" in host or host[-1].isdigit()) and (ip := _canonical_ip(host)):
+        return ip, ip
+    # unbracketed IPv6 isn't in .hostname; retry on the netloc (userinfo stripped)
     if parsed.netloc.count(":") >= 2:
         netloc_host = _strip_trailing_dot(parsed.netloc.rsplit("@", 1)[-1])
-        ip = _canonical_ip(netloc_host)
-        if ip:
+        if netloc_host.count(":") >= 2 and (ip := _canonical_ip(netloc_host)):
             return ip, ip
     return get_registrable_domain(host)
 
@@ -57,10 +44,11 @@ def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
 def extract_domain(
     url: str, blacklist: set[str] | None = None, fast: bool = False
 ) -> str | None:
-    """Extract domain name information using top-level domain info"""
+    """Extract domain name information using top-level domain info.
+    ``fast`` is accepted for backward compatibility but no longer has any effect."""
     if blacklist is None:
         blacklist = set()
-    domain, full_domain = get_tldinfo(url, fast=fast)
+    domain, full_domain = get_tldinfo(url)
 
     return (
         full_domain
@@ -109,7 +97,7 @@ def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
 
 def get_hostinfo(url: str) -> tuple[str | None, str]:
     "Convenience function returning domain and host info (protocol + host/domain) from a URL."
-    domainname = extract_domain(url, fast=True)
+    domainname = extract_domain(url)
     base_url = get_base_url(url)
     return domainname, base_url
 
@@ -148,8 +136,8 @@ def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     """Determine if a link leads to another host, takes a reference URL and
     a URL as input, returns a boolean"""
-    stripped_ref, ref = get_tldinfo(reference, fast=True)
-    stripped_domain, domain = get_tldinfo(url, fast=True)
+    stripped_ref, ref = get_tldinfo(reference)
+    stripped_domain, domain = get_tldinfo(url)
     # comparison
     if ignore_suffix:
         return stripped_domain != stripped_ref

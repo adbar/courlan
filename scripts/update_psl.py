@@ -3,7 +3,7 @@ Regenerate courlan/_psl_data.py from the Mozilla Public Suffix List (PSL).
 
 Usage:
     python scripts/update_psl.py          # fetch, regenerate, and write the file
-    python scripts/update_psl.py --check  # exit 1 if the file would change
+    python scripts/update_psl.py --check  # exit 1 if stale, 2 on a bad fetch, 0 if current
 
 Only pull the list from the canonical URL below -- the list's own header
 instructs against using any other source (e.g. VCS mirrors).
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import urllib3
 
+from courlan.hosts import _idna_encode
 from courlan.network import RETRY_STRATEGY
-from courlan.tld import _idna_encode
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
@@ -152,13 +152,16 @@ def main() -> int:
     version, commit = extract_version_commit(raw)
     suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
     counts = f"{len(suffixes)}/{len(wildcards)}/{len(exceptions)} rules"
+    # a truncated fetch is a data error (exit 2), not --check's exit-1 "stale"
     if (
         len(suffixes) < MIN_SUFFIXES
         or len(wildcards) < MIN_WILDCARDS
         or len(exceptions) < MIN_EXCEPTIONS
     ):
-        print(f"error: implausibly small rule set ({counts}), refusing to continue.")
-        return 1
+        print(
+            f"error: fetched rule set implausibly small ({counts}), refusing to continue."
+        )
+        return 2
     content = render(suffixes, wildcards, exceptions, version, commit)
 
     if "--check" in sys.argv[1:]:

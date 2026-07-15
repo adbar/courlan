@@ -1,7 +1,9 @@
 """
-Top-level domain utilities: public-suffix data and eTLD+1 extraction.
+Host utilities shared by urlutils and filters: IP-literal canonicalization,
+IDNA/punycode encoding, public-suffix data and eTLD+1 extraction.
 """
 
+import ipaddress
 from functools import lru_cache
 
 from ._psl_data import EXCEPTIONS, MULTI_PART_SUFFIXES, WILDCARD_BASES
@@ -12,6 +14,14 @@ _MAX_RULE_LABELS = 1 + max(
     for rules in (MULTI_PART_SUFFIXES, WILDCARD_BASES, EXCEPTIONS)
     for rule in rules
 )
+
+
+def _canonical_ip(candidate: str) -> str | None:
+    "Return the canonical form of an IP literal, or None if it isn't one."
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
 
 
 def _idna_encode(label: str) -> str:
@@ -32,7 +42,8 @@ _HEX_DIGITS = frozenset("0123456789abcdef")
 
 def _is_numeric_label(label: str) -> bool:
     "IPv4 candidate per WHATWG: decimal/octal digits, or 0x/0X plus hex digits."
-    if label.isdigit():
+    # ASCII-only (WHATWG): rejects fullwidth/other non-ASCII digits
+    if label.isascii() and label.isdigit():
         return True
     if label[:2].lower() != "0x":
         return False
