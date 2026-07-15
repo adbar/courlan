@@ -489,8 +489,6 @@ def test_lang_filter():
 
     # /ch/ is not a language code, no rejection
     assert lang_filter("http://www.verfassungen.de/ch/basel/verf03.htm", "de") is True
-    # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
-    # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
 
 
 def test_langcodes_score():
@@ -502,7 +500,6 @@ def test_langcodes_score():
     assert langcodes_score("en", "en-XY") == 0
     assert langcodes_score("en", "xx") == 0  # invalid language
     assert langcodes_score("en", "xx_US") == 0
-    assert langcodes_score("en", None) == 0  # non-string input
     # major territories must be recognized (regression: the biased en_XX-generated
     # ISO_TERRS was missing CN/JP/BR/… so these scored 0 instead of ±1)
     assert langcodes_score("pt", "pt-BR") == 1
@@ -791,6 +788,8 @@ def test_urlcheck_port():
     assert check_url("http://example.com:80:80") is None
     # IPv4 host with a port must not be rejected as a bad domain
     assert check_url("http://127.0.0.1:8080/x") is not None
+    # out-of-range port on an IPv4 host is rejected like the domain form
+    assert check_url("http://1.2.3.4:99999/x") is None
 
 
 def test_domain_filter():
@@ -829,6 +828,11 @@ def test_domain_filter():
     # IPv4 with a port is accepted like the portless form (was wrongly rejected)
     assert domain_filter("127.0.0.1:8080") is True
     assert domain_filter("900.200.100.75:8080") is False  # invalid IP, with port
+    # port must be in range and well-formed, like the domain path (VALID_DOMAIN_PORT)
+    assert domain_filter("1.2.3.4:65535") is True
+    assert domain_filter("1.2.3.4:99999") is False
+    assert domain_filter("1.2.3.4:0") is False
+    assert domain_filter("1.2.3.4:0080") is False  # leading zero rejected
 
     # hex-only strings that are not IPs must still be validated as domains
     assert domain_filter("abc.de") is True
@@ -899,64 +903,44 @@ def test_urlutils():
     assert extract_domain("") is None
     assert extract_domain(5) is None
     assert extract_domain("h") is None
+    # host splitting (subdomains, compound/IDN suffixes, longest-match) is covered
+    # exhaustively by test_tld on get_registrable_domain; the asserts here cover only
+    # what the URL layer adds on top: scheme/query/fragment/userinfo/port/IP parsing.
     assert extract_domain("https://httpbun.org/") == "httpbun.org"
+    assert extract_domain("https://news.bbc.co.uk/") == "bbc.co.uk"  # representative
+    # fast= is accepted for backward compatibility and no longer changes the result
     assert extract_domain("https://www.httpbun.org/", fast=True) == "httpbun.org"
-    assert extract_domain("http://www.mkyong.com.au", fast=True) == "mkyong.com.au"
-    # t.co is the actual PSL suffix, not t.t.co
-    assert extract_domain("http://mkyong.t.t.co", fast=True) == "t.co"
-    assert extract_domain("ftp://www4.httpbun.org", fast=True) == "httpbun.org"
-    assert extract_domain("http://w3.example.com", fast=True) == "example.com"
-    assert extract_domain("https://de.nachrichten.yahoo.com/", fast=True) == "yahoo.com"
+    # query and fragment are stripped
+    assert extract_domain("http://example.com?query=one") == "example.com"
+    assert extract_domain("http://example.com#fragment") == "example.com"
+    # empty domain (userinfo only) yields None
+    assert extract_domain("http://exam.p@") is None
+    # port stripped cleanly, not glued onto the last label; punycode host + port
     assert (
-        extract_domain("http://xn--h1aagokeh.xn--p1ai:8888", fast=True)
-        == "xn--h1aagokeh.xn--p1ai"
+        extract_domain("http://xn--h1aagokeh.xn--p1ai:8888") == "xn--h1aagokeh.xn--p1ai"
     )
-    assert extract_domain("http://user:pass@domain.test:81", fast=True) == "domain.test"
-    assert extract_domain("http://111.2.33.44/test", fast=True) == "111.2.33.44"
-    assert (
-        extract_domain("http://2001:db8::ff00:42:8329/test", fast=True)
-        == "2001:db8::ff00:42:8329"
-    )
-    assert (
-        extract_domain("https://test.xn--0zwm56d.com/", fast=True) == "xn--0zwm56d.com"
-    )
-    assert extract_domain("http://example.com?query=one", fast=True) == "example.com"
-    assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
-    # fast-path match yields an empty domain -> falls back to the slow path
-    assert extract_domain("http://exam.p@", fast=True) is None
-    # compound-suffix resolution via the fallback (fast=False)
-    assert extract_domain("https://news.bbc.co.uk/") == "bbc.co.uk"
-    assert extract_domain("https://www.google.co.uk/") == "google.co.uk"
-    assert extract_domain("https://foo.ne.jp/") == "foo.ne.jp"
-    assert extract_domain("https://shop.example.org.au/") == "example.org.au"
-    assert extract_domain("https://example.co.za/") == "example.co.za"
-    # full-PSL coverage: ccTLDs outside the old curated set now resolve
-    assert extract_domain("https://foo.co.bw/") == "foo.co.bw"
-    # 3-label suffix handled correctly via longest-match
-    assert extract_domain("https://school.act.edu.au/") == "school.act.edu.au"
-    # port must be stripped cleanly, not glued onto the last label
+    assert extract_domain("https://user:pass@www.example.com:81/") == "example.com"
+    # IPv4: bare, with port, trailing-dot FQDN spelling
     assert extract_domain("https://192.168.0.1/") == "192.168.0.1"
     assert extract_domain("http://192.168.0.1:8080/test") == "192.168.0.1"
-    # trailing-dot FQDN spelling of an IP is the same address
     assert extract_domain("http://192.168.0.1./") == "192.168.0.1"
     assert extract_domain("http://example.com../") is None
     # hex IPv4 literals are rejected, not mistaken for domains
     assert extract_domain("http://0xc0.0xa8.0x0.0x1/") is None
+    # IPv6: bracketed, bracketed+port, unbracketed, canonicalized regardless of spelling
     assert extract_domain("https://[2001:db8::1]/") == "2001:db8::1"
     assert extract_domain("https://[2001:db8::1]:8080/") == "2001:db8::1"
-    assert extract_domain("https://user:pass@www.example.com:81/") == "example.com"
-    # unvalidated TLDs accepted by design (no PSL TLD-existence check)
-    assert extract_domain("http://domain.test/") == "domain.test"
-    # IDN resolves via punycode, returned in original form
-    assert extract_domain("https://foo.lødingen.no/") == "foo.lødingen.no"
-    # stray bracket must not raise
-    assert extract_domain("http://sub.example.com]/x", fast=True) is None
-    assert extract_domain("http://[invalid/", fast=True) is None
-    # canonical form regardless of input spelling
     assert extract_domain("http://[0:0:0:0:0:0:0:1]/") == "::1"
     assert (
         extract_domain("http://2001:DB8::FF00:42:8329/test") == "2001:db8::ff00:42:8329"
     )
+    # unvalidated TLDs accepted by design (no PSL TLD-existence check)
+    assert extract_domain("http://domain.test/") == "domain.test"
+    # IDN resolves via punycode, returned in original form
+    assert extract_domain("https://foo.lødingen.no/") == "foo.lødingen.no"
+    # stray / unbalanced brackets must not raise
+    assert extract_domain("http://sub.example.com]/x") is None
+    assert extract_domain("http://[invalid/") is None
     # url parsing
     result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
@@ -1105,6 +1089,58 @@ def test_psl_data_encoder_consistency():
                     assert _idna_encode(label.encode("ascii").decode("idna")) == label
                     checked += 1
     assert checked  # the data does contain punycode entries
+
+
+def test_psl_check_ignores_header_metadata():
+    "--check compares rule data, not the VERSION/COMMIT provenance header."
+    from scripts.update_psl import render, strip_header_metadata
+
+    old = render(["co.uk"], ["ck"], ["www.ck"], "v1", "aaa")
+    new = render(["co.uk"], ["ck"], ["www.ck"], "v2", "bbb")
+    assert old != new  # headers differ
+    assert strip_header_metadata(old) == strip_header_metadata(new)  # rules identical
+    changed = render(["co.uk", "gov.uk"], ["ck"], ["www.ck"], "v1", "aaa")
+    assert strip_header_metadata(old) != strip_header_metadata(changed)
+
+
+def test_psl_parsers():
+    "PSL text parsing: header fields, ICANN-only rule extraction, rule-set split."
+    from scripts.update_psl import (
+        build_rule_sets,
+        extract_icann_rules,
+        extract_version_commit,
+    )
+
+    raw = (
+        "// VERSION: 2026-07-15_00-00-00_UTC\n"
+        "// COMMIT: abc123\n"
+        "// ===BEGIN ICANN DOMAINS===\n"
+        "// a comment\n"
+        "com\n"  # single-label TLD -> dropped by build_rule_sets
+        "co.uk\n"
+        "\n"  # blank line
+        "*.ck\n"
+        "!www.ck\n"
+        "  ne.jp  \n"  # whitespace stripped
+        "// ===END ICANN DOMAINS===\n"
+        "// ===BEGIN PRIVATE DOMAINS===\n"
+        "github.io\n"  # private section -> excluded
+        "// ===END PRIVATE DOMAINS===\n"
+    )
+    assert extract_version_commit(raw) == ("2026-07-15_00-00-00_UTC", "abc123")
+    assert extract_version_commit("no headers") == ("unknown", "unknown")
+
+    rules = extract_icann_rules(raw)
+    assert rules == ["com", "co.uk", "*.ck", "!www.ck", "ne.jp"]  # ICANN only
+
+    suffixes, wildcards, exceptions = build_rule_sets(rules)
+    assert suffixes == ["co.uk", "ne.jp"]  # single-label "com" dropped
+    assert wildcards == ["ck"]  # "*." stripped
+    assert exceptions == ["www.ck"]  # "!" stripped
+
+    # missing markers hard-fail (intended for a generator script)
+    with pytest.raises(IndexError):
+        extract_icann_rules("no markers")
 
 
 def test_external():

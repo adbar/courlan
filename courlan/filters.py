@@ -62,9 +62,9 @@ PATH_LANG_FILTER = re.compile(
     r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
 # lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
-ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
+ALL_PATH_LANGS = re.compile(r"/([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"(?:/)([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
+    r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
@@ -128,12 +128,18 @@ def domain_filter(domain: str) -> bool:
         return False
     # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET,
     # so reuse the gate; IPv6+port needs brackets, handled at the URL layer)
-    is_ip_literal = all(c in IP_SET for c in domain)
-    if is_ip_literal and _canonical_ip(domain):
-        return True
-    if is_ip_literal:
+    if all(c in IP_SET for c in domain):
+        if _canonical_ip(domain):
+            return True
         head, sep, tail = domain.rpartition(":")
-        if sep and tail.isdigit() and _canonical_ip(head):
+        # port: 1-65535, no leading zero (mirrors VALID_DOMAIN_PORT's [1-9]... rule)
+        if (
+            sep
+            and tail[:1] != "0"
+            and tail.isdigit()
+            and int(tail) < 65536
+            and _canonical_ip(head)
+        ):
             return True
 
     # malformed domains: retry against the punycode form before rejecting
@@ -167,31 +173,20 @@ def lang_filter(
     trailing_slash: bool = True,
 ) -> bool:
     "Heuristics targeting internationalization and linguistic elements based on a score."
-    # sanity check
     if language is None:
         return True
-    # init score
     score = 0
-    # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.match(url)
-    if match:
-        # look for other occurrences
-        if trailing_slash:
-            occurrences = ALL_PATH_LANGS.findall(url)
-        else:
-            occurrences = ALL_PATH_LANGS_NO_TRAILING.findall(url)
-        if len(occurrences) == 1:
-            score += langcodes_score(language, match[1] + (match[2] or ""))
-        elif len(occurrences) == 2:
+    # first test: internationalization cues in the URL path
+    if PATH_LANG_FILTER.match(url):
+        regex = ALL_PATH_LANGS if trailing_slash else ALL_PATH_LANGS_NO_TRAILING
+        occurrences = regex.findall(url)
+        # skip if there are too many candidates: > 2
+        if 0 < len(occurrences) <= 2:
             for occurrence in occurrences:
                 score += langcodes_score(language, occurrence[0] + occurrence[1])
-        # don't perform the test if there are too many candidates: > 2
-    # second test: prepended language cues
-    if strict:
-        match = HOST_LANG_FILTER.match(url)
-        if match:
-            score += 1 if match[1].lower() == language else -1
-    # determine test result
+    # second test: prepended language cue in the host subdomain
+    if strict and (match := HOST_LANG_FILTER.match(url)):
+        score += 1 if match[1].lower() == language else -1
     return score >= 0
 
 

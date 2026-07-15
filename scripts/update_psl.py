@@ -76,27 +76,28 @@ def fetch_psl() -> str:
     return resp.data.decode("utf-8")
 
 
+def _header_field(raw: str, name: str) -> str:
+    "Read a `// NAME: value` header line, or 'unknown' if absent."
+    match = re.search(rf"^// {name}: (.+)$", raw, re.MULTILINE)
+    return match[1] if match else "unknown"
+
+
 def extract_version_commit(raw: str) -> tuple[str, str]:
     "Pull the VERSION and COMMIT header lines out of the raw PSL text."
-    version = re.search(r"^// VERSION: (.+)$", raw, re.MULTILINE)
-    commit = re.search(r"^// COMMIT: (.+)$", raw, re.MULTILINE)
-    return (
-        version.group(1) if version else "unknown",
-        commit.group(1) if commit else "unknown",
-    )
+    return _header_field(raw, "VERSION"), _header_field(raw, "COMMIT")
 
 
 def extract_icann_rules(raw: str) -> list[str]:
     "Return the raw (uncommented) rule lines within the ICANN section."
-    rules, in_icann = [], False
-    for line in raw.splitlines():
-        if "===BEGIN ICANN DOMAINS===" in line:
-            in_icann = True
-        elif "===END ICANN DOMAINS===" in line:
-            in_icann = False
-        elif in_icann and line and not line.startswith("//"):
-            rules.append(line.strip())
-    return rules
+    # missing markers raise IndexError -- a hard fail on a malformed fetch is intended
+    section = raw.split("===BEGIN ICANN DOMAINS===")[1].split(
+        "===END ICANN DOMAINS==="
+    )[0]
+    return [
+        line.strip()
+        for line in section.splitlines()
+        if line and not line.startswith("//")
+    ]
 
 
 def idna_normalize(rule: str) -> str:
@@ -147,6 +148,15 @@ def render(
     )
 
 
+def strip_header_metadata(content: str) -> str:
+    "Drop the VERSION/COMMIT lines so --check compares rule data, not provenance."
+    return "\n".join(
+        line
+        for line in content.splitlines()
+        if not line.startswith(("# PSL VERSION:", "# PSL COMMIT:"))
+    )
+
+
 def main() -> int:
     raw = fetch_psl()
     version, commit = extract_version_commit(raw)
@@ -166,7 +176,7 @@ def main() -> int:
 
     if "--check" in sys.argv[1:]:
         current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
-        if content != current:
+        if strip_header_metadata(content) != strip_header_metadata(current):
             print(f"{OUTPUT_PATH} is stale ({counts} available).")
             return 1
         print(f"{OUTPUT_PATH} is up to date ({counts}).")

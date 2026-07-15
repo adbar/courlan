@@ -16,11 +16,9 @@ def _strip_trailing_dot(host: str) -> str:
     return host[:-1] if host.endswith(".") and not host.endswith("..") else host
 
 
-def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
-    """Extract domain info, returning a ``(domain, full_domain)`` tuple.
-    ``fast`` is accepted for backward compatibility but no longer changes the
-    result: extraction always goes through the public-suffix lookup."""
-    if not url or not isinstance(url, str):
+def get_tldinfo(url: str) -> tuple[str | None, str | None]:
+    "Extract domain info via the public-suffix lookup, returning a ``(domain, full_domain)`` tuple."
+    if not isinstance(url, str) or not url:
         return None, None
     try:
         parsed = _parse(url)

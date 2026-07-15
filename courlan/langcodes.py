@@ -9,10 +9,7 @@ from functools import lru_cache
 @lru_cache(maxsize=1024)
 def langcodes_score(language: str, segment: str) -> int:
     "Score a URL segment as a language cue: +1 matching locale, -1 mismatching, 0 unrecognized."
-    if not isinstance(segment, str):
-        return 0
-    delimiter = "_" if "_" in segment else "-"
-    lang, _, territory = segment.partition(delimiter)
+    lang, _, territory = segment.replace("_", "-").partition("-")
     lang = lang.lower()
     if lang not in ISO_LANGS:
         return 0

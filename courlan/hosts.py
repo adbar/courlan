@@ -25,7 +25,7 @@ def _canonical_ip(candidate: str) -> str | None:
 
 
 def _idna_encode(label: str) -> str:
-    "Encode one label to ASCII/punycode; raise UnicodeError if it can't be."
+    "Encode a label or dotted name to ASCII/punycode; raise UnicodeError if it can't be."
     return label if label.isascii() else label.encode("idna").decode("ascii")
 
 
