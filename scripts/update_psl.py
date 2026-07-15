@@ -103,7 +103,7 @@ def extract_icann_rules(raw: str) -> list[str]:
 def idna_normalize(rule: str) -> str:
     "Punycode a rule via the shared runtime encoder; hard-fail on any problem."
     try:
-        encoded = ".".join(_idna_encode(label) for label in rule.split("."))
+        encoded = _idna_encode(rule)
     except UnicodeError as err:
         raise RuntimeError(f"cannot encode rule {rule!r}: {err}") from err
     # reject lossy encodings (ß->ss, ς->σ, ZWJ/ZWNJ) that diverge from UTS-46

@@ -107,7 +107,7 @@ warn_redundant_casts = true
 [tool.coverage.run]
 branch = true
 source = ["courlan"]
-omit = ["tests/*", "setup.py"]
+omit = ["tests/*", "setup.py", "scripts/*"]
 
 [tool.coverage.report]
 exclude_lines = [
