@@ -61,7 +61,11 @@ def extract_domain(
 def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
-        parsed_url = urlsplit(unescape(url))
+        try:
+            parsed_url = urlsplit(unescape(url))
+        except ValueError:
+            # malformed URL (e.g. bad IPv6 literal): degrade to empty parts like a hostless URL.
+            parsed_url = SplitResult("", "", "", "", "")
     elif isinstance(url, SplitResult):
         parsed_url = url
     else:
