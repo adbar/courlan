@@ -67,6 +67,22 @@ def test_baseurls():
     assert get_base_url("example.org") == ""
 
 
+def test_malformed_url_degrades():
+    # A malformed URL (bad IPv6 literal) made urlsplit raise a raw ValueError that
+    # leaked out of get_base_url/get_hostinfo; it now degrades like a hostless URL.
+    assert get_base_url("HTTP://[::1]&") == ""
+    assert get_hostinfo("HTTP://[::1]&") == (None, "")
+    # get_host_and_path still raises its own documented incomplete-URL error.
+    with pytest.raises(ValueError, match="incomplete URL"):
+        get_host_and_path("HTTP://[::1]&")
+    # valid and hostless URLs are unaffected.
+    assert get_base_url("https://example.org/") == "https://example.org"
+    assert get_hostinfo("https://example.org/path") == (
+        "example.org",
+        "https://example.org",
+    )
+
+
 def test_fix_relative():
     assert (
         fix_relative_urls("https://example.org", "page.html")
