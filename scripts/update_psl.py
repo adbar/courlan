@@ -158,16 +158,19 @@ def strip_header_metadata(content: str) -> str:
 
 
 def main() -> int:
-    raw = fetch_psl()
-    version, commit = extract_version_commit(raw)
-    suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
-    counts = f"{len(suffixes)}/{len(wildcards)}/{len(exceptions)} rules"
-    # a truncated fetch is a data error (exit 2), not --check's exit-1 "stale"
-    if (
-        len(suffixes) < MIN_SUFFIXES
-        or len(wildcards) < MIN_WILDCARDS
-        or len(exceptions) < MIN_EXCEPTIONS
-    ):
+    # any data problem (bad fetch, malformed markers, bad IDNA) is exit 2,
+    # never --check's exit-1 "stale"
+    try:
+        raw = fetch_psl()
+        version, commit = extract_version_commit(raw)
+        suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
+    except (RuntimeError, IndexError, urllib3.exceptions.HTTPError) as err:
+        print(f"error: {err}")
+        return 2
+
+    n_suf, n_wild, n_exc = len(suffixes), len(wildcards), len(exceptions)
+    counts = f"{n_suf}/{n_wild}/{n_exc} rules"
+    if n_suf < MIN_SUFFIXES or n_wild < MIN_WILDCARDS or n_exc < MIN_EXCEPTIONS:
         print(
             f"error: fetched rule set implausibly small ({counts}), refusing to continue."
         )

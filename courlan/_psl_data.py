@@ -10,8 +10,8 @@ scripts/update_psl.py to regenerate.
 #
 # Source: https://publicsuffix.org/list/public_suffix_list.dat (pull only from this URL,
 # per the list's own header instructions).
-# PSL VERSION: 2026-06-24_06-18-09_UTC
-# PSL COMMIT: 18ecca5d54471f21918798da451dd8d03a18f3c7
+# PSL VERSION: 2026-07-15_18-13-59_UTC
+# PSL COMMIT: 9b5c814414374aa19a93dc6dd7e47c01909524cc
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -89,7 +89,6 @@ ac.rw
 ac.se
 ac.sz
 ac.th
-ac.tj
 ac.tz
 ac.ug
 ac.uk
@@ -113,6 +112,7 @@ adult.ht
 adv.br
 adv.mz
 aejrie.no
+aero.in
 aero.mv
 aerobatic.aero
 aeroclub.aero
@@ -193,6 +193,7 @@ alt.za
 alta.no
 alto-adige.it
 altoadige.it
+alumni.in
 alvdal.no
 am.br
 am.gov.br
@@ -324,7 +325,7 @@ atm.pl
 ato.br
 atsugi.kanagawa.jp
 atsuma.hokkaido.jp
-audnedaln.no
+audnedal.no
 augustow.pl
 aukra.no
 aure.no
@@ -912,6 +913,7 @@ cuiaba.br
 cuneo.it
 curitiba.br
 cv.ua
+cyb.ge
 cz.it
 czeladz.pl
 czest.pl
@@ -1262,7 +1264,6 @@ foz.br
 fr.it
 frana.no
 fredrikstad.no
-frei.no
 freight.aero
 friuli-v-giulia.it
 friuli-ve-giulia.it
@@ -1370,6 +1371,7 @@ geo.br
 ggf.br
 gialai.vn
 giehtavuoatna.no
+gielda.no
 gifu.gifu.jp
 gifu.jp
 gildeskal.no
@@ -2619,6 +2621,7 @@ limanowa.pl
 lindas.no
 lindesnes.no
 livorno.it
+llc.ge
 ln.cn
 lo.it
 loabat.no
@@ -3544,6 +3547,7 @@ onagawa.miyagi.jp
 ong.br
 onga.fukuoka.jp
 onjuku.chiba.jp
+online.ge
 onna.okinawa.jp
 ono.fukui.jp
 ono.fukushima.jp
@@ -3983,6 +3987,7 @@ rawa-maz.pl
 rc.it
 re.it
 re.kr
+re.no
 realestate.pl
 rebun.hokkaido.jp
 rec.br
@@ -4185,6 +4190,7 @@ sch.sa
 sch.ss
 sch.zm
 school.ge
+school.in
 school.nz
 school.za
 sci.eg
@@ -4462,6 +4468,7 @@ sumy.ua
 sunagawa.hokkaido.jp
 sund.no
 sunndal.no
+suohkan.no
 surnadal.no
 susaki.kochi.jp
 susono.shizuoka.jp
@@ -4616,6 +4623,7 @@ tingvoll.no
 tinn.no
 tj.cn
 tjeldsund.no
+tjielte.no
 tjome.no
 tksat.bo
 tm.cy
@@ -4632,6 +4640,7 @@ tm.za
 tmp.br
 tn.it
 tn.us
+tnx.ge
 to.gov.br
 to.it
 toba.mie.jp
@@ -4840,6 +4849,7 @@ tysnes.no
 tysvar.no
 u.bg
 u.se
+ub.in
 ube.yamaguchi.jp
 uchihara.ibaraki.jp
 uchiko.ehime.jp
@@ -4853,6 +4863,7 @@ udono.mie.jp
 ueda.nagano.jp
 ueno.gunma.jp
 uenohara.yamanashi.jp
+uenorge.no
 ug.gov.pl
 ugim.gov.pl
 uio.ec
@@ -4865,6 +4876,7 @@ ukiha.fukuoka.jp
 ullensaker.no
 ullensvang.no
 ulsan.kr
+ulstein.no
 ulvik.no
 um.gov.pl
 umaji.kochi.jp
@@ -5169,6 +5181,7 @@ xn--gmqw5a.hk
 xn--gmqw5a.xn--j6w193g
 xn--h-2fa.no
 xn--h3cuzk1di.xn--o3cw4h
+xn--hamary-fya.no
 xn--hbmer-xqa.no
 xn--hcesuolo-7ya35b.no
 xn--hebda8b.xn--4dbrk0ce
@@ -5188,6 +5201,7 @@ xn--io0a7i.hk
 xn--jlster-bya.no
 xn--jrpeland-54a.no
 xn--k7yn95e.jp
+xn--karlsy-fya.no
 xn--karmy-yua.no
 xn--kbrq7o.jp
 xn--kfjord-iua.no

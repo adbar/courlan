@@ -1145,6 +1145,33 @@ def test_psl_parsers():
         extract_icann_rules("no markers")
 
 
+def test_psl_main_exit_codes():
+    "main() maps every data-error channel to exit 2, distinct from --check's exit 1."
+    import urllib3
+
+    import scripts.update_psl as update_psl
+
+    # HTTP-status failure (RuntimeError from fetch_psl)
+    with patch.object(
+        update_psl,
+        "fetch_psl",
+        side_effect=RuntimeError("PSL download failed: HTTP 503"),
+    ):
+        assert update_psl.main() == 2
+
+    # network failure (urllib3.exceptions.HTTPError, e.g. MaxRetryError)
+    with patch.object(
+        update_psl,
+        "fetch_psl",
+        side_effect=urllib3.exceptions.MaxRetryError(None, "url"),  # type: ignore[arg-type]
+    ):
+        assert update_psl.main() == 2
+
+    # malformed PSL text: markers missing -> IndexError from extract_icann_rules
+    with patch.object(update_psl, "fetch_psl", return_value="no markers here"):
+        assert update_psl.main() == 2
+
+
 def test_external():
     """test domain comparison"""
     assert is_external("", "https://www.microsoft.com/") is True
