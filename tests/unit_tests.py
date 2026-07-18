@@ -813,6 +813,8 @@ def test_domain_filter():
     assert domain_filter("exa-mple.co.uk") is True
     assert domain_filter("kräuter.de") is True
     assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
+    # non-ASCII label too long to punycode -> UnicodeError -> rejected
+    assert domain_filter("ä" * 100 + ".de") is False
     assert domain_filter("`$smarty.server.server_name`") is False
     assert domain_filter("$`)}if(a.tryconvertencoding)trycatch(e)const") is False
     assert domain_filter("00x200.jpg,") is False
