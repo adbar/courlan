@@ -151,6 +151,9 @@ def test_fix_relative():
         == "https://www.example.org/foo.html?q=bar#baz"
     )
     assert fix_relative_urls("https://www.example.org", "{privacy}") == "{privacy}"
+    # malformed IPv6 in protocol-relative or base URL must not raise
+    assert fix_relative_urls("https://example.org", "//[::1/path") == "//[::1/path"
+    assert get_base_url("https://[::1") == ""
 
 
 def test_scrub():
@@ -984,6 +987,12 @@ def test_extraction():
         extract_links(None, base_url="https://test.com/", external_bool=False)
     assert not extract_links(None, url="https://test.com/", external_bool=False)
     assert not extract_links("", "https://test.com/", False)
+    # malformed IPv6 protocol-relative href / page URL must not raise
+    pagecontent = '<html><a href="//[::1/path">x</a><a href="/ok">y</a></html>'
+    assert extract_links(pagecontent, "https://example.com/", False) == {
+        "https://example.com/ok"
+    }
+    assert extract_links('<a href="/ok">y</a>', "https://[::1", False) == set()
     # anchor tags matched by the regex but without an href yield no candidate
     pagecontent = '<html><a class="logo">home</a><a name="x">y</a></html>'
     assert not extract_links(pagecontent, "https://test.com/", False)

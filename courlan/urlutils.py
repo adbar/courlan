@@ -61,7 +61,10 @@ def extract_domain(
 def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
-        parsed_url = urlsplit(unescape(url))
+        try:
+            parsed_url = urlsplit(unescape(url))
+        except ValueError as err:
+            raise ValueError(f"invalid URL: {url}") from err
     elif isinstance(url, SplitResult):
         parsed_url = url
     else:
@@ -72,7 +75,10 @@ def _parse(url: str | SplitResult) -> SplitResult:
 def get_base_url(url: str | SplitResult) -> str:
     """Strip URL of some of its parts to get base URL.
     Accepts strings and urllib.parse ParseResult objects."""
-    parsed_url = _parse(url)
+    try:
+        parsed_url = _parse(url)
+    except ValueError:
+        return ""
     if parsed_url.scheme:
         scheme = parsed_url.scheme + "://"
     else:
@@ -108,9 +114,13 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     if url.startswith("{"):
         return url
 
-    parsed_base = urlsplit(baseurl)
+    try:
+        parsed_base = urlsplit(baseurl)
+        split_url = urlsplit(url)
+    except ValueError:
+        return url
+
     base_netloc = parsed_base.netloc
-    split_url = urlsplit(url)
 
     if split_url.netloc not in (base_netloc, ""):
         if split_url.scheme:
