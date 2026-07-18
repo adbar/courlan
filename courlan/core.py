@@ -33,7 +33,8 @@ LOGGER = logging.getLogger(__name__)
 
 FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
 HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
-LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\' >])', re.I)
+# *? so empty href="" / href='' do not capture the closing quote as the URL
+LINK_REGEX = re.compile(r'href=["\']?([^ ]*?)(["\' >])', re.I)
 
 
 def check_url(

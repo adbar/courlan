@@ -1248,6 +1248,21 @@ def test_extraction():
     # hreflang matches the target language but the tag has no href
     pagecontent = '<html><a hreflang="de-DE">no href</a></html>'
     assert not extract_links(pagecontent, "https://test.com/", False, language="de")
+    # empty quoted href must not capture the closing quote as a path (/%27)
+    pagecontent = "<html><a href=''>x</a></html>"
+    assert extract_links(pagecontent, "https://example.org", False) == {
+        "https://example.org"
+    }
+    assert extract_links(pagecontent, "https://example.org", no_filter=True) == {
+        "https://example.org"
+    }
+    pagecontent = '<html><a href="">x</a></html>'
+    assert extract_links(pagecontent, "https://example.org", False) == {
+        "https://example.org"
+    }
+    assert extract_links(pagecontent, "https://example.org", no_filter=True) == {
+        "https://example.org"
+    }
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
     assert len(extract_links(pagecontent, "https://test.org", False)) == 1
