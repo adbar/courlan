@@ -4,38 +4,18 @@ Bundles functions needed to target text content and validate the input.
 
 import logging
 import re
-from functools import lru_cache
-from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit
 
-from .langcodes import ISO_LANGS, ISO_TERRS
+from .hosts import _canonical_ip, _idna_encode
+from .langcodes import langcodes_score
 
 LOGGER = logging.getLogger(__name__)
 
 
 PROTOCOLS = {"http", "https"}
 
-# domain/host names
-IP_SET = {
-    ".",
-    ":",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-}
+# cheap char gate for IP literals, before the exact _canonical_ip() check
+IP_SET = frozenset("0123456789abcdef.:")
 
 # https://github.com/python-validators/validators/blob/master/src/validators/domain.py
 VALID_DOMAIN_PORT = re.compile(
@@ -81,9 +61,10 @@ ADULT_AND_VIDEOS = re.compile(
 PATH_LANG_FILTER = re.compile(
     r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
-ALL_PATH_LANGS = re.compile(r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/)", re.IGNORECASE)
+# lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
+ALL_PATH_LANGS = re.compile(r"/([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"(?:/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+    r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
@@ -145,21 +126,29 @@ def domain_filter(domain: str) -> bool:
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
-    # IPv4 or IPv6
+    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET,
+    # so reuse the gate; IPv6+port needs brackets, handled at the URL layer)
     if all(c in IP_SET for c in domain):
-        try:
-            ip_address(domain)
+        if _canonical_ip(domain):
             return True
-        except ValueError:
-            # hex-only string that is not an IP (e.g. "abc.de") → keep validating
-            pass
+        head, sep, tail = domain.rpartition(":")
+        # port: 1-65535, no leading zero (mirrors VALID_DOMAIN_PORT's [1-9]... rule)
+        if (
+            sep
+            and tail[:1] != "0"
+            and tail.isdigit()
+            and int(tail) < 65536
+            and _canonical_ip(head)
+        ):
+            return True
 
-    # malformed domains
+    # malformed domains: retry against the punycode form before rejecting
     if not VALID_DOMAIN_PORT.match(domain):
         try:
-            if not VALID_DOMAIN_PORT.match(domain.encode("idna").decode("utf-8")):
-                return False
+            ascii_domain = _idna_encode(domain)
         except UnicodeError:
+            return False
+        if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
     # unsuitable content
@@ -177,21 +166,6 @@ def extension_filter(urlpath: str) -> bool:
     return not extension_match or extension_match[0] in WHITELISTED_EXTENSIONS
 
 
-@lru_cache(maxsize=1024)
-def langcodes_score(language: str, segment: str) -> int:
-    "Score a URL segment as a language indicator: +1 if it is a plausible matching locale, -1 if a mismatching one, 0 if not a recognizable locale."
-    if not isinstance(segment, str):
-        return 0
-    delimiter = "_" if "_" in segment else "-"
-    lang, _, territory = segment.partition(delimiter)
-    lang = lang.lower()
-    if lang not in ISO_LANGS:
-        return 0
-    if territory and territory.upper() not in ISO_TERRS:
-        return 0
-    return 1 if lang == language else -1
-
-
 def lang_filter(
     url: str,
     language: str | None = None,
@@ -199,31 +173,20 @@ def lang_filter(
     trailing_slash: bool = True,
 ) -> bool:
     "Heuristics targeting internationalization and linguistic elements based on a score."
-    # sanity check
     if language is None:
         return True
-    # init score
     score = 0
-    # first test: internationalization in URL path
-    match = PATH_LANG_FILTER.match(url)
-    if match:
-        # look for other occurrences
-        if trailing_slash:
-            occurrences = ALL_PATH_LANGS.findall(url)
-        else:
-            occurrences = ALL_PATH_LANGS_NO_TRAILING.findall(url)
-        if len(occurrences) == 1:
-            score += langcodes_score(language, match[1] + (match[2] or ""))
-        elif len(occurrences) == 2:
+    # first test: internationalization cues in the URL path
+    if PATH_LANG_FILTER.match(url):
+        regex = ALL_PATH_LANGS if trailing_slash else ALL_PATH_LANGS_NO_TRAILING
+        occurrences = regex.findall(url)
+        # skip if there are too many candidates: > 2
+        if 0 < len(occurrences) <= 2:
             for occurrence in occurrences:
                 score += langcodes_score(language, occurrence[0] + occurrence[1])
-        # don't perform the test if there are too many candidates: > 2
-    # second test: prepended language cues
-    if strict:
-        match = HOST_LANG_FILTER.match(url)
-        if match:
-            score += 1 if match[1].lower() == language else -1
-    # determine test result
+    # second test: prepended language cue in the host subdomain
+    if strict and (match := HOST_LANG_FILTER.match(url)):
+        score += 1 if match[1].lower() == language else -1
     return score >= 0
 
 

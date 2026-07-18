@@ -113,10 +113,7 @@ def check_url(
         url = normalize_url(parsed_url, strict, language, trailing_slash)
 
         # domain info: use blacklist in strict mode only
-        if strict:
-            domain = extract_domain(url, blacklist=BLACKLIST, fast=True)
-        else:
-            domain = extract_domain(url, fast=True)
+        domain = extract_domain(url, blacklist=BLACKLIST if strict else None)
         if domain is None:
             LOGGER.debug("rejected, domain name: %s", url)
             return None

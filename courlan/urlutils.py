@@ -6,50 +6,47 @@ import re
 from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from tld import Result, get_tld
+from .hosts import _canonical_ip, get_registrable_domain
 
-DOMAIN_REGEX = re.compile(
-    r"(?:(?:f|ht)tp)s?://"  # protocols
-    r"(?:[^/?#]{,63}\.)?"  # subdomain, www, etc.
-    r"([^/?#.]{4,63}\.[^/?#]{2,63}|"  # domain and extension
-    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|"  # IPv4
-    r"[0-9a-f:]{16,})"  # IPv6
-    r"(?:/|$)"  # slash or end of string
-)
-STRIP_PORT_REGEX = re.compile(r"(?<=\D):\d+")
-CLEAN_FLD_REGEX = re.compile(r"^www[0-9]*\.")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
-def get_tldinfo(url: str, fast: bool = False) -> tuple[str | None, str | None]:
-    """Extract domain info, returning a ``(domain, full_domain)`` tuple.
-    With ``fast=True`` a regex shortcut is tried before the ``tld`` library."""
-    if not url or not isinstance(url, str):
+def _strip_trailing_dot(host: str) -> str:
+    "Drop a single trailing dot (FQDN form); multiple trailing dots stay invalid."
+    return host[:-1] if host.endswith(".") and not host.endswith("..") else host
+
+
+def get_tldinfo(url: str) -> tuple[str | None, str | None]:
+    "Extract domain info via the public-suffix lookup, returning a ``(domain, full_domain)`` tuple."
+    if not isinstance(url, str) or not url:
         return None, None
-    if fast:
-        # try with regexes
-        domain_match = DOMAIN_REGEX.match(url)
-        if domain_match:
-            full_domain = STRIP_PORT_REGEX.sub("", domain_match[1].split("@")[-1])
-            clean_match = full_domain.split(".")[0]
-            if clean_match:
-                return clean_match, full_domain
-    # fallback
-    tldinfo = get_tld(url, as_object=True, fail_silently=True)
-    if not isinstance(tldinfo, Result):
+    try:
+        parsed = _parse(url)
+        host = parsed.hostname
+    except ValueError:  # e.g. unbalanced brackets in the netloc
         return None, None
-    # this step is necessary to standardize output
-    return tldinfo.domain, CLEAN_FLD_REGEX.sub("", tldinfo.fld)
+    if host:
+        host = _strip_trailing_dot(host)  # FQDN form would defeat the IP gate below
+    # IP literals are returned in canonical form; gates avoid the exception
+    # cost of ip_address() on the common non-IP case
+    if host and (":" in host or host[-1].isdigit()) and (ip := _canonical_ip(host)):
+        return ip, ip
+    # unbracketed IPv6 isn't in .hostname; retry on the netloc (userinfo stripped)
+    if parsed.netloc.count(":") >= 2:
+        netloc_host = _strip_trailing_dot(parsed.netloc.rsplit("@", 1)[-1])
+        if netloc_host.count(":") >= 2 and (ip := _canonical_ip(netloc_host)):
+            return ip, ip
+    return get_registrable_domain(host)
 
 
 def extract_domain(
     url: str, blacklist: set[str] | None = None, fast: bool = False
 ) -> str | None:
-    """Extract domain name information using top-level domain info"""
+    """Extract domain name information using top-level domain info.
+    ``fast`` is accepted for backward compatibility but no longer has any effect."""
     if blacklist is None:
         blacklist = set()
-    # new code: Python >= 3.6 with tld module
-    domain, full_domain = get_tldinfo(url, fast=fast)
+    domain, full_domain = get_tldinfo(url)
 
     return (
         full_domain
@@ -98,7 +95,7 @@ def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
 
 def get_hostinfo(url: str) -> tuple[str | None, str]:
     "Convenience function returning domain and host info (protocol + host/domain) from a URL."
-    domainname = extract_domain(url, fast=True)
+    domainname = extract_domain(url)
     base_url = get_base_url(url)
     return domainname, base_url
 
@@ -137,8 +134,8 @@ def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     """Determine if a link leads to another host, takes a reference URL and
     a URL as input, returns a boolean"""
-    stripped_ref, ref = get_tldinfo(reference, fast=True)
-    stripped_domain, domain = get_tldinfo(url, fast=True)
+    stripped_ref, ref = get_tldinfo(reference)
+    stripped_domain, domain = get_tldinfo(url)
     # comparison
     if ignore_suffix:
         return stripped_domain != stripped_ref

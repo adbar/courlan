@@ -38,10 +38,18 @@ from courlan.core import filter_links
 from courlan.filters import (
     domain_filter,
     extension_filter,
-    langcodes_score,
     path_filter,
     type_filter,
 )
+from courlan.hosts import (
+    EXCEPTIONS,
+    MULTI_PART_SUFFIXES,
+    WILDCARD_BASES,
+    _idna_encode,
+    _idna_label,
+    get_registrable_domain,
+)
+from courlan.langcodes import langcodes_score
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
 from courlan.urlutils import _parse, is_known_link
@@ -474,11 +482,13 @@ def test_lang_filter():
     assert lang_filter("https://x.com/en_XY/x/de/", "en") is False
     # >2 candidates: unreliable, score stays 0
     assert lang_filter("https://x.com/en/x/de/x/fr/", "en") is True
+    # adjacent segments: the matching /en/ must still be seen despite the shared
+    # slash (regression: consuming regex counted /de/en/ as one occurrence)
+    assert lang_filter("https://x.com/de/en/", "en") is True
+    assert lang_filter("https://x.com/de/fr/", "en") is False
 
     # /ch/ is not a language code, no rejection
     assert lang_filter("http://www.verfassungen.de/ch/basel/verf03.htm", "de") is True
-    # assert lang_filter('http://www.uni-stuttgart.de/hi/fnz/lehrveranst.html', 'de') is True
-    # http://www.wildwechsel.de/ww/front_content.php?idcatart=177&lang=4&client=6&a=view&eintrag=100&a=view&eintrag=0&a=view&eintrag=20&a=view&eintrag=80&a=view&eintrag=20
 
 
 def test_langcodes_score():
@@ -490,7 +500,11 @@ def test_langcodes_score():
     assert langcodes_score("en", "en-XY") == 0
     assert langcodes_score("en", "xx") == 0  # invalid language
     assert langcodes_score("en", "xx_US") == 0
-    assert langcodes_score("en", None) == 0  # non-string input
+    # major territories must be recognized (regression: the biased en_XX-generated
+    # ISO_TERRS was missing CN/JP/BR/… so these scored 0 instead of ±1)
+    assert langcodes_score("pt", "pt-BR") == 1
+    assert langcodes_score("zh", "zh-CN") == 1
+    assert langcodes_score("en", "zh-CN") == -1
 
 
 def test_navigation():
@@ -763,12 +777,19 @@ def test_urlcheck_domain():
     assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
     assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
     assert check_url("http://1:2:3:4:5:6:7:8:9") is None
+    # bare suffix has no registrable domain, though domain_filter alone accepts it
+    assert check_url("https://a.ck/page") is None
+    assert check_url("https://co.uk/page") is None
 
 
 def test_urlcheck_port():
     "Test port handling through check_url."
     assert check_url("http://example.com:80") is not None
     assert check_url("http://example.com:80:80") is None
+    # IPv4 host with a port must not be rejected as a bad domain
+    assert check_url("http://127.0.0.1:8080/x") is not None
+    # out-of-range port on an IPv4 host is rejected like the domain form
+    assert check_url("http://1.2.3.4:99999/x") is None
 
 
 def test_domain_filter():
@@ -792,6 +813,8 @@ def test_domain_filter():
     assert domain_filter("exa-mple.co.uk") is True
     assert domain_filter("kräuter.de") is True
     assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
+    # non-ASCII label too long to punycode -> UnicodeError -> rejected
+    assert domain_filter("ä" * 100 + ".de") is False
     assert domain_filter("`$smarty.server.server_name`") is False
     assert domain_filter("$`)}if(a.tryconvertencoding)trycatch(e)const") is False
     assert domain_filter("00x200.jpg,") is False
@@ -804,6 +827,14 @@ def test_domain_filter():
     assert domain_filter("900.200.100.75") is False
     assert domain_filter("111.111.111") is False
     assert domain_filter("0127.0.0.1") is False
+    # IPv4 with a port is accepted like the portless form (was wrongly rejected)
+    assert domain_filter("127.0.0.1:8080") is True
+    assert domain_filter("900.200.100.75:8080") is False  # invalid IP, with port
+    # port must be in range and well-formed, like the domain path (VALID_DOMAIN_PORT)
+    assert domain_filter("1.2.3.4:65535") is True
+    assert domain_filter("1.2.3.4:99999") is False
+    assert domain_filter("1.2.3.4:0") is False
+    assert domain_filter("1.2.3.4:0080") is False  # leading zero rejected
 
     # hex-only strings that are not IPs must still be validated as domains
     assert domain_filter("abc.de") is True
@@ -874,30 +905,44 @@ def test_urlutils():
     assert extract_domain("") is None
     assert extract_domain(5) is None
     assert extract_domain("h") is None
+    # host splitting (subdomains, compound/IDN suffixes, longest-match) is covered
+    # exhaustively by test_tld on get_registrable_domain; the asserts here cover only
+    # what the URL layer adds on top: scheme/query/fragment/userinfo/port/IP parsing.
     assert extract_domain("https://httpbun.org/") == "httpbun.org"
+    assert extract_domain("https://news.bbc.co.uk/") == "bbc.co.uk"  # representative
+    # fast= is accepted for backward compatibility and no longer changes the result
     assert extract_domain("https://www.httpbun.org/", fast=True) == "httpbun.org"
-    assert extract_domain("http://www.mkyong.com.au", fast=True) == "mkyong.com.au"
-    assert extract_domain("http://mkyong.t.t.co", fast=True) == "mkyong.t.t.co"
-    assert extract_domain("ftp://www4.httpbun.org", fast=True) == "httpbun.org"
-    assert extract_domain("http://w3.example.com", fast=True) == "example.com"
-    assert extract_domain("https://de.nachrichten.yahoo.com/", fast=True) == "yahoo.com"
+    # query and fragment are stripped
+    assert extract_domain("http://example.com?query=one") == "example.com"
+    assert extract_domain("http://example.com#fragment") == "example.com"
+    # empty domain (userinfo only) yields None
+    assert extract_domain("http://exam.p@") is None
+    # port stripped cleanly, not glued onto the last label; punycode host + port
     assert (
-        extract_domain("http://xn--h1aagokeh.xn--p1ai:8888", fast=True)
-        == "xn--h1aagokeh.xn--p1ai"
+        extract_domain("http://xn--h1aagokeh.xn--p1ai:8888") == "xn--h1aagokeh.xn--p1ai"
     )
-    assert extract_domain("http://user:pass@domain.test:81", fast=True) == "domain.test"
-    assert extract_domain("http://111.2.33.44/test", fast=True) == "111.2.33.44"
+    assert extract_domain("https://user:pass@www.example.com:81/") == "example.com"
+    # IPv4: bare, with port, trailing-dot FQDN spelling
+    assert extract_domain("https://192.168.0.1/") == "192.168.0.1"
+    assert extract_domain("http://192.168.0.1:8080/test") == "192.168.0.1"
+    assert extract_domain("http://192.168.0.1./") == "192.168.0.1"
+    assert extract_domain("http://example.com../") is None
+    # hex IPv4 literals are rejected, not mistaken for domains
+    assert extract_domain("http://0xc0.0xa8.0x0.0x1/") is None
+    # IPv6: bracketed, bracketed+port, unbracketed, canonicalized regardless of spelling
+    assert extract_domain("https://[2001:db8::1]/") == "2001:db8::1"
+    assert extract_domain("https://[2001:db8::1]:8080/") == "2001:db8::1"
+    assert extract_domain("http://[0:0:0:0:0:0:0:1]/") == "::1"
     assert (
-        extract_domain("http://2001:db8::ff00:42:8329/test", fast=True)
-        == "2001:db8::ff00:42:8329"
+        extract_domain("http://2001:DB8::FF00:42:8329/test") == "2001:db8::ff00:42:8329"
     )
-    assert (
-        extract_domain("https://test.xn--0zwm56d.com/", fast=True) == "xn--0zwm56d.com"
-    )
-    assert extract_domain("http://example.com?query=one", fast=True) == "example.com"
-    assert extract_domain("http://example.com#fragment", fast=True) == "example.com"
-    # fast-path match yields an empty domain -> falls back to the slow path
-    assert extract_domain("http://exam.p@", fast=True) is None
+    # unvalidated TLDs accepted by design (no PSL TLD-existence check)
+    assert extract_domain("http://domain.test/") == "domain.test"
+    # IDN resolves via punycode, returned in original form
+    assert extract_domain("https://foo.lødingen.no/") == "foo.lødingen.no"
+    # stray / unbalanced brackets must not raise
+    assert extract_domain("http://sub.example.com]/x") is None
+    assert extract_domain("http://[invalid/") is None
     # url parsing
     result = _parse("https://httpbun.org/")
     assert isinstance(result, SplitResult)
@@ -946,6 +991,187 @@ def test_urlutils():
     assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
 
 
+def test_tld():
+    "Test get_registrable_domain; inputs mirror urlsplit().hostname's pre-cleaned shape."
+    cases = {
+        # standard cases
+        "www.bbc.co.uk": ("bbc", "bbc.co.uk"),
+        "example.com": ("example", "example.com"),
+        "a.b.example.com": ("example", "example.com"),
+        "foo.ne.jp": ("foo", "foo.ne.jp"),
+        "shop.example.org.au": ("example", "example.org.au"),
+        # IPv4 / numeric final label rejected (even with non-numeric labels)
+        "192.168.0.1": (None, None),
+        "www.example.42": (None, None),
+        # only ASCII digits count as numeric (WHATWG); fullwidth is an ordinary label
+        "example.４２": ("example", "example.４２"),
+        # hex IPv4 (browser-resolvable) rejected like decimal
+        "0xc0.0xa8.0x0.0x1": (None, None),
+        "foo.0x1": (None, None),
+        "foo.0x": (None, None),
+        # IPv6 (brackets already stripped) carries colons, rejected
+        "2001:db8::1": (None, None),
+        "::ffff:192.0.2.128": (None, None),
+        # trailing-dot FQDN is normalized
+        "www.example.com.": ("example", "example.com"),
+        # malformed / edge cases
+        "": (None, None),
+        None: (None, None),
+        "localhost": (None, None),
+        "a..b.com": (None, None),
+        ".uk": (None, None),
+        ".foo.ck": (None, None),  # leading dot + bare wildcard suffix
+        # suffix-set boundary: last two labels not a known compound suffix
+        "sub.unknown.xyz": ("unknown", "unknown.xyz"),
+        "blog.ax": ("blog", "blog.ax"),
+        # a bare public suffix has no registrable domain
+        "co.uk": (None, None),
+        # www IS the registrable label here (old CLEAN_FLD_REGEX wrongly stripped it)
+        "www.co.uk": ("www", "www.co.uk"),
+        "www.gov.uk": ("www", "www.gov.uk"),
+        # matching is case-insensitive, original case kept in the result
+        "BBC.CO.UK": ("BBC", "BBC.CO.UK"),
+        "Example.COM": ("Example", "Example.COM"),
+        "FOO.CK": (None, None),
+        "X.CITY.KOBE.JP": ("CITY", "CITY.KOBE.JP"),
+        "FOO.LØDINGEN.NO": ("FOO", "FOO.LØDINGEN.NO"),
+        # full-PSL coverage: ccTLDs outside the old ~208-entry curated set
+        "x.co.tz": ("x", "x.co.tz"),
+        # 3-label suffix resolved via longest-match (was mis-split under the
+        # old fixed 2-label span logic)
+        "school.act.edu.au": ("school", "school.act.edu.au"),
+        # both Unicode and xn-- forms of the suffix match (old tld missed xn--)
+        "foo.lødingen.no": ("foo", "foo.lødingen.no"),
+        "foo.xn--ldingen-q1a.no": ("foo", "foo.xn--ldingen-q1a.no"),
+        # ICANN-only: private-suffix hosts resolve as ordinary domains
+        "user.github.io": ("github", "github.io"),
+        # wildcard (*.) and exception (!) PSL rules
+        "www.foo.ck": ("www", "www.foo.ck"),  # *.ck -> foo.ck is the suffix
+        "foo.ck": (None, None),  # bare wildcard suffix
+        "www.ck": ("www", "www.ck"),  # !www.ck exception
+        "a.b.kobe.jp": ("a", "a.b.kobe.jp"),  # *.kobe.jp
+        "x.city.kobe.jp": ("city", "city.kobe.jp"),  # !city.kobe.jp exception
+        "foo.sch.uk": (None, None),  # bare *.sch.uk suffix
+        "bar.foo.sch.uk": ("bar", "bar.foo.sch.uk"),  # *.sch.uk
+    }
+    for host, expected in cases.items():
+        assert get_registrable_domain(host) == expected, host
+    # overlong non-ASCII label falls back instead of raising
+    overlong_cjk = "".join(chr(0x4E00 + i) for i in range(50))
+    assert _idna_label(overlong_cjk) == overlong_cjk
+    assert get_registrable_domain(f"{overlong_cjk}.example.com") == (
+        "example",
+        "example.com",
+    )
+
+
+@pytest.mark.parametrize("base", sorted(WILDCARD_BASES))
+def test_tld_wildcard_bases(base):
+    "Round-trip every hardcoded PSL wildcard base to catch a stale/typo'd entry."
+    assert get_registrable_domain(f"x.{base}") == (None, None)
+    assert get_registrable_domain(f"a.b.{base}") == ("a", f"a.b.{base}")
+
+
+@pytest.mark.parametrize("exception", sorted(EXCEPTIONS))
+def test_tld_exceptions(exception):
+    "Round-trip every hardcoded PSL exception to catch a stale/typo'd entry."
+    domain = exception.split(".")[0]
+    assert get_registrable_domain(exception) == (domain, exception)
+    assert get_registrable_domain(f"sub.{exception}") == (domain, exception)
+
+
+def test_psl_data_encoder_consistency():
+    "Generated data must be ASCII and its xn-- labels must round-trip through the runtime encoder."
+    checked = 0
+    for ruleset in (MULTI_PART_SUFFIXES, WILDCARD_BASES, EXCEPTIONS):
+        for rule in ruleset:
+            assert rule.isascii(), rule
+            for label in rule.split("."):
+                if label.startswith("xn--"):
+                    assert _idna_encode(label.encode("ascii").decode("idna")) == label
+                    checked += 1
+    assert checked  # the data does contain punycode entries
+
+
+def test_psl_check_ignores_header_metadata():
+    "--check compares rule data, not the VERSION/COMMIT provenance header."
+    from scripts.update_psl import render, strip_header_metadata
+
+    old = render(["co.uk"], ["ck"], ["www.ck"], "v1", "aaa")
+    new = render(["co.uk"], ["ck"], ["www.ck"], "v2", "bbb")
+    assert old != new  # headers differ
+    assert strip_header_metadata(old) == strip_header_metadata(new)  # rules identical
+    changed = render(["co.uk", "gov.uk"], ["ck"], ["www.ck"], "v1", "aaa")
+    assert strip_header_metadata(old) != strip_header_metadata(changed)
+
+
+def test_psl_parsers():
+    "PSL text parsing: header fields, ICANN-only rule extraction, rule-set split."
+    from scripts.update_psl import (
+        build_rule_sets,
+        extract_icann_rules,
+        extract_version_commit,
+    )
+
+    raw = (
+        "// VERSION: 2026-07-15_00-00-00_UTC\n"
+        "// COMMIT: abc123\n"
+        "// ===BEGIN ICANN DOMAINS===\n"
+        "// a comment\n"
+        "com\n"  # single-label TLD -> dropped by build_rule_sets
+        "co.uk\n"
+        "\n"  # blank line
+        "*.ck\n"
+        "!www.ck\n"
+        "  ne.jp  \n"  # whitespace stripped
+        "// ===END ICANN DOMAINS===\n"
+        "// ===BEGIN PRIVATE DOMAINS===\n"
+        "github.io\n"  # private section -> excluded
+        "// ===END PRIVATE DOMAINS===\n"
+    )
+    assert extract_version_commit(raw) == ("2026-07-15_00-00-00_UTC", "abc123")
+    assert extract_version_commit("no headers") == ("unknown", "unknown")
+
+    rules = extract_icann_rules(raw)
+    assert rules == ["com", "co.uk", "*.ck", "!www.ck", "ne.jp"]  # ICANN only
+
+    suffixes, wildcards, exceptions = build_rule_sets(rules)
+    assert suffixes == ["co.uk", "ne.jp"]  # single-label "com" dropped
+    assert wildcards == ["ck"]  # "*." stripped
+    assert exceptions == ["www.ck"]  # "!" stripped
+
+    # missing markers hard-fail (intended for a generator script)
+    with pytest.raises(IndexError):
+        extract_icann_rules("no markers")
+
+
+def test_psl_main_exit_codes():
+    "main() maps every data-error channel to exit 2, distinct from --check's exit 1."
+    import urllib3
+
+    import scripts.update_psl as update_psl
+
+    # HTTP-status failure (RuntimeError from fetch_psl)
+    with patch.object(
+        update_psl,
+        "fetch_psl",
+        side_effect=RuntimeError("PSL download failed: HTTP 503"),
+    ):
+        assert update_psl.main() == 2
+
+    # network failure (urllib3.exceptions.HTTPError, e.g. MaxRetryError)
+    with patch.object(
+        update_psl,
+        "fetch_psl",
+        side_effect=urllib3.exceptions.MaxRetryError(None, "url"),  # type: ignore[arg-type]
+    ):
+        assert update_psl.main() == 2
+
+    # malformed PSL text: markers missing -> IndexError from extract_icann_rules
+    with patch.object(update_psl, "fetch_psl", return_value="no markers here"):
+        assert update_psl.main() == 2
+
+
 def test_external():
     """test domain comparison"""
     assert is_external("", "https://www.microsoft.com/") is True
@@ -974,8 +1200,24 @@ def test_external():
         )
         is True
     )
+    # compound suffixes: same registrable domain, different subdomains
+    assert (
+        is_external(
+            "https://a.example.co.uk/", "https://b.example.co.uk/", ignore_suffix=False
+        )
+        is False
+    )
+    # compound suffixes: different registrable domains under same ccSLD
+    assert (
+        is_external("https://x.co.uk/", "https://y.co.uk/", ignore_suffix=False) is True
+    )
+    # same IP in different textual forms is the same host
+    assert is_external("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/") is False
+    assert is_external("http://192.168.0.1/", "http://192.168.0.1./") is False
     # malformed URLs
     assert is_external("h1234", "https://www.google.co.uk/", ignore_suffix=True) is True
+    # stray bracket in the netloc must not raise
+    assert is_external("http://sub.example.com]/x", "https://example.com/") is True
 
 
 def test_extraction():
@@ -1393,16 +1635,19 @@ def test_examples():
 def test_meta():
     "Test package meta functions."
     _ = langcodes_score("en", "en_HK")
+    _ = get_registrable_domain("www.example.com")
     _ = _parse("https://example.net/123/abc")
 
     # urlsplit is only an lru_cache wrapper on some Python versions
     has_urlsplit_cache = hasattr(urlsplit, "cache_info")
     assert langcodes_score.cache_info().currsize > 0
+    assert get_registrable_domain.cache_info().currsize > 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize > 0
 
     clear_caches()
 
     assert langcodes_score.cache_info().currsize == 0
+    assert get_registrable_domain.cache_info().currsize == 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0
