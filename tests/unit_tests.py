@@ -556,6 +556,9 @@ def test_validate():
     assert not is_valid_url("http://1234")
     assert not is_valid_url("http://localhost/")
     assert not is_valid_url("http://a.b/")
+    # userinfo must not make check_url reject an otherwise-valid host
+    assert check_url("http://user@t.co/") is not None
+    assert check_url("https://user:pass@example.com/path") is not None
 
 
 def test_normalization():

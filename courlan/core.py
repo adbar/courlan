@@ -99,8 +99,9 @@ def check_url(
             LOGGER.debug("rejected, extension filter: %s", url)
             raise ValueError
 
-        # unsuitable domain/host name
-        if domain_filter(parsed_url.netloc) is False:
+        # unsuitable domain/host name (strip userinfo; domain_filter expects host[/port])
+        host = parsed_url.netloc.rsplit("@", 1)[-1]
+        if not host or domain_filter(host) is False:
             LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
 
