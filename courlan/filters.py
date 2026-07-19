@@ -121,8 +121,20 @@ def basic_filter(url: str) -> bool:
     return bool(url.startswith("http") and 10 <= len(url) < 500)
 
 
+def _strip_fqdn_dot(domain: str) -> str:
+    "Strip a single trailing FQDN dot from host or host:port (same as extract_domain)."
+    if domain.endswith(".") and not domain.endswith(".."):
+        return domain[:-1]
+    head, sep, tail = domain.rpartition(":")
+    if sep and "@" not in domain and head.endswith(".") and not head.endswith(".."):
+        return f"{head[:-1]}:{tail}"
+    return domain
+
+
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
+    # FQDN absolute form ("example.com.") is valid; extract_domain already strips it
+    domain = _strip_fqdn_dot(domain)
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
