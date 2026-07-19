@@ -12,8 +12,13 @@ FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
 def _strip_trailing_dot(host: str) -> str:
-    "Drop a single trailing dot (FQDN form); multiple trailing dots stay invalid."
-    return host[:-1] if host.endswith(".") and not host.endswith("..") else host
+    "Drop a single trailing FQDN dot from host or host:port; multiple dots stay invalid."
+    if host.endswith(".") and not host.endswith(".."):
+        return host[:-1]
+    head, sep, tail = host.rpartition(":")
+    if sep and "@" not in host and head.endswith(".") and not head.endswith(".."):
+        return f"{head[:-1]}:{tail}"
+    return host
 
 
 def get_tldinfo(url: str) -> tuple[str | None, str | None]:
