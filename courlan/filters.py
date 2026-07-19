@@ -126,8 +126,22 @@ def domain_filter(domain: str) -> bool:
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
-    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET,
-    # so reuse the gate; IPv6+port needs brackets, handled at the URL layer)
+    # Bracketed IPv6 netloc from urlsplit: [addr] or [addr]:port
+    if domain.startswith("["):
+        end = domain.find("]")
+        if end == -1:
+            return False
+        host, rest = domain[1:end], domain[end + 1 :]
+        if not _canonical_ip(host):
+            return False
+        if not rest:
+            return True
+        # port: 1-65535, no leading zero (same rule as IPv4+port below)
+        if rest[0] != ":":
+            return False
+        tail = rest[1:]
+        return bool(tail) and tail[:1] != "0" and tail.isdigit() and int(tail) < 65536
+    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET)
     if all(c in IP_SET for c in domain):
         if _canonical_ip(domain):
             return True
