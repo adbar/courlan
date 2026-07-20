@@ -807,6 +807,16 @@ def test_urlcheck_domain():
     # bare suffix has no registrable domain, though domain_filter alone accepts it
     assert check_url("https://a.ck/page") is None
     assert check_url("https://co.uk/page") is None
+    # trailing-dot FQDN URLs are valid; domain matches extract_domain stripping
+    assert check_url("http://example.com./page") == (
+        "http://example.com./page",
+        "example.com",
+    )
+    assert check_url("http://192.168.0.1./x") == (
+        "http://192.168.0.1./x",
+        "192.168.0.1",
+    )
+    assert check_url("http://example.com../page") is None
 
 
 def test_urlcheck_port():
@@ -874,6 +884,15 @@ def test_domain_filter():
     assert domain_filter("[::1]:99999") is False
     assert domain_filter("[not-an-ip]") is False
     assert domain_filter("[::1") is False
+    # trailing-dot FQDN (absolute DNS form) matches extract_domain, not false-reject
+    assert domain_filter("example.com.") is True
+    assert domain_filter("www.example.com.") is True
+    assert domain_filter("example.com.:8080") is True
+    assert domain_filter("192.168.0.1.") is True
+    assert domain_filter("192.168.0.1.:8080") is True
+    assert (
+        domain_filter("example.com..") is False
+    )  # multiple trailing dots stay invalid
 
     # hex-only strings that are not IPs must still be validated as domains
     assert domain_filter("abc.de") is True

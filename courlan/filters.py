@@ -8,6 +8,7 @@ from urllib.parse import SplitResult, urlsplit
 
 from .hosts import _canonical_ip, _idna_encode
 from .langcodes import langcodes_score
+from .urlutils import _strip_trailing_dot
 
 LOGGER = logging.getLogger(__name__)
 
@@ -128,6 +129,8 @@ def _valid_port(tail: str) -> bool:
 
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
+    # FQDN absolute form ("example.com.") is valid; extract_domain already strips it
+    domain = _strip_trailing_dot(domain)
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
