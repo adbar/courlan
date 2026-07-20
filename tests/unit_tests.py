@@ -556,6 +556,9 @@ def test_validate():
     assert not is_valid_url("http://1234")
     assert not is_valid_url("http://localhost/")
     assert not is_valid_url("http://a.b/")
+    # userinfo must not make check_url reject an otherwise-valid host
+    assert check_url("http://user@t.co/") is not None
+    assert check_url("https://user:pass@example.com/path") is not None
 
 
 def test_normalization():
@@ -791,7 +794,15 @@ def test_urlcheck_domain():
     assert check_url("http://0127.0.0.1") is None
     # assert check_url("http://::1") is not None
     assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
-    assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") is None
+    # bracketed form is what urlsplit produces for a valid IPv6 URL
+    assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") == (
+        "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+        "2001:db8:85a3::8a2e:370:7334",
+    )
+    assert check_url("http://[2001:db8::1]/page") == (
+        "http://[2001:db8::1]/page",
+        "2001:db8::1",
+    )
     assert check_url("http://1:2:3:4:5:6:7:8:9") is None
     # bare suffix has no registrable domain, though domain_filter alone accepts it
     assert check_url("https://a.ck/page") is None
@@ -816,6 +827,9 @@ def test_urlcheck_port():
     assert check_url("http://127.0.0.1:8080/x") is not None
     # out-of-range port on an IPv4 host is rejected like the domain form
     assert check_url("http://1.2.3.4:99999/x") is None
+    # bracketed IPv6 with a port (urlsplit netloc shape)
+    assert check_url("http://[::1]:8080/x") == ("http://[::1]:8080/x", "::1")
+    assert check_url("http://[::1]:99999/x") is None
 
 
 def test_domain_filter():
@@ -861,6 +875,15 @@ def test_domain_filter():
     assert domain_filter("1.2.3.4:99999") is False
     assert domain_filter("1.2.3.4:0") is False
     assert domain_filter("1.2.3.4:0080") is False  # leading zero rejected
+    # bracketed IPv6 (urlsplit netloc), with and without port
+    assert domain_filter("[::1]") is True
+    assert domain_filter("[2001:db8::1]") is True
+    assert domain_filter("[::1]:8080") is True
+    assert domain_filter("[::1]:0") is False
+    assert domain_filter("[::1]:0080") is False
+    assert domain_filter("[::1]:99999") is False
+    assert domain_filter("[not-an-ip]") is False
+    assert domain_filter("[::1") is False
     # trailing-dot FQDN (absolute DNS form) matches extract_domain, not false-reject
     assert domain_filter("example.com.") is True
     assert domain_filter("www.example.com.") is True
@@ -1267,6 +1290,21 @@ def test_extraction():
     # hreflang matches the target language but the tag has no href
     pagecontent = '<html><a hreflang="de-DE">no href</a></html>'
     assert not extract_links(pagecontent, "https://test.com/", False, language="de")
+    # empty quoted href must not capture the closing quote as a path (/%27)
+    pagecontent = "<html><a href=''>x</a></html>"
+    assert extract_links(pagecontent, "https://example.org", False) == {
+        "https://example.org"
+    }
+    assert extract_links(pagecontent, "https://example.org", no_filter=True) == {
+        "https://example.org"
+    }
+    pagecontent = '<html><a href="">x</a></html>'
+    assert extract_links(pagecontent, "https://example.org", False) == {
+        "https://example.org"
+    }
+    assert extract_links(pagecontent, "https://example.org", no_filter=True) == {
+        "https://example.org"
+    }
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
     assert len(extract_links(pagecontent, "https://test.org", False)) == 1

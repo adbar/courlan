@@ -33,7 +33,8 @@ LOGGER = logging.getLogger(__name__)
 
 FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
 HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
-LINK_REGEX = re.compile(r'href=["\']?([^ ]+?)(["\' >])', re.I)
+# *? so empty href="" / href='' do not capture the closing quote as the URL
+LINK_REGEX = re.compile(r'href=["\']?([^ ]*?)(["\' >])', re.I)
 
 
 def check_url(
@@ -99,8 +100,9 @@ def check_url(
             LOGGER.debug("rejected, extension filter: %s", url)
             raise ValueError
 
-        # unsuitable domain/host name
-        if domain_filter(parsed_url.netloc) is False:
+        # unsuitable domain/host name (strip userinfo; domain_filter expects host[/port])
+        host = parsed_url.netloc.rsplit("@", 1)[-1]
+        if not host or domain_filter(host) is False:
             LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
 
