@@ -121,25 +121,31 @@ def basic_filter(url: str) -> bool:
     return bool(url.startswith("http") and 10 <= len(url) < 500)
 
 
+def _valid_port(tail: str) -> bool:
+    "Port 1-65535 with no leading zero (mirrors VALID_DOMAIN_PORT's [1-9]... rule)."
+    return bool(tail) and tail[:1] != "0" and tail.isdigit() and int(tail) < 65536
+
+
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
     # no valid FQDN exceeds the DNS length limit
     if len(domain) > 253:
         return False
-    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET,
-    # so reuse the gate; IPv6+port needs brackets, handled at the URL layer)
+    # Bracketed IPv6 netloc from urlsplit: [addr] or [addr]:port
+    if domain.startswith("["):
+        end = domain.find("]")
+        if end == -1:
+            return False
+        host, rest = domain[1:end], domain[end + 1 :]
+        if not _canonical_ip(host):
+            return False
+        return not rest or (rest.startswith(":") and _valid_port(rest[1:]))
+    # IP literal, or IPv4 with a port (a port-bearing host is still all-IP_SET)
     if all(c in IP_SET for c in domain):
         if _canonical_ip(domain):
             return True
         head, sep, tail = domain.rpartition(":")
-        # port: 1-65535, no leading zero (mirrors VALID_DOMAIN_PORT's [1-9]... rule)
-        if (
-            sep
-            and tail[:1] != "0"
-            and tail.isdigit()
-            and int(tail) < 65536
-            and _canonical_ip(head)
-        ):
+        if sep and _valid_port(tail) and _canonical_ip(head):
             return True
 
     # malformed domains: retry against the punycode form before rejecting
