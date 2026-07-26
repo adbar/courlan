@@ -161,35 +161,55 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
     return normalize_part(fragment)
 
 
-def normalize_url(
-    parsed_url: SplitResult | str,
-    strict: bool = False,
-    language: str | None = None,
-    trailing_slash: bool = True,
-) -> str:
-    "Takes a URL string or a parsed URL and returns a normalized URL string"
-    parsed_url = _parse(parsed_url)
-    # lowercase + remove fragments + normalize punycode
-    scheme = parsed_url.scheme.lower()
+def normalize_authority(parsed_url: SplitResult) -> str:
+    "Lower-case the authority, decode punycode and strip the scheme default port."
     netloc = decode_punycode(parsed_url.netloc.lower())
     # port: strip only the scheme's default port (80 for http, 443 for https)
     try:
         port = parsed_url.port
     except ValueError:
         port = None  # port could not be cast to integer value
+    scheme = parsed_url.scheme.lower()
     if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
         # strip the trailing default port (IPv6-safe)
         netloc = netloc.rsplit(":", 1)[0]
-    # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
+    return netloc
+
+
+def normalize_path(path: str) -> str:
+    "Collapse repeated slashes, drop leading /../ segments, then percent-normalize."
+    # https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
-    newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
+    return normalize_part(PATH2.sub("", PATH1.sub("/", path)))
+
+
+def normalize_url(
+    parsed_url: SplitResult | str,
+    strict: bool = False,
+    language: str | None = None,
+    trailing_slash: bool = True,
+    netloc: str | None = None,
+    path: str | None = None,
+    query: str | None = None,
+) -> str:
+    """Takes a URL string or a parsed URL and returns a normalized URL string.
+    `netloc`, `path` and `query` skip the corresponding step when the caller has
+    already normalized that part (see check_url)."""
+    parsed_url = _parse(parsed_url)
+    # lowercase + remove fragments + normalize punycode
+    scheme = parsed_url.scheme.lower()
+    if netloc is None:
+        netloc = normalize_authority(parsed_url)
+    if path is None:
+        path = normalize_path(parsed_url.path)
     # strip unwanted query elements
-    newquery = clean_query(parsed_url.query, strict, language)
-    if newquery and not newpath:
-        newpath = "/"
-    elif not trailing_slash and not newquery and newpath.endswith("/"):
-        newpath = newpath.rstrip("/")
+    if query is None:
+        query = clean_query(parsed_url.query, strict, language)
+    if query and not path:
+        path = "/"
+    elif not trailing_slash and not query and path.endswith("/"):
+        path = path.rstrip("/")
     # fragment
     newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
     # rebuild
-    return urlunsplit((scheme, netloc, newpath, newquery, newfragment))
+    return urlunsplit((scheme, netloc, path, query, newfragment))
