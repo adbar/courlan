@@ -7,7 +7,13 @@ import logging
 import re
 from urllib.robotparser import RobotFileParser
 
-from .clean import normalize_url, scrub_url
+from .clean import (
+    clean_query,
+    normalize_authority,
+    normalize_path,
+    normalize_url,
+    scrub_url,
+)
 from .filters import (
     basic_filter,
     domain_filter,
@@ -95,24 +101,42 @@ def check_url(
             LOGGER.debug("rejected, validation test: %s", url)
             raise ValueError
 
+        # the filters below and normalize_url() need the same normalized parts, so
+        # compute each one once and pass them on
+        path = normalize_path(parsed_url.path)
+
         # content filter based on extensions
-        if extension_filter(parsed_url.path) is False:
+        if extension_filter(path) is False:
             LOGGER.debug("rejected, extension filter: %s", url)
             raise ValueError
 
         # unsuitable domain/host name (strip userinfo; domain_filter expects host[/port])
-        host = parsed_url.netloc.rsplit("@", 1)[-1]
+        netloc = normalize_authority(parsed_url)
+        host = netloc.rsplit("@", 1)[-1]
         if not host or domain_filter(host) is False:
             LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
 
-        # strict content filtering
-        if strict and path_filter(parsed_url.path, parsed_url.query) is False:
-            LOGGER.debug("rejected, path filter: %s", url)
-            raise ValueError
+        # strict content filtering: the query has to be the one that survives
+        # normalization, else a stripped param keeps an index page that
+        # check_url would reject on a second pass
+        query = None
+        if strict:
+            query = clean_query(parsed_url.query, strict, language)
+            if path_filter(path, query) is False:
+                LOGGER.debug("rejected, path filter: %s", url)
+                raise ValueError
 
         # normalize
-        url = normalize_url(parsed_url, strict, language, trailing_slash)
+        url = normalize_url(
+            parsed_url,
+            strict,
+            language,
+            trailing_slash,
+            netloc=netloc,
+            path=path,
+            query=query,
+        )
 
         # domain info: use blacklist in strict mode only
         domain = extract_domain(url, blacklist=BLACKLIST if strict else None)

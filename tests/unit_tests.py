@@ -359,6 +359,57 @@ def test_path_filter():
     assert path_filter("/Datenschutzerklaerung", "") is False
     # assert path_filter("/", "") is False
 
+    # in strict mode an index page must not be kept alive by a query that
+    # normalization strips again: that returned a bare index URL which
+    # check_url itself rejects, so the result was not idempotent
+    for url in (
+        "http://www.case-modder.de/index.php?utm_source=x",  # tracker
+        "http://www.case-modder.de/index.php?sec=artikel",  # non-whitelisted key
+        "http://www.case-modder.de/default/?ref=abc",
+        "http://www.case-modder.de/home?foo=bar",
+    ):
+        assert check_url(url, strict=True) is None
+    # an index page with a surviving (whitelisted) query is still kept, and the
+    # canonical output is stable under a second pass
+    for url in (
+        "http://www.case-modder.de/index.php?id=68&page=1",
+        "http://www.case-modder.de/index.php?p=2",
+    ):
+        checked = check_url(url, strict=True)
+        assert checked is not None
+        assert check_url(checked[0], strict=True) == checked
+    # non-index pages are unaffected by query stripping
+    assert check_url("http://www.case-modder.de/article.html?ref=x", strict=True) == (
+        "http://www.case-modder.de/article.html",
+        "case-modder.de",
+    )
+    # a whitelisted param survives while a co-occurring tracker is stripped, so
+    # the index page is kept with only its meaningful query (also for &amp;)
+    assert check_url(
+        "http://www.case-modder.de/index.php?utm_source=x&id=68", strict=True
+    ) == ("http://www.case-modder.de/index.php?id=68", "case-modder.de")
+    assert check_url(
+        "http://www.case-modder.de/index.php?utm_source=x&amp;id=68", strict=True
+    ) == ("http://www.case-modder.de/index.php?id=68", "case-modder.de")
+    # a language param matching the requested language keeps the index page,
+    # while a mismatching one is filtered out
+    assert (
+        check_url(
+            "http://www.case-modder.de/index.php?lang=en", strict=True, language="en"
+        )
+        is not None
+    )
+    assert (
+        check_url(
+            "http://www.case-modder.de/index.php?lang=fr", strict=True, language="en"
+        )
+        is None
+    )
+    # only strict mode is affected: non-strict still returns the bare index page
+    assert check_url(
+        "http://www.case-modder.de/index.php?utm_source=x", strict=False
+    ) == ("http://www.case-modder.de/index.php", "case-modder.de")
+
 
 def test_lang_filter():
     assert lang_filter("http://test.com/az", "de", trailing_slash=False) is False
@@ -739,6 +790,9 @@ def test_urlcheck_language():
     assert check_url("http://www.example.org/index.html", strict=True) is None
     assert check_url("http://concordia-hagen.de/impressum.html", strict=True) is None
     assert check_url("http://concordia-hagen.de/de/impressum", strict=True) is None
+    # repeated slashes are collapsed before the path filter is applied
+    assert check_url("http://www.example.org/home//", strict=True) is None
+    assert check_url("http://concordia-hagen.de/impressum//", strict=True) is None
     assert (
         check_url("http://parkkralle.de/detail/index/sArticle/2704", strict=True)
         is not None
