@@ -92,8 +92,9 @@ testpaths = "tests/*test*.py"
 target-version = "py310"
 
 [tool.ruff.lint]
-# ruff defaults (E4, E7, E9, F) plus import sorting (I),
-# pyupgrade (UP) and bugbear (B)
+# pin the historical defaults instead of tracking ruff's own,
+# plus import sorting (I), pyupgrade (UP) and bugbear (B)
+select = ["E4", "E7", "E9", "F"]
 extend-select = ["I", "UP", "B"]
 
 [tool.mypy]

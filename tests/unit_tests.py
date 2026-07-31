@@ -203,6 +203,8 @@ def test_scrub():
         assert clean_url(cleaned) == cleaned
     # a surviving (non-tracker) query still keeps the root slash
     assert clean_url("http://test.org/?p=1") == "http://test.org/?p=1"
+    # deeper paths keep their trailing slash (only the root form is collapsed)
+    assert clean_url("https://example.org/path/") == "https://example.org/path/"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
     assert scrub_url("<![CDATA[https://www.dwds.de]]>") == "https://www.dwds.de"
@@ -595,6 +597,10 @@ def test_validate():
 
     assert not is_valid_url("http://www.test[.org/test")
     assert is_valid_url("http://test.org/test")
+    # non-string input returns False instead of raising
+    assert not is_valid_url(None)
+    assert not is_valid_url(123)
+    assert not is_valid_url(b"http://test.org/test")
 
     # verdict no longer flips on port/userinfo/case; short valid domains accepted
     assert is_valid_url("http://t.co/")
@@ -643,6 +649,19 @@ def test_normalization():
     assert normalize_url("https://[::1]:443/") == "https://[::1]/"
     # non-default port preserved
     assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080/"
+
+    # host is lowercased, userinfo case is preserved (credentials are case-sensitive)
+    assert (
+        normalize_url("https://User:PassWord@Example.COM/Path")
+        == "https://User:PassWord@example.com/Path"
+    )
+    # empty userinfo is dropped
+    assert normalize_url("http://@example.com/x") == "http://example.com/x"
+    # trailing FQDN dot is stripped from the host
+    assert normalize_url("http://example.com./page") == "http://example.com/page"
+    assert (
+        normalize_url("http://example.com.:8080/page") == "http://example.com:8080/page"
+    )
 
     # punycode
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
@@ -861,13 +880,13 @@ def test_urlcheck_domain():
     # bare suffix has no registrable domain, though domain_filter alone accepts it
     assert check_url("https://a.ck/page") is None
     assert check_url("https://co.uk/page") is None
-    # trailing-dot FQDN URLs are valid; domain matches extract_domain stripping
+    # trailing-dot FQDN URLs are valid and normalized to the dotless form
     assert check_url("http://example.com./page") == (
-        "http://example.com./page",
+        "http://example.com/page",
         "example.com",
     )
     assert check_url("http://192.168.0.1./x") == (
-        "http://192.168.0.1./x",
+        "http://192.168.0.1/x",
         "192.168.0.1",
     )
     assert check_url("http://example.com../page") is None

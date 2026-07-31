@@ -226,6 +226,8 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
 
 def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     "Parse and validate the input."
+    if not isinstance(url, str):
+        return False, None
     try:
         parsed_url = urlsplit(url)
     except ValueError:

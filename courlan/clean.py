@@ -8,7 +8,7 @@ from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
 
 from .filters import is_valid_url
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
-from .urlutils import _parse
+from .urlutils import _parse, _strip_trailing_dot
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +43,9 @@ TRACKERS_RE = re.compile(
 def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
-        return normalize_url(scrub_url(url), False, language, False)
+        cleaned = normalize_url(scrub_url(url), False, language)
+        # align root URLs with scrub_url's form so a second pass is a no-op
+        return cleaned.rstrip("/") if cleaned.count("/") == 3 else cleaned
     except (AttributeError, ValueError):
         return None
 
@@ -163,7 +165,10 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
 
 def normalize_authority(parsed_url: SplitResult) -> str:
     "Lower-case the authority, decode punycode and strip the scheme default port."
-    netloc = decode_punycode(parsed_url.netloc.lower())
+    # host only: preserve userinfo case, strip a trailing FQDN dot
+    userinfo, _, hostport = parsed_url.netloc.rpartition("@")
+    hostport = decode_punycode(_strip_trailing_dot(hostport.lower()))
+    netloc = f"{userinfo}@{hostport}" if userinfo else hostport
     # port: strip only the scheme's default port (80 for http, 443 for https)
     try:
         port = parsed_url.port

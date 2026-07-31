@@ -152,8 +152,13 @@ class UrlStore:
         # don't use the following on Windows
         if verbose and not sys.platform.startswith("win"):
             try:
-                signal.signal(signal.SIGINT, dump_unvisited_urls)
-                signal.signal(signal.SIGTERM, dump_unvisited_urls)
+                for signum in (signal.SIGINT, signal.SIGTERM):
+                    # don't overwrite handlers the host application installed
+                    if signal.getsignal(signum) in (
+                        signal.SIG_DFL,
+                        signal.default_int_handler,
+                    ):
+                        signal.signal(signum, dump_unvisited_urls)
             except ValueError:
                 # signal handlers can only be registered in the main thread
                 LOGGER.warning("Cannot set signal handlers outside the main thread")
@@ -215,6 +220,22 @@ class UrlStore:
             with self._lock:
                 self.done = True
 
+    def _canonical_domain(self, domain: str) -> str:
+        "Merge the http/https twin of the domain, keeping a single entry."
+        if domain.startswith("http://"):
+            candidate = "https" + domain[4:]
+            # switch
+            if candidate in self.urldict:
+                return candidate
+        elif domain.startswith("https://"):
+            candidate = "http" + domain[5:]
+            # replace entry: check-and-swap must be atomic against other writers
+            with self._lock:
+                if candidate in self.urldict:
+                    self.urldict[domain] = self.urldict[candidate]
+                    del self.urldict[candidate]
+        return domain
+
     def _store_urls(
         self,
         domain: str,
@@ -223,19 +244,7 @@ class UrlStore:
         to_left: deque[UrlPathTuple] | None = None,
         replace: bool = False,
     ) -> None:
-        # http/https switch
-        if domain.startswith("http://"):
-            candidate = "https" + domain[4:]
-            # switch
-            if candidate in self.urldict:
-                domain = candidate
-        elif domain.startswith("https://"):
-            candidate = "http" + domain[5:]
-            # replace entry: check-and-swap must be atomic against other writers
-            with self._lock:
-                if candidate in self.urldict:
-                    self.urldict[domain] = self.urldict[candidate]
-                    del self.urldict[candidate]
+        domain = self._canonical_domain(domain)
 
         # load URLs or create entry
         if domain in self.urldict and self.urldict[domain].state is State.BUSTED:
@@ -250,12 +259,17 @@ class UrlStore:
                 urls = deque()
                 known = set()
 
+            # update "known" while extending so in-batch variants dedup too
             if to_right is not None:
-                urls.extend(t for t in to_right if not is_known_link(t.path(), known))
+                for t in to_right:
+                    if not is_known_link(t.path(), known):
+                        urls.append(t)
+                        known.add(t.path())
             if to_left is not None:
-                urls.extendleft(
-                    t for t in to_left if not is_known_link(t.path(), known)
-                )
+                for t in to_left:
+                    if not is_known_link(t.path(), known):
+                        urls.appendleft(t)
+                        known.add(t.path())
 
         with self._lock:
             if self.compressed:
@@ -508,6 +522,7 @@ class UrlStore:
 
     def store_rules(self, website: str, rules: RobotFileParser | None) -> None:
         "Store crawling rules for a given website."
+        website = self._canonical_domain(website)
         if self.compressed:
             rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
@@ -540,7 +555,7 @@ class UrlStore:
         return sum(v.total for v in self.urldict.values())
 
     def download_threshold_reached(self, threshold: float) -> bool:
-        "Find out if the download limit (in seconds) has been reached for one of the websites in store."
+        "Find out if the download threshold (number of retrieved URLs) has been reached for one of the websites in store."
         return any(v.count >= threshold for v in self.urldict.values())
 
     def dump_urls(self) -> list[str]:
@@ -571,13 +586,16 @@ class UrlStore:
     # PERSISTANCE
 
     def write(self, filename: str) -> None:
-        "Write the URL store to disk."
+        "Write the URL store to disk as a pickle file, see load_store()."
         with open(filename, "wb") as output:
             pickle.dump(self, output)
 
 
 def load_store(filename: str) -> UrlStore:
-    "Load a URL store from disk."
+    """Load a URL store from disk.
+
+    Warning: uses pickle, which can execute arbitrary code.
+    Only load files you have written yourself with UrlStore.write()."""
     with open(filename, "rb") as output:
         url_store = pickle.load(output)
     return url_store
