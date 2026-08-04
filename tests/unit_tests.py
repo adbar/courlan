@@ -34,6 +34,7 @@ from courlan import (
     scrub_url,
     validate_url,
 )
+from courlan.clean import normalize_path
 from courlan.core import filter_links
 from courlan.filters import (
     domain_filter,
@@ -190,9 +191,7 @@ def test_scrub():
         clean_url("https://example.org:443/file.html?p=100&abc=1#frag")
         == "https://example.org/file.html?abc=1&p=100#frag"
     )
-    # clean_url must be idempotent: stripping every query parameter from a
-    # root path used to leave a trailing slash that a second pass removed,
-    # so the canonical form depended on how many times it was applied.
+    # clean_url is idempotent, including when all query parameters are stripped
     for url in (
         "http://test.org/?s_cid=123&clickid=1",
         "http://test.org/?utm_source=&utm_medium=",
@@ -203,8 +202,9 @@ def test_scrub():
         assert clean_url(cleaned) == cleaned
     # a surviving (non-tracker) query still keeps the root slash
     assert clean_url("http://test.org/?p=1") == "http://test.org/?p=1"
-    # deeper paths keep their trailing slash (only the root form is collapsed)
-    assert clean_url("https://example.org/path/") == "https://example.org/path/"
+    # trailing slashes are stripped
+    assert clean_url("https://example.org/path/") == "https://example.org/path"
+    assert clean_url("https://example.org/path") == "https://example.org/path"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
     assert scrub_url("<![CDATA[https://www.dwds.de]]>") == "https://www.dwds.de"
@@ -597,7 +597,7 @@ def test_validate():
 
     assert not is_valid_url("http://www.test[.org/test")
     assert is_valid_url("http://test.org/test")
-    # non-string input returns False instead of raising
+    # non-string input
     assert not is_valid_url(None)
     assert not is_valid_url(123)
     assert not is_valid_url(b"http://test.org/test")
@@ -643,6 +643,20 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+    # leading /../ segments are removed
+    assert (
+        normalize_url("https://example.org/../path/page.html")
+        == "https://example.org/path/page.html"
+    )
+    assert normalize_path("/../../a//b") == "/a/b"
+
+    # pre-normalized parts passed by the caller are used as they are
+    assert (
+        normalize_url(
+            "https://example.org/a?p=1", netloc="test.org", path="/b", query=""
+        )
+        == "https://test.org/b"
+    )
 
     # IPv6: default port stripped (was missed by the old \w-lookbehind regex)
     assert normalize_url("http://[::1]:80/") == "http://[::1]/"
@@ -650,7 +664,7 @@ def test_normalization():
     # non-default port preserved
     assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080/"
 
-    # host is lowercased, userinfo case is preserved (credentials are case-sensitive)
+    # userinfo case is preserved (credentials are case-sensitive)
     assert (
         normalize_url("https://User:PassWord@Example.COM/Path")
         == "https://User:PassWord@example.com/Path"

@@ -25,11 +25,8 @@ def get_tldinfo(url: str) -> tuple[str | None, str | None]:
     "Extract domain info via the public-suffix lookup, returning a ``(domain, full_domain)`` tuple."
     if not isinstance(url, str) or not url:
         return None, None
-    try:
-        parsed = _parse(url)
-        host = parsed.hostname
-    except ValueError:  # e.g. unbalanced brackets in the netloc
-        return None, None
+    parsed = _parse(url)  # never raises: malformed netlocs degrade to empty parts
+    host = parsed.hostname
     if host:
         host = _strip_trailing_dot(host)  # FQDN form would defeat the IP gate below
     # IP literals are returned in canonical form; gates avoid the exception

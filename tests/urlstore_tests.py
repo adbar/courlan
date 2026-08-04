@@ -88,7 +88,7 @@ def test_urlstore_basics():
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
 
-    # slash variants in the same batch dedup like across batches
+    # slash variants dedup within a batch too
     my_urls.reset()
     my_urls.add_urls(["https://example.org/a", "https://example.org/a/"])
     assert len(my_urls.urldict["https://example.org"].tuples) == 1
@@ -128,6 +128,9 @@ def test_urlstore_rules(robots_rules):
     my_urls.store_rules("http://example.org", robots_rules)
     assert "http://example.org" not in my_urls.urldict
     assert my_urls.get_rules("https://example.org") == robots_rules
+    # ... and reads resolve to the same entry
+    assert my_urls.get_rules("http://example.org") == robots_rules
+    assert my_urls.get_crawl_delay("http://example.org") == 5
     # no crash from twin deletion while iterating in get_download_urls
     assert my_urls.get_download_urls(time_limit=0)
 
@@ -436,29 +439,39 @@ def test_dbdump(capsys):
         captured = capsys.readouterr()
         assert captured.out.strip() == ""
 
-        # verbose: a handler installed by the host application is not overwritten
-        def custom_handler(num, frame):
-            return None
-
-        signal.signal(signal.SIGINT, custom_handler)
-        signal.signal(signal.SIGTERM, custom_handler)
+        # verbose: opt-in registration, a later store takes over
         UrlStore(verbose=True)
-        assert signal.getsignal(signal.SIGINT) is custom_handler
-        assert signal.getsignal(signal.SIGTERM) is custom_handler
-        # verbose: registration only happens over default handlers
-        signal.signal(signal.SIGINT, signal.default_int_handler)
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
         interrupted_one = UrlStore(verbose=True)
         interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
         # SIGINT + SIGTERM caught
         pid = os.getpid()
-        with pytest.raises(SystemExit):
-            os.kill(pid, signal.SIGINT)
-        captured = capsys.readouterr()
-        assert captured.out.strip().endswith("https://www.test.org/2")
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            with pytest.raises(SystemExit):
+                os.kill(pid, signum)
+            captured = capsys.readouterr()
+            assert captured.out.strip().endswith("https://www.test.org/2")
         # clean up for the rest of the test session
         signal.signal(signal.SIGINT, signal.default_int_handler)
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+
+def test_verbose_outside_main_thread(caplog):
+    "Signal registration fails outside the main thread but is not fatal."
+    errors = []
+
+    def run():
+        try:
+            UrlStore(verbose=True)
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    thread = threading.Thread(target=run)
+    with caplog.at_level("WARNING", logger="courlan.urlstore"):
+        thread.start()
+        thread.join()
+
+    assert not errors
+    assert "outside the main thread" in caplog.text
 
 
 def test_from_html(robots_rules):

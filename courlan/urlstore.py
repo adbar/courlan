@@ -149,16 +149,12 @@ class UrlStore:
             self.print_unvisited_urls()
             sys.exit(1)
 
-        # don't use the following on Windows
+        # opt-in only (mostly for CLI use), and not on Windows:
+        # existing handlers are replaced since the caller asked for it
         if verbose and not sys.platform.startswith("win"):
             try:
-                for signum in (signal.SIGINT, signal.SIGTERM):
-                    # don't overwrite handlers the host application installed
-                    if signal.getsignal(signum) in (
-                        signal.SIG_DFL,
-                        signal.default_int_handler,
-                    ):
-                        signal.signal(signum, dump_unvisited_urls)
+                signal.signal(signal.SIGINT, dump_unvisited_urls)
+                signal.signal(signal.SIGTERM, dump_unvisited_urls)
             except ValueError:
                 # signal handlers can only be registered in the main thread
                 LOGGER.warning("Cannot set signal handlers outside the main thread")
@@ -221,20 +217,24 @@ class UrlStore:
                 self.done = True
 
     def _canonical_domain(self, domain: str) -> str:
-        "Merge the http/https twin of the domain, keeping a single entry."
-        if domain.startswith("http://"):
+        "Read-only: return the key the domain is stored under, https twin included."
+        if domain not in self.urldict and domain.startswith("http://"):
             candidate = "https" + domain[4:]
-            # switch
             if candidate in self.urldict:
                 return candidate
-        elif domain.startswith("https://"):
+        return domain
+
+    def _merge_twin(self, domain: str) -> str:
+        "Canonicalize the domain and merge its http/https twin, keeping a single entry."
+        if domain.startswith("https://"):
             candidate = "http" + domain[5:]
             # replace entry: check-and-swap must be atomic against other writers
             with self._lock:
                 if candidate in self.urldict:
                     self.urldict[domain] = self.urldict[candidate]
                     del self.urldict[candidate]
-        return domain
+            return domain
+        return self._canonical_domain(domain)
 
     def _store_urls(
         self,
@@ -244,7 +244,7 @@ class UrlStore:
         to_left: deque[UrlPathTuple] | None = None,
         replace: bool = False,
     ) -> None:
-        domain = self._canonical_domain(domain)
+        domain = self._merge_twin(domain)
 
         # load URLs or create entry
         if domain in self.urldict and self.urldict[domain].state is State.BUSTED:
@@ -522,13 +522,14 @@ class UrlStore:
 
     def store_rules(self, website: str, rules: RobotFileParser | None) -> None:
         "Store crawling rules for a given website."
-        website = self._canonical_domain(website)
+        website = self._merge_twin(website)
         if self.compressed:
             rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
 
     def get_rules(self, website: str) -> RobotFileParser | None:
         "Return the stored crawling rules for the given website."
+        website = self._canonical_domain(website)  # rules may sit under the https twin
         if website not in self.urldict:
             return None
         raw = self.urldict[website].rules
