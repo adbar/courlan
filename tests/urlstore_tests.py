@@ -471,7 +471,9 @@ def test_verbose_outside_main_thread(caplog):
         thread.join()
 
     assert not errors
-    assert "outside the main thread" in caplog.text
+    # no registration attempt on Windows, hence no warning
+    if os.name != "nt":
+        assert "outside the main thread" in caplog.text
 
 
 def test_from_html(robots_rules):
