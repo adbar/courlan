@@ -161,26 +161,28 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
     return normalize_part(fragment)
 
 
-def normalize_authority(parsed_url: SplitResult) -> str:
-    "Lower-case the authority, decode punycode and strip the scheme default port."
+def _normalize_netloc_parts(parsed_url: SplitResult) -> tuple[str, str]:
+    "Return the normalized (netloc, hostport) pair, hostport without userinfo."
     userinfo, _, hostport = parsed_url.netloc.rpartition("@")
     hostport = hostport.lower()
     # split port before punycode decoding (e.g. "xn--n3h:8080")
-    host, has_port, port_str = hostport.rpartition(":")
-    if has_port and port_str.isdigit():
-        hostport = f"{decode_punycode(_strip_trailing_dot(host))}:{port_str}"
-    else:
-        hostport = decode_punycode(_strip_trailing_dot(hostport))
-    netloc = f"{userinfo}@{hostport}" if userinfo else hostport
+    host, sep, port = hostport.rpartition(":")
+    # a colon left in an unbracketed host means a malformed netloc (e.g. "x:80:80")
+    if not (sep and port.isascii() and port.isdecimal()) or (
+        ":" in host and not host.endswith("]")
+    ):
+        host, port = hostport, ""
+    host = decode_punycode(_strip_trailing_dot(host))
     # strip only the scheme's default port
-    try:
-        port = parsed_url.port
-    except ValueError:
-        port = None
     scheme = parsed_url.scheme.lower()
-    if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
-        netloc = netloc.rsplit(":", 1)[0]
-    return netloc
+    if port and (
+        (scheme == "http" and int(port) == 80)
+        or (scheme == "https" and int(port) == 443)
+    ):
+        port = ""
+    hostport = f"{host}:{port}" if port else host
+    netloc = f"{userinfo}@{hostport}" if userinfo else hostport
+    return netloc, hostport
 
 
 def normalize_path(path: str) -> str:
@@ -190,33 +192,58 @@ def normalize_path(path: str) -> str:
     return normalize_part(PATH2.sub("", PATH1.sub("/", path)))
 
 
+def _normalized_parts(
+    parsed_url: SplitResult, strict: bool, language: str | None
+) -> tuple[str, str, str, str, str]:
+    "Return (scheme, netloc, hostport, path, query), all normalized."
+    netloc, host = _normalize_netloc_parts(parsed_url)
+    return (
+        parsed_url.scheme.lower(),
+        netloc,
+        host,
+        normalize_path(parsed_url.path),
+        clean_query(parsed_url.query, strict, language),
+    )
+
+
+def _rebuild_url(
+    scheme: str,
+    netloc: str,
+    path: str,
+    query: str,
+    fragment: str,
+    strict: bool,
+    language: str | None,
+    trailing_slash: bool,
+) -> str:
+    "Assemble the final URL string from already normalized parts."
+    if query and not path:
+        path = "/"
+    elif path == "/" and not query:
+        # canonical root form has no trailing slash (matches scrub_url)
+        path = ""
+    elif not trailing_slash and not query and path.endswith("/"):
+        path = path.rstrip("/")
+    newfragment = "" if strict else normalize_fragment(fragment, language)
+    return urlunsplit((scheme, netloc, path, query, newfragment))
+
+
 def normalize_url(
     parsed_url: SplitResult | str,
     strict: bool = False,
     language: str | None = None,
     trailing_slash: bool = True,
-    netloc: str | None = None,
-    path: str | None = None,
-    query: str | None = None,
 ) -> str:
-    """Takes a URL string or a parsed URL and returns a normalized URL string.
-    `netloc`, `path` and `query` skip the corresponding step when the caller has
-    already normalized that part (see check_url)."""
+    "Takes a URL string or a parsed URL and returns a normalized URL string."
     parsed_url = _parse(parsed_url)
-    # lowercase + remove fragments + normalize punycode
-    scheme = parsed_url.scheme.lower()
-    if netloc is None:
-        netloc = normalize_authority(parsed_url)
-    if path is None:
-        path = normalize_path(parsed_url.path)
-    # strip unwanted query elements
-    if query is None:
-        query = clean_query(parsed_url.query, strict, language)
-    if query and not path:
-        path = "/"
-    elif not trailing_slash and not query and path.endswith("/"):
-        path = path.rstrip("/")
-    # fragment
-    newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
-    # rebuild
-    return urlunsplit((scheme, netloc, path, query, newfragment))
+    scheme, netloc, _, path, query = _normalized_parts(parsed_url, strict, language)
+    return _rebuild_url(
+        scheme,
+        netloc,
+        path,
+        query,
+        parsed_url.fragment,
+        strict,
+        language,
+        trailing_slash,
+    )

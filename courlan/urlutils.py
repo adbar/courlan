@@ -148,6 +148,11 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     return domain != ref
 
 
+def _swap_scheme(url: str) -> str:
+    "Switch between http and https in a URL or scheme-prefixed domain."
+    return "http" + url[5:] if url.startswith("https") else "https" + url[4:]
+
+
 def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     if not link:
@@ -163,9 +168,7 @@ def is_known_link(link: str, known_links: set[str]) -> bool:
 
     # check link and variants with modified protocol
     if link.startswith("http"):
-        protocol_test = (
-            "http" + link[5:] if link.startswith("https") else "https" + link[4:]
-        )
+        protocol_test = _swap_scheme(link)
         slash_test = (
             protocol_test.rstrip("/")
             if protocol_test[-1] == "/"

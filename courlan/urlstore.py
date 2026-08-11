@@ -24,7 +24,7 @@ except ImportError:
 
 
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from enum import Enum
 from operator import itemgetter
@@ -36,7 +36,7 @@ from .clean import normalize_url
 from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
-from .urlutils import get_base_url, get_host_and_path, is_known_link
+from .urlutils import _swap_scheme, get_base_url, get_host_and_path, is_known_link
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +107,20 @@ class UrlPathTuple:
     def path(self) -> str:
         "Get the URL path as string."
         return self.urlpath.decode("utf-8")
+
+
+def _dedup_extend(
+    urls: deque[UrlPathTuple],
+    known: set[str],
+    tuples: Iterable[UrlPathTuple],
+    left: bool = False,
+) -> None:
+    "Add tuples whose paths are not yet known, updating the known set as it goes."
+    add = urls.appendleft if left else urls.append
+    for utuple in tuples:
+        if not is_known_link(utuple.path(), known):
+            add(utuple)
+            known.add(utuple.path())
 
 
 class UrlStore:
@@ -181,22 +195,22 @@ class UrlStore:
                 if validation_result is False or parsed_url is None:
                     LOGGER.debug("Invalid URL: %s", url)
                     raise ValueError
-                # filter
-                if (
-                    self.language is not None
-                    and lang_filter(
-                        url, self.language, self.strict, self.trailing_slash
-                    )
-                    is False
-                ):
-                    LOGGER.debug("Wrong language: %s", url)
-                    raise ValueError
                 normalized = normalize_url(
                     parsed_url,
                     strict=self.strict,
                     language=self.language,
                     trailing_slash=self.trailing_slash,
                 )
+                # filter on the final form, as in check_url
+                if (
+                    self.language is not None
+                    and lang_filter(
+                        normalized, self.language, self.strict, self.trailing_slash
+                    )
+                    is False
+                ):
+                    LOGGER.debug("Wrong language: %s", url)
+                    raise ValueError
                 hostinfo, urlpath = get_host_and_path(normalized)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
@@ -218,28 +232,48 @@ class UrlStore:
 
     def _canonical_domain(self, domain: str) -> str:
         "Read-only: return the key the domain is stored under, http/https twin included."
-        if domain not in self.urldict:
-            if domain.startswith("http://"):
-                candidate = "https" + domain[4:]
-            elif domain.startswith("https://"):
-                candidate = "http" + domain[5:]
-            else:
-                return domain
+        if domain not in self.urldict and domain.startswith(("http://", "https://")):
+            candidate = _swap_scheme(domain)
             if candidate in self.urldict:
                 return candidate
         return domain
 
+    def _merge_entries(self, target: str, source: str) -> None:
+        "Merge the source entry into the target one; a discarded twin voids the domain."
+        tgt, src = self.urldict[target], self.urldict[source]
+        if State.BUSTED in (tgt.state, src.state):
+            self.urldict[target] = DomainEntry(state=State.BUSTED)
+            return
+        urls = self._load_urls(target)
+        known = {u.path() for u in urls}
+        _dedup_extend(urls, known, self._load_urls(source))
+        tgt.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
+        tgt.total = len(urls)
+        tgt.count += src.count
+        tgt.rules = tgt.rules if tgt.rules is not None else src.rules
+        tgt.state = State.ALL_VISITED if all(u.visited for u in urls) else State.OPEN
+        if src.timestamp and (not tgt.timestamp or src.timestamp > tgt.timestamp):
+            tgt.timestamp = src.timestamp
+
     def _merge_twin(self, domain: str) -> str:
-        "Canonicalize the domain and merge its http/https twin, keeping a single entry."
-        if domain.startswith("https://"):
-            candidate = "http" + domain[5:]
-            # replace entry: check-and-swap must be atomic against other writers
-            with self._lock:
-                if candidate in self.urldict:
-                    self.urldict[domain] = self.urldict[candidate]
-                    del self.urldict[candidate]
+        """Canonicalize the domain under the https key if a twin exists,
+        merging coexisting entries into a single one."""
+        if not domain.startswith(("http://", "https://")):
             return domain
-        return self._canonical_domain(domain)
+        https_key = domain if domain.startswith("https://") else _swap_scheme(domain)
+        http_key = _swap_scheme(https_key)
+        # check-and-swap must be atomic against other writers
+        with self._lock:
+            if https_key in self.urldict:
+                if http_key in self.urldict:
+                    self._merge_entries(https_key, http_key)
+                    del self.urldict[http_key]
+                return https_key
+            if domain == https_key and http_key in self.urldict:
+                # upgrade the existing http entry to the https key
+                self.urldict[https_key] = self.urldict.pop(http_key)
+                return https_key
+        return domain
 
     def _store_urls(
         self,
@@ -264,17 +298,10 @@ class UrlStore:
                 urls = deque()
                 known = set()
 
-            # update "known" while extending so in-batch variants dedup too
             if to_right is not None:
-                for t in to_right:
-                    if not is_known_link(t.path(), known):
-                        urls.append(t)
-                        known.add(t.path())
+                _dedup_extend(urls, known, to_right)
             if to_left is not None:
-                for t in to_left:
-                    if not is_known_link(t.path(), known):
-                        urls.appendleft(t)
-                        known.add(t.path())
+                _dedup_extend(urls, known, to_left, left=True)
 
         with self._lock:
             if self.compressed:
@@ -355,10 +382,11 @@ class UrlStore:
         self.add_urls(urls=links, appendleft=links_priority)
 
     def discard(self, domains: list[str]) -> None:
-        "Declare domains void and prune the store."
-        with self._lock:
-            for d in domains:
-                self.urldict[d] = DomainEntry(state=State.BUSTED)
+        "Declare domains void and prune the store, http/https twins included."
+        for domain in domains:
+            domain = self._merge_twin(domain)
+            with self._lock:
+                self.urldict[domain] = DomainEntry(state=State.BUSTED)
         self._set_done()
         num = gc.collect()
         LOGGER.debug("%s objects in GC after UrlStore.discard", num)
@@ -428,6 +456,8 @@ class UrlStore:
     def get_url(self, domain: str, as_visited: bool = True) -> str | None:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
         # not fully used
+        # merge any twin first so the replace-store below stays on one key
+        domain = self._merge_twin(domain)
         if not self.is_exhausted_domain(domain):
             url_tuples = self._load_urls(domain)
             # get first non-seen url
@@ -456,8 +486,10 @@ class UrlStore:
         """Get a list of immediately downloadable URLs according to the given
         time limit per domain."""
         urls = []
-        for website, entry in self.urldict.items():
-            if entry.state != State.OPEN:
+        # snapshot the keys: get_url may merge twin entries and mutate the dict
+        for website in list(self.urldict):
+            entry = self.urldict.get(website)
+            if entry is None or entry.state != State.OPEN:
                 continue
             if (
                 not entry.timestamp
@@ -485,6 +517,8 @@ class UrlStore:
         targets: list[tuple[float, str]] = []
         # iterate potential domains
         for domain in potential:
+            # merge any twin first so the replace-store below stays on one key
+            domain = self._merge_twin(domain)
             # load urls
             url_tuples = self._load_urls(domain)
             urlpaths: list[str] = []

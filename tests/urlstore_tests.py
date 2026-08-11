@@ -131,7 +131,6 @@ def test_urlstore_rules(robots_rules):
     # ... and reads resolve to the same entry
     assert my_urls.get_rules("http://example.org") == robots_rules
     assert my_urls.get_crawl_delay("http://example.org") == 5
-    # no crash from twin deletion while iterating in get_download_urls
     assert my_urls.get_download_urls(time_limit=0)
 
 
@@ -653,6 +652,60 @@ def test_store_rules_no_merge():
     # http entry must still exist — store_rules is read-only, not a merge
     assert "http://host.com" in store.urldict
     assert "https://host.com" in store.urldict
+
+
+def test_twin_merge_on_download():
+    "Coexisting legacy twins are merged on first write, no crash while iterating."
+    store = UrlStore()
+    store.add_urls(["http://dup.com/http-only", "http://dup.com/shared"])
+    # simulate a legacy pickle with coexisting twin entries
+    entry = store.urldict.pop("http://dup.com")
+    store.add_urls(["https://dup.com/https-only", "https://dup.com/shared"])
+    store.urldict["http://dup.com"] = entry
+
+    downloaded = []
+    while url := store.get_download_urls(time_limit=0):
+        downloaded.extend(url)
+    # twin deleted during iteration without RuntimeError, URLs unioned and deduped
+    assert "http://dup.com" not in store.urldict
+    assert sorted(downloaded) == [
+        "https://dup.com/http-only",
+        "https://dup.com/https-only",
+        "https://dup.com/shared",
+    ]
+    assert store.urldict["https://dup.com"].total == 3
+
+
+def test_twin_merge_metadata():
+    "Merging twins in compressed mode unions counts and keeps rules."
+    store = UrlStore(compressed=True)
+    store.add_urls(["http://m.com/a"])
+    store.get_url("http://m.com")  # count = 1
+    entry = store.urldict.pop("http://m.com")
+    store.add_urls(["https://m.com/b"])
+    store.store_rules("https://m.com", RobotFileParser())
+    store.urldict["http://m.com"] = entry
+    store.add_urls(["https://m.com/c"])  # triggers the merge
+    merged = store.urldict["https://m.com"]
+    assert "http://m.com" not in store.urldict
+    assert merged.count == 1 and merged.total == 3
+    assert store.get_rules("https://m.com") is not None
+
+
+def test_twin_discard():
+    "A discarded domain voids its http/https twin and rejects later additions."
+    store = UrlStore()
+    store.add_urls(["http://y.com/a"])
+    store.discard(["https://y.com"])
+    assert store.dump_urls() == []
+    store.add_urls(["http://y.com/b"])
+    assert store.dump_urls() == []
+    assert "http://y.com" not in store.urldict
+    # a resurrected twin next to the BUSTED entry is voided on merge
+    store.urldict["http://y.com"]
+    store.add_urls(["http://y.com/c"])
+    assert "http://y.com" not in store.urldict
+    assert store.dump_urls() == []
 
 
 def test_get_rules_both_directions():

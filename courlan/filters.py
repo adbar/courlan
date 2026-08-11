@@ -68,7 +68,7 @@ ALL_PATH_LANGS_NO_TRAILING = re.compile(
     r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
-    r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
+    r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?(?:/|$)", re.IGNORECASE
 )
 
 # navigation/crawls
@@ -77,7 +77,7 @@ NAVIGATION_FILTER = re.compile(
     re.IGNORECASE,
 )
 NOTCRAWLABLE = re.compile(
-    r"/([ck]onta[ck]t|datenschutzerkl.{1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|"
+    r"/([ck]onta[ck]t|datenschutzerkl(?:.|%[0-9a-f]{2}){1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|"
     r"/(javascript:|mailto:|tel\.?:|whatsapp:)",
     re.IGNORECASE,
 )

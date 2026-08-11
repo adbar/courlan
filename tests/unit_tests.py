@@ -359,6 +359,10 @@ def test_path_filter():
     assert check_url("http://www.case-modder.de/default/", strict=True) is None
     assert path_filter("/contact/", "") is False
     assert path_filter("/Datenschutzerklaerung", "") is False
+    # umlaut paths, raw and percent-quoted
+    assert path_filter("/datenschutzerklärung", "") is False
+    assert path_filter("/datenschutzerkl%C3%A4rung", "") is False
+    assert check_url("http://example.org/datenschutzerklärung", strict=True) is None
     # assert path_filter("/", "") is False
 
     # in strict mode an index page must not be kept alive by a query that
@@ -619,7 +623,8 @@ def test_validate():
 
 
 def test_normalization():
-    assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de/"
+    # canonical root form has no trailing slash
+    assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de"
     assert (
         normalize_url("http://test.net/foo.html#bar", strict=True)
         == "http://test.net/foo.html"
@@ -650,19 +655,11 @@ def test_normalization():
     )
     assert normalize_path("/../../a//b") == "/a/b"
 
-    # pre-normalized parts passed by the caller are used as they are
-    assert (
-        normalize_url(
-            "https://example.org/a?p=1", netloc="test.org", path="/b", query=""
-        )
-        == "https://test.org/b"
-    )
-
     # IPv6: default port stripped (was missed by the old \w-lookbehind regex)
-    assert normalize_url("http://[::1]:80/") == "http://[::1]/"
-    assert normalize_url("https://[::1]:443/") == "https://[::1]/"
+    assert normalize_url("http://[::1]:80/") == "http://[::1]"
+    assert normalize_url("https://[::1]:443/") == "https://[::1]"
     # non-default port preserved
-    assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080/"
+    assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080"
 
     # userinfo case is preserved (credentials are case-sensitive)
     assert (
@@ -682,7 +679,7 @@ def test_normalization():
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
     # punycode with non-default port
-    assert normalize_url("http://xn--n3h:8080/") == "http://☃:8080/"
+    assert normalize_url("http://xn--n3h:8080/") == "http://☃:8080"
 
     # account for particular characters
     assert (
@@ -697,26 +694,26 @@ def test_normalization():
     )
 
     # trackers
-    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org/"
-    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org/"
-    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org/"
-    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org"
+    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org"
+    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org"
+    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org"
     assert (
         normalize_url("http://test.org/?utm_source=rss&utm_medium=rss")
-        == "http://test.org/"
+        == "http://test.org"
     )
     assert (
         normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
-        == "http://test.org/"
+        == "http://test.org"
     )
-    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org/"
+    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org"
     assert (
         normalize_url(
             "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
         )
-        == "http://test.org/#catpage=3"
+        == "http://test.org#catpage=3"
     )
-    assert normalize_url("http://test.org/#page2") == "http://test.org/#page2"
+    assert normalize_url("http://test.org/#page2") == "http://test.org#page2"
 
 
 def test_qelems():
@@ -906,6 +903,34 @@ def test_urlcheck_domain():
         "192.168.0.1",
     )
     assert check_url("http://example.com../page") is None
+
+
+def test_urlcheck_fixed_point():
+    "check_url is idempotent: re-checking its own output changes nothing."
+    urls = [
+        "http://test.org/?s_cid=123&clickid=1",
+        "http://test.org/?utm_source=&utm_medium=",
+        "http://test.org/#partnerid=123",
+        "https://example.org/?",
+        "http://EXAMPLE.org:80/a//b/?page=2#frag",
+        "https://example.org/index.html?document=report.pdf",
+        "http://www.example.org/path/?utm_source=x",
+        "https://example.org/datenschutzerklärung",
+        "http://de.example.org/en/page/",
+        "http://xn--nxasmq6b.com:8080/feed",
+    ]
+    configs = (
+        {"strict": False},
+        {"strict": True},
+        {"strict": False, "language": "de"},
+        {"strict": True, "language": "en"},
+        {"strict": True, "trailing_slash": False},
+    )
+    for url in urls:
+        for config in configs:
+            first = check_url(url, **config)
+            if first:
+                assert check_url(first[0], **config) == first, (url, config)
 
 
 def test_urlcheck_port():

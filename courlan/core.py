@@ -7,13 +7,7 @@ import logging
 import re
 from urllib.robotparser import RobotFileParser
 
-from .clean import (
-    clean_query,
-    normalize_authority,
-    normalize_path,
-    normalize_url,
-    scrub_url,
-)
+from .clean import _normalized_parts, _rebuild_url, scrub_url
 from .filters import (
     basic_filter,
     domain_filter,
@@ -67,8 +61,8 @@ def check_url(
         Nothing: invalid URLs are caught internally and None is returned.
     """
 
-    # first sanity check
-    # use standard parsing library, validate and strip fragments, then normalize
+    # scrub, parse and normalize, then filter on the normalized parts
+    # and the final form so the output is a fixed point
     try:
         # length test
         if basic_filter(url) is False:
@@ -82,7 +76,47 @@ def check_url(
         if with_redirects:
             url = redirection_test(url)
 
-        # spam & structural elements
+        # split and validate
+        validation_test, parsed_url = validate_url(url)
+        if validation_test is False or parsed_url is None:
+            LOGGER.debug("rejected, validation test: %s", url)
+            raise ValueError
+
+        # normalize all parts once; the filters below and the rebuild share them
+        scheme, netloc, host, path, query = _normalized_parts(
+            parsed_url, strict, language
+        )
+
+        # content filter based on extensions
+        if extension_filter(path) is False:
+            LOGGER.debug("rejected, extension filter: %s", url)
+            raise ValueError
+
+        # unsuitable domain/host name (without userinfo; domain_filter expects host[:port])
+        if not host or domain_filter(host) is False:
+            LOGGER.debug("rejected, domain name: %s", url)
+            raise ValueError
+
+        # strict content filtering: the query has to be the one that survives
+        # normalization, else a stripped param keeps an index page that
+        # check_url would reject on a second pass
+        if strict and path_filter(path, query) is False:
+            LOGGER.debug("rejected, path filter: %s", url)
+            raise ValueError
+
+        # rebuild
+        url = _rebuild_url(
+            scheme,
+            netloc,
+            path,
+            query,
+            parsed_url.fragment,
+            strict,
+            language,
+            trailing_slash,
+        )
+
+        # spam & structural elements, filtered on the final form for idempotence
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
             LOGGER.debug("rejected, type filter: %s", url)
             raise ValueError
@@ -94,49 +128,6 @@ def check_url(
         ):
             LOGGER.debug("rejected, lang filter: %s", url)
             raise ValueError
-
-        # split and validate
-        validation_test, parsed_url = validate_url(url)
-        if validation_test is False or parsed_url is None:
-            LOGGER.debug("rejected, validation test: %s", url)
-            raise ValueError
-
-        # the filters below and normalize_url() need the same normalized parts, so
-        # compute each one once and pass them on
-        path = normalize_path(parsed_url.path)
-
-        # content filter based on extensions
-        if extension_filter(path) is False:
-            LOGGER.debug("rejected, extension filter: %s", url)
-            raise ValueError
-
-        # unsuitable domain/host name (strip userinfo; domain_filter expects host[/port])
-        netloc = normalize_authority(parsed_url)
-        host = netloc.rsplit("@", 1)[-1]
-        if not host or domain_filter(host) is False:
-            LOGGER.debug("rejected, domain name: %s", url)
-            raise ValueError
-
-        # strict content filtering: the query has to be the one that survives
-        # normalization, else a stripped param keeps an index page that
-        # check_url would reject on a second pass
-        query = None
-        if strict:
-            query = clean_query(parsed_url.query, strict, language)
-            if path_filter(path, query) is False:
-                LOGGER.debug("rejected, path filter: %s", url)
-                raise ValueError
-
-        # normalize
-        url = normalize_url(
-            parsed_url,
-            strict,
-            language,
-            trailing_slash,
-            netloc=netloc,
-            path=path,
-            query=query,
-        )
 
         # domain info: use blacklist in strict mode only
         domain = extract_domain(url, blacklist=BLACKLIST if strict else None)
