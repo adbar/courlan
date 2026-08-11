@@ -681,6 +681,8 @@ def test_normalization():
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
+    # punycode with non-default port
+    assert normalize_url("http://xn--n3h:8080/") == "http://☃:8080/"
 
     # account for particular characters
     assert (
@@ -1661,7 +1663,9 @@ def test_cli(tmp_path):
     # test for Windows and the rest
     assert (
         subprocess.run(
-            [courlan_bin, "-i", inputfile, "-o", outputfile, "-p", "1"], env=env
+            [courlan_bin, "-i", inputfile, "-o", outputfile, "-p", "1"],
+            env=env,
+            check=False,
         ).returncode
         == 0
     )

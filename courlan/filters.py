@@ -209,7 +209,7 @@ def path_filter(urlpath: str, query: str) -> bool:
 def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
     """Make sure the target URL is from a suitable type (HTML page with primarily text).
     Strict: Try to filter out other document types, spam, video and adult websites."""
-    if (
+    return not (
         # feeds + blogspot
         url.endswith(("/feed", "/rss", "_archive.html"))
         or
@@ -218,10 +218,7 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
         or
         # type (also hidden in parameters), videos, adult content
         (strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)))
-    ):
-        return False
-    # default
-    return True
+    )
 
 
 def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:

@@ -163,18 +163,22 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
 
 def normalize_authority(parsed_url: SplitResult) -> str:
     "Lower-case the authority, decode punycode and strip the scheme default port."
-    # preserve userinfo case, strip trailing FQDN dot
     userinfo, _, hostport = parsed_url.netloc.rpartition("@")
-    hostport = decode_punycode(_strip_trailing_dot(hostport.lower()))
+    hostport = hostport.lower()
+    # split port before punycode decoding (e.g. "xn--n3h:8080")
+    host, has_port, port_str = hostport.rpartition(":")
+    if has_port and port_str.isdigit():
+        hostport = f"{decode_punycode(_strip_trailing_dot(host))}:{port_str}"
+    else:
+        hostport = decode_punycode(_strip_trailing_dot(hostport))
     netloc = f"{userinfo}@{hostport}" if userinfo else hostport
     # strip only the scheme's default port
     try:
         port = parsed_url.port
     except ValueError:
-        port = None  # port could not be cast to integer value
+        port = None
     scheme = parsed_url.scheme.lower()
     if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
-        # strip the trailing default port (IPv6-safe)
         netloc = netloc.rsplit(":", 1)[0]
     return netloc
 

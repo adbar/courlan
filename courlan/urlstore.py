@@ -217,9 +217,14 @@ class UrlStore:
                 self.done = True
 
     def _canonical_domain(self, domain: str) -> str:
-        "Read-only: return the key the domain is stored under, https twin included."
-        if domain not in self.urldict and domain.startswith("http://"):
-            candidate = "https" + domain[4:]
+        "Read-only: return the key the domain is stored under, http/https twin included."
+        if domain not in self.urldict:
+            if domain.startswith("http://"):
+                candidate = "https" + domain[4:]
+            elif domain.startswith("https://"):
+                candidate = "http" + domain[5:]
+            else:
+                return domain
             if candidate in self.urldict:
                 return candidate
         return domain
@@ -522,7 +527,7 @@ class UrlStore:
 
     def store_rules(self, website: str, rules: RobotFileParser | None) -> None:
         "Store crawling rules for a given website."
-        website = self._merge_twin(website)
+        website = self._canonical_domain(website)
         if self.compressed:
             rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
@@ -577,7 +582,7 @@ class UrlStore:
             print(
                 "\n".join(
                     [
-                        f"{domain}{u.path()}\t{str(u.visited)}"
+                        f"{domain}{u.path()}\t{u.visited!s}"
                         for u in self._load_urls(domain)
                     ]
                 ),

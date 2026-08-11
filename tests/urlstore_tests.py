@@ -640,3 +640,30 @@ def test_urlstore_store_non_http_domain():
     store = UrlStore()
     store._store_urls("ftp://example.org")
     assert "ftp://example.org" in store.urldict
+
+
+def test_store_rules_no_merge():
+    "store_rules must not destroy independent http/https entries (uses read-only lookup)."
+    store = UrlStore()
+    # force two independent entries (simulates legacy unpickled data)
+    store.urldict["http://host.com"]
+    store.urldict["https://host.com"]
+    rules = RobotFileParser()
+    store.store_rules("https://host.com", rules)
+    # http entry must still exist — store_rules is read-only, not a merge
+    assert "http://host.com" in store.urldict
+    assert "https://host.com" in store.urldict
+
+
+def test_get_rules_both_directions():
+    "get_rules resolves http->https and https->http."
+    store = UrlStore()
+    rules = RobotFileParser()
+    # rules under http, queried via https
+    store.add_urls(["http://a.com/x"])
+    store.store_rules("http://a.com", rules)
+    assert store.get_rules("https://a.com") is not None
+    # rules under https, queried via http
+    store.add_urls(["https://b.com/x"])
+    store.store_rules("https://b.com", rules)
+    assert store.get_rules("http://b.com") is not None
