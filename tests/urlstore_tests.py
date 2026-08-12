@@ -71,6 +71,26 @@ def test_urlstore_basics():
     assert len(my_urls.urldict["https://example.org"].tuples) == 2
     firstelem = my_urls.urldict["https://example.org"].tuples[0]
     assert firstelem.urlpath == b"/" and firstelem.visited is False
+    # host and path come from the normalized parts: query and fragment are kept,
+    # and query keys that are HTML entity names are no longer mangled
+    parts = UrlStore()
+    parts.add_urls(
+        [
+            "https://example.org/t?other=1&param=2",
+            "https://example.org/a?b=1#frag",
+            "https://example.org/#frag",
+            "https://example.org/",
+        ]
+    )
+    assert parts.dump_urls() == [
+        "https://example.org/t?other=1&param=2",
+        "https://example.org/a?b=1#frag",
+        "https://example.org/#frag",  # root slash preserved when fragment present
+        "https://example.org/",
+    ]
+    # round-trip: is_known must find URLs that were just added
+    assert parts.is_known("https://example.org/#frag")
+    assert parts.is_known("https://example.org/a?b=1#frag")
     # reset
     num, _, _ = gc.get_count()
     my_urls.reset()
@@ -444,14 +464,16 @@ def test_dbdump(capsys):
         interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
         # SIGINT + SIGTERM caught
         pid = os.getpid()
-        for signum in (signal.SIGINT, signal.SIGTERM):
-            with pytest.raises(SystemExit):
-                os.kill(pid, signum)
-            captured = capsys.readouterr()
-            assert captured.out.strip().endswith("https://www.test.org/2")
-        # clean up for the rest of the test session
-        signal.signal(signal.SIGINT, signal.default_int_handler)
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        try:
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                with pytest.raises(SystemExit):
+                    os.kill(pid, signum)
+                captured = capsys.readouterr()
+                assert captured.out.strip().endswith("https://www.test.org/2")
+        finally:
+            # clean up for the rest of the test session
+            signal.signal(signal.SIGINT, signal.default_int_handler)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
 
 def test_verbose_outside_main_thread(caplog):

@@ -32,7 +32,7 @@ from threading import Lock
 from typing import Any
 from urllib.robotparser import RobotFileParser
 
-from .clean import normalize_url
+from .clean import normalize_and_split
 from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
@@ -118,9 +118,10 @@ def _dedup_extend(
     "Add tuples whose paths are not yet known, updating the known set as it goes."
     add = urls.appendleft if left else urls.append
     for utuple in tuples:
-        if not is_known_link(utuple.path(), known):
+        path = utuple.path()
+        if not is_known_link(path, known):
             add(utuple)
-            known.add(utuple.path())
+            known.add(path)
 
 
 class UrlStore:
@@ -195,11 +196,9 @@ class UrlStore:
                 if validation_result is False or parsed_url is None:
                     LOGGER.debug("Invalid URL: %s", url)
                     raise ValueError
-                normalized = normalize_url(
-                    parsed_url,
-                    strict=self.strict,
-                    language=self.language,
-                    trailing_slash=self.trailing_slash,
+                # host and path come from the normalized parts, no second parse
+                normalized, hostinfo, urlpath = normalize_and_split(
+                    parsed_url, self.strict, self.language, self.trailing_slash
                 )
                 # filter on the final form, as in check_url
                 if (
@@ -211,7 +210,6 @@ class UrlStore:
                 ):
                     LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
-                hostinfo, urlpath = get_host_and_path(normalized)
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
                 LOGGER.warning("Discarding URL: %s", url)
@@ -222,7 +220,8 @@ class UrlStore:
             return deque()
         raw = self.urldict[domain].tuples
         if isinstance(raw, bytes):  # compressed
-            return COMPRESSOR.decompress(raw)
+            urls: deque[UrlPathTuple] = COMPRESSOR.decompress(raw)
+            return urls
         return raw
 
     def _set_done(self) -> None:
@@ -250,7 +249,8 @@ class UrlStore:
         tgt.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
         tgt.total = len(urls)
         tgt.count += src.count
-        tgt.rules = tgt.rules if tgt.rules is not None else src.rules
+        if tgt.rules is None:
+            tgt.rules = src.rules
         tgt.state = State.ALL_VISITED if all(u.visited for u in urls) else State.OPEN
         if src.timestamp and (not tgt.timestamp or src.timestamp > tgt.timestamp):
             tgt.timestamp = src.timestamp
@@ -573,7 +573,8 @@ class UrlStore:
             return None
         raw = self.urldict[website].rules
         if isinstance(raw, bytes):  # compressed
-            return COMPRESSOR.decompress(raw)
+            rules: RobotFileParser = COMPRESSOR.decompress(raw)
+            return rules
         return raw
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
@@ -637,5 +638,5 @@ def load_store(filename: str) -> UrlStore:
     Warning: uses pickle, which can execute arbitrary code.
     Only load files you have written yourself with UrlStore.write()."""
     with open(filename, "rb") as output:
-        url_store = pickle.load(output)
+        url_store: UrlStore = pickle.load(output)
     return url_store

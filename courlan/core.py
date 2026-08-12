@@ -7,7 +7,13 @@ import logging
 import re
 from urllib.robotparser import RobotFileParser
 
-from .clean import _normalized_parts, _rebuild_url, scrub_url
+from .clean import (
+    clean_query,
+    normalize_netloc_parts,
+    normalize_path,
+    rebuild_url,
+    scrub_url,
+)
 from .filters import (
     basic_filter,
     domain_filter,
@@ -52,7 +58,8 @@ def check_url(
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
         with_nav: set to True to include navigation pages instead of discarding them
-        trailing_slash: set to False to trim trailing slashes
+        trailing_slash: set to False to trim trailing slashes from paths
+                  (the root form never keeps one)
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -82,20 +89,29 @@ def check_url(
             LOGGER.debug("rejected, validation test: %s", url)
             raise ValueError
 
-        # normalize all parts once; the filters below and the rebuild share them
-        scheme, netloc, host, path, query = _normalized_parts(
-            parsed_url, strict, language
-        )
+        # normalized parts, shared with the rebuild; the query comes last as
+        # it is the expensive one and the filters below may reject first
+        path = normalize_path(parsed_url.path)
 
         # content filter based on extensions
         if extension_filter(path) is False:
             LOGGER.debug("rejected, extension filter: %s", url)
             raise ValueError
 
+        scheme, netloc, host = normalize_netloc_parts(parsed_url)
+
         # unsuitable domain/host name (without userinfo; domain_filter expects host[:port])
         if not host or domain_filter(host) is False:
             LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
+
+        # spam & structural elements, also hidden in the query or the fragment
+        pre_normalized = url
+        if type_filter(url, strict=strict, with_nav=with_nav) is False:
+            LOGGER.debug("rejected, type filter: %s", url)
+            raise ValueError
+
+        query = clean_query(parsed_url.query, strict, language)
 
         # strict content filtering: the query has to be the one that survives
         # normalization, else a stripped param keeps an index page that
@@ -105,7 +121,7 @@ def check_url(
             raise ValueError
 
         # rebuild
-        url = _rebuild_url(
+        url = rebuild_url(
             scheme,
             netloc,
             path,
@@ -116,8 +132,11 @@ def check_url(
             trailing_slash,
         )
 
-        # spam & structural elements, filtered on the final form for idempotence
-        if type_filter(url, strict=strict, with_nav=with_nav) is False:
+        # again if normalization changed the URL, it can create patterns of its own
+        if (
+            url != pre_normalized
+            and type_filter(url, strict=strict, with_nav=with_nav) is False
+        ):
             LOGGER.debug("rejected, type filter: %s", url)
             raise ValueError
 
@@ -166,7 +185,8 @@ def extract_links(
         no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
-        trailing_slash: set to False to trim trailing slashes
+        trailing_slash: set to False to trim trailing slashes from paths
+                  (the root form never keeps one)
         with_nav: set to True to include navigation pages instead of discarding them
         redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation

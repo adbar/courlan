@@ -86,7 +86,9 @@ docs = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = "tests/*test*.py"
+testpaths = ["tests"]
+# the test files are named "*_tests.py"; docs/test_docs.py runs separately in CI
+python_files = ["*_tests.py"]
 
 [tool.ruff]
 target-version = "py310"

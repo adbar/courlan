@@ -34,7 +34,7 @@ from courlan import (
     scrub_url,
     validate_url,
 )
-from courlan.clean import normalize_path
+from courlan.clean import normalize_and_split, normalize_path
 from courlan.core import filter_links
 from courlan.filters import (
     domain_filter,
@@ -176,6 +176,12 @@ def test_fix_relative():
         == "https://www.example.org/foo.html?q=bar#baz"
     )
     assert fix_relative_urls("https://www.example.org", "{privacy}") == "{privacy}"
+    # a malformed netloc used to abort extract_links, discarding the whole page
+    assert fix_relative_urls("https://example.org", "//[zz]/x") == "//[zz]/x"
+    assert fix_relative_urls("https://[zz]", "/page.html") == "/page.html"
+    assert extract_links(
+        '<a href="//[zz]/x">a</a><a href="/ok">b</a>', "https://example.org"
+    ) == {"https://example.org/ok"}
 
 
 def test_scrub():
@@ -183,6 +189,11 @@ def test_scrub():
     assert clean_url(5) is None
     assert clean_url("ø\xaa") == "%C3%B8%C2%AA"
     assert clean_url("https://example.org/?p=100") == "https://example.org/?p=100"
+    # query keys that are HTML entity names must survive intact
+    assert (
+        clean_url("https://example.org/a?b=1&param=2")
+        == "https://example.org/a?b=1&param=2"
+    )
     assert clean_url("https://example.org/ab'c") == "https://example.org/ab%27c"
     assert clean_url('https://example.org/abc"') == "https://example.org/abc"
     assert clean_url("https://example.org/abc<") == "https://example.org/abc"
@@ -294,6 +305,18 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
+    # the feed check looks at the path: trailing slashes, query and fragment
+    # do not change the verdict, but a feed-like param is not a feed
+    assert type_filter("http://www.example.org/feed/") is False
+    assert type_filter("http://www.example.org/feed//") is False
+    assert type_filter("http://www.example.org/feed/#f") is False
+    assert type_filter("http://www.example.org/feed?x=1") is False
+    assert type_filter("http://www.example.org/rss/") is False
+    assert type_filter("http://www.example.org/2011_archive.html/") is False
+    assert type_filter("http://www.example.org/feeds/posts/default") is True
+    assert type_filter("http://www.example.org/feed/x") is True
+    assert type_filter("http://www.example.org/myfeed") is True
+    assert type_filter("http://www.example.org/page?url=/feed") is True
     # wp
     assert type_filter("http://www.example.org/wp-admin/") is False
     assert type_filter("http://www.example.org/wp-includes/this") is False
@@ -655,6 +678,18 @@ def test_normalization():
     )
     assert normalize_path("/../../a//b") == "/a/b"
 
+    # the (url, base, path) split needs a host: without one urlunsplit drops the
+    # "//" and slicing past the base would cut into the path
+    assert normalize_and_split(
+        urlsplit("https://ex.org/a?b=1#f"), False, None, True
+    ) == (
+        "https://ex.org/a?b=1#f",
+        "https://ex.org",
+        "/a?b=1#f",
+    )
+    with pytest.raises(ValueError, match="no host"):
+        normalize_and_split(urlsplit("https:path"), False, None, True)
+
     # IPv6: default port stripped (was missed by the old \w-lookbehind regex)
     assert normalize_url("http://[::1]:80/") == "http://[::1]"
     assert normalize_url("https://[::1]:443/") == "https://[::1]"
@@ -706,14 +741,27 @@ def test_normalization():
         normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
         == "http://test.org"
     )
+    # numeric ampersand entity variants: all must decode to &
+    assert (
+        normalize_url("http://test.org/?a=1&#38;b=2") == "http://test.org/?a=1&b=2"
+    )
+    assert (
+        normalize_url("http://test.org/?a=1&#x26;b=2") == "http://test.org/?a=1&b=2"
+    )
+    assert (
+        normalize_url("http://test.org/?a=1&#0038;b=2") == "http://test.org/?a=1&b=2"
+    )
+    assert (
+        normalize_url("http://test.org/?a=1&#X26;b=2") == "http://test.org/?a=1&b=2"
+    )
     assert normalize_url("http://test.org/#partnerid=123") == "http://test.org"
     assert (
         normalize_url(
             "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
         )
-        == "http://test.org#catpage=3"
+        == "http://test.org/#catpage=3"
     )
-    assert normalize_url("http://test.org/#page2") == "http://test.org#page2"
+    assert normalize_url("http://test.org/#page2") == "http://test.org/#page2"
 
 
 def test_qelems():
@@ -785,6 +833,31 @@ def test_urlcheck_type_and_spam():
         )
         is not None
     )
+    # feeds are rejected whether or not the path keeps its trailing slash
+    for url in (
+        "http://example.org/feed/",
+        "http://example.org/rss/",
+        "http://example.org/feed/#f",
+        "http://example.org/feed?x=1",
+    ):
+        assert check_url(url) is None
+        assert check_url(url, trailing_slash=False) is None
+
+    # patterns hidden in the query or the fragment, which normalization removes
+    assert check_url("https://example.org/page?file=movie.mp4", strict=True) is None
+    assert (
+        check_url("http://example.org/page?utm_source=a&file=b.mp4", strict=True)
+        is None
+    )
+    assert check_url("http://example.org/page#movie.mp4", strict=True) is None
+    assert check_url("https://example.org/page?p=/tags/x/") is None
+    assert check_url("https://example.org/page?next=/wp-admin/") is None
+
+    # patterns normalization creates itself, seen only on the final form
+    assert check_url("http://example.org/tags//x/") is None
+    assert check_url("http://example.org//tags//x/") is None
+    assert check_url("http://example.org/category//123/") is None
+    assert check_url("http://example.org/tags/x/?") is None
 
 
 def test_urlcheck_language():
@@ -944,6 +1017,11 @@ def test_urlcheck_port():
     # bracketed IPv6 with a port (urlsplit netloc shape)
     assert check_url("http://[::1]:8080/x") == ("http://[::1]:8080/x", "::1")
     assert check_url("http://[::1]:99999/x") is None
+    # IDN host with a port
+    assert check_url("http://xn--h1aagokeh.xn--p1ai:8888") == (
+        "http://историк.рф:8888",
+        "историк.рф",
+    )
 
 
 def test_domain_filter():
@@ -967,6 +1045,10 @@ def test_domain_filter():
     assert domain_filter("exa-mple.co.uk") is True
     assert domain_filter("kräuter.de") is True
     assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
+    # the port is not part of the IDNA encoding and has to be split off first
+    assert domain_filter("kräuter.de:8080") is True
+    assert domain_filter("историк.рф:8888") is True
+    assert domain_filter("kräuter.de:99999") is False
     # non-ASCII label too long to punycode -> UnicodeError -> rejected
     assert domain_filter("ä" * 100 + ".de") is False
     assert domain_filter("`$smarty.server.server_name`") is False
@@ -1132,6 +1214,19 @@ def test_urlutils():
     )
     assert get_host_and_path("https://example.org/") == ("https://example.org", "/")
     assert get_host_and_path("https://example.org") == ("https://example.org", "/")
+    # query keys that are HTML entity names used to be turned into characters
+    assert get_host_and_path("https://example.org/a?b=1&param=2") == (
+        "https://example.org",
+        "/a?b=1&param=2",
+    )
+    assert get_host_and_path("https://example.org/a?b=1&sect=2&copy=3") == (
+        "https://example.org",
+        "/a?b=1&sect=2&copy=3",
+    )
+    assert get_host_and_path("https://example.org/a?b=1&amp;c=2") == (
+        "https://example.org",
+        "/a?b=1&c=2",
+    )
     assert get_hostinfo("https://httpbun.org/") == (
         "httpbun.org",
         "https://httpbun.org",
