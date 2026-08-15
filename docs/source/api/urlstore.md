@@ -53,6 +53,11 @@ print(f"Total URLs: {store.total_url_number()}")
 print(f"Unvisited domains: {store.get_unvisited_domains()}")
 ```
 
+```{warning}
+`write()`/`load_store()` use Python's pickle format, which can execute
+arbitrary code when loading. Only load files you have written yourself.
+```
+
 ### Statistics and reporting
 
 ```python

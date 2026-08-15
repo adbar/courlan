@@ -34,8 +34,10 @@ from courlan import (
     scrub_url,
     validate_url,
 )
+from courlan.clean import clean_query, normalize_and_split, normalize_path
 from courlan.core import filter_links
 from courlan.filters import (
+    basic_filter,
     domain_filter,
     extension_filter,
     path_filter,
@@ -52,7 +54,7 @@ from courlan.hosts import (
 from courlan.langcodes import langcodes_score
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
-from courlan.urlutils import _parse, is_known_link
+from courlan.urlutils import _parse, _strip_trailing_dot, is_known_link
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 RESOURCES_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
@@ -175,6 +177,12 @@ def test_fix_relative():
         == "https://www.example.org/foo.html?q=bar#baz"
     )
     assert fix_relative_urls("https://www.example.org", "{privacy}") == "{privacy}"
+    # a malformed netloc used to abort extract_links, discarding the whole page
+    assert fix_relative_urls("https://example.org", "//[zz]/x") == "//[zz]/x"
+    assert fix_relative_urls("https://[zz]", "/page.html") == "/page.html"
+    assert extract_links(
+        '<a href="//[zz]/x">a</a><a href="/ok">b</a>', "https://example.org"
+    ) == {"https://example.org/ok"}
 
 
 def test_scrub():
@@ -182,6 +190,11 @@ def test_scrub():
     assert clean_url(5) is None
     assert clean_url("ø\xaa") == "%C3%B8%C2%AA"
     assert clean_url("https://example.org/?p=100") == "https://example.org/?p=100"
+    # query keys that are HTML entity names must survive intact
+    assert (
+        clean_url("https://example.org/a?b=1&param=2")
+        == "https://example.org/a?b=1&param=2"
+    )
     assert clean_url("https://example.org/ab'c") == "https://example.org/ab%27c"
     assert clean_url('https://example.org/abc"') == "https://example.org/abc"
     assert clean_url("https://example.org/abc<") == "https://example.org/abc"
@@ -190,9 +203,7 @@ def test_scrub():
         clean_url("https://example.org:443/file.html?p=100&abc=1#frag")
         == "https://example.org/file.html?abc=1&p=100#frag"
     )
-    # clean_url must be idempotent: stripping every query parameter from a
-    # root path used to leave a trailing slash that a second pass removed,
-    # so the canonical form depended on how many times it was applied.
+    # clean_url is idempotent, including when all query parameters are stripped
     for url in (
         "http://test.org/?s_cid=123&clickid=1",
         "http://test.org/?utm_source=&utm_medium=",
@@ -203,6 +214,9 @@ def test_scrub():
         assert clean_url(cleaned) == cleaned
     # a surviving (non-tracker) query still keeps the root slash
     assert clean_url("http://test.org/?p=1") == "http://test.org/?p=1"
+    # trailing slashes are stripped
+    assert clean_url("https://example.org/path/") == "https://example.org/path"
+    assert clean_url("https://example.org/path") == "https://example.org/path"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
     assert scrub_url("<![CDATA[https://www.dwds.de]]>") == "https://www.dwds.de"
@@ -253,31 +267,25 @@ def test_scrub():
     assert scrub_url(my_url) == my_url
 
 
-def test_extension_filter():
-    _, parsed_url = validate_url("http://www.example.org/test.js")
-    assert extension_filter(parsed_url.path) is False
-    _, parsed_url = validate_url("http://goodbasic.com/GirlInfo.aspx?Pseudo=MilfJanett")
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url(
-        "https://www.familienrecht-allgaeu.de/de/vermoegensrecht.amp"
-    )
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url("http://www.example.org/test.shtml")
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url("http://de.artsdot.com/ADC/Art.nsf/O/8EWETN")
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url("http://de.artsdot.com/ADC/Art.nsf?param1=test")
-    assert extension_filter(parsed_url.path) is False
-    _, parsed_url = validate_url("http://www.example.org/test.xhtml?param1=this")
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url("http://www.example.org/test.php5")
-    assert extension_filter(parsed_url.path) is True
-    _, parsed_url = validate_url("http://www.example.org/test.php6")
-    assert extension_filter(parsed_url.path) is True
-    # uppercase extensions are treated like their lowercase forms
-    assert extension_filter("/photo.JPG") is False
-    assert extension_filter("/page.HTML") is True
-    assert extension_filter("/index.PHP") is True
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        ("/test.js", False),
+        ("/GirlInfo.aspx", True),
+        ("/de/vermoegensrecht.amp", True),
+        ("/test.shtml", True),
+        ("/ADC/Art.nsf/O/8EWETN", True),
+        ("/ADC/Art.nsf", False),  # bare .nsf (query stripped by urlsplit)
+        ("/test.xhtml", True),
+        ("/test.php5", True),
+        ("/test.php6", True),
+        ("/photo.JPG", False),  # uppercase treated like lowercase
+        ("/page.HTML", True),
+        ("/index.PHP", True),
+    ],
+)
+def test_extension_filter(path, expected):
+    assert extension_filter(path) is expected
 
 
 def test_spam_filter():
@@ -292,6 +300,18 @@ def test_spam_filter():
 
 def test_type_filter():
     assert type_filter("http://www.example.org/feed") is False
+    # the feed check looks at the path: trailing slashes, query and fragment
+    # do not change the verdict, but a feed-like param is not a feed
+    assert type_filter("http://www.example.org/feed/") is False
+    assert type_filter("http://www.example.org/feed//") is False
+    assert type_filter("http://www.example.org/feed/#f") is False
+    assert type_filter("http://www.example.org/feed?x=1") is False
+    assert type_filter("http://www.example.org/rss/") is False
+    assert type_filter("http://www.example.org/2011_archive.html/") is False
+    assert type_filter("http://www.example.org/feeds/posts/default") is True
+    assert type_filter("http://www.example.org/feed/x") is True
+    assert type_filter("http://www.example.org/myfeed") is True
+    assert type_filter("http://www.example.org/page?url=/feed") is True
     # wp
     assert type_filter("http://www.example.org/wp-admin/") is False
     assert type_filter("http://www.example.org/wp-includes/this") is False
@@ -357,6 +377,10 @@ def test_path_filter():
     assert check_url("http://www.case-modder.de/default/", strict=True) is None
     assert path_filter("/contact/", "") is False
     assert path_filter("/Datenschutzerklaerung", "") is False
+    # umlaut paths, raw and percent-quoted
+    assert path_filter("/datenschutzerklärung", "") is False
+    assert path_filter("/datenschutzerkl%C3%A4rung", "") is False
+    assert check_url("http://example.org/datenschutzerklärung", strict=True) is None
     # assert path_filter("/", "") is False
 
     # in strict mode an index page must not be kept alive by a query that
@@ -411,151 +435,76 @@ def test_path_filter():
     ) == ("http://www.case-modder.de/index.php", "case-modder.de")
 
 
-def test_lang_filter():
-    assert lang_filter("http://test.com/az", "de", trailing_slash=False) is False
-    assert lang_filter("http://test.com/az/", "de") is False
-    assert lang_filter("http://test.com/de", "de", trailing_slash=False) is True
-    assert lang_filter("http://test.com/de/", "de") is True
-    assert (
-        lang_filter(
-            "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
-            None,
-        )
-        is True
-    )
-    assert (
-        lang_filter(
-            "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
+_20MIN_FR = "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377"
+_TU_BERLIN = "http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html"
+_MUSCLEFOOD = "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html"
+
+
+@pytest.mark.parametrize(
+    "url, lang, kwargs, expected",
+    [
+        ("http://test.com/az", "de", {"trailing_slash": False}, False),
+        ("http://test.com/az/", "de", {}, False),
+        ("http://test.com/de", "de", {"trailing_slash": False}, True),
+        ("http://test.com/de/", "de", {}, True),
+        (_20MIN_FR, None, {}, True),
+        (_20MIN_FR, "de", {}, False),
+        (_20MIN_FR, "fr", {}, True),
+        (_20MIN_FR, "en", {}, False),
+        (_20MIN_FR, "es", {}, False),
+        ("https://www.sitemaps.org/en_GB/protocol.html", "en", {}, True),
+        ("https://www.sitemaps.org/en_GB/protocol.html", "de", {}, False),
+        ("https://en.wikipedia.org/", "de", {"strict": True}, False),
+        ("https://en.wikipedia.org/", "de", {"strict": False}, True),
+        ("https://de.wikipedia.org/", "de", {"strict": True}, True),
+        (_MUSCLEFOOD, "de", {"strict": True}, True),
+        (_MUSCLEFOOD, "fr", {"strict": True}, False),
+        ("http://ch.postleitzahl.org/sankt_gallen/liste-T.html", "fr", {}, True),
+        ("http://ch.postleitzahl.org/sankt_gallen/liste-T.html", "de", {}, True),
+        # disturbing path sub-elements
+        (
+            "http://www.uni-rostock.de/fakult/philfak/fkw/iph/thies/mythos.html",
             "de",
-        )
-        is False
-    )
-    assert (
-        lang_filter(
-            "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
-            "fr",
-        )
-        is True
-    )
-    assert (
-        lang_filter(
-            "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
-            "en",
-        )
-        is False
-    )
-    assert (
-        lang_filter(
-            "https://www.20min.ch/fr/story/des-millions-pour-produire-de-l-energie-renouvelable-467974085377",
-            "es",
-        )
-        is False
-    )
-    assert lang_filter("https://www.sitemaps.org/en_GB/protocol.html", "en") is True
-    assert lang_filter("https://www.sitemaps.org/en_GB/protocol.html", "de") is False
-    assert lang_filter("https://en.wikipedia.org/", "de", strict=True) is False
-    assert lang_filter("https://en.wikipedia.org/", "de", strict=False) is True
-    assert lang_filter("https://de.wikipedia.org/", "de", strict=True) is True
-    assert (
-        lang_filter(
-            "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html",
-            "de",
-            strict=True,
-        )
-        is True
-    )
-    assert (
-        lang_filter(
-            "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html",
-            "fr",
-            strict=True,
-        )
-        is False
-    )
-    assert (
-        lang_filter("http://ch.postleitzahl.org/sankt_gallen/liste-T.html", "fr")
-        is True
-    )
-    assert (
-        lang_filter("http://ch.postleitzahl.org/sankt_gallen/liste-T.html", "de")
-        is True
-    )
-    # to complete when language mappings are more extensive
-    # assert lang_filter('http://ch.postleitzahl.org/sankt_gallen/liste-T.html', 'es') is False
-    # disturbing path sub-elements
-    assert (
-        lang_filter(
-            "http://www.uni-rostock.de/fakult/philfak/fkw/iph/thies/mythos.html", "de"
-        )
-        is True
-    )
-    assert (
-        lang_filter("http://stifter.literature.at/witiko/htm/h15-22b.html", "de")
-        is True
-    )
-    assert (
-        lang_filter("http://stifter.literature.at/doc/witiko/h15-22b.html", "de")
-        is True
-    )
-    assert (
-        lang_filter("http://stifter.literature.at/nl/witiko/h15-22b.html", "de")
-        is False
-    )
-    assert (
-        lang_filter("http://stifter.literature.at/de_DE/witiko/h15-22b.html", "de")
-        is True
-    )
-    assert (
-        lang_filter("http://stifter.literature.at/en_US/witiko/h15-22b.html", "de")
-        is False
-    )
-    assert (
-        lang_filter(
+            {},
+            True,
+        ),
+        ("http://stifter.literature.at/witiko/htm/h15-22b.html", "de", {}, True),
+        ("http://stifter.literature.at/doc/witiko/h15-22b.html", "de", {}, True),
+        ("http://stifter.literature.at/nl/witiko/h15-22b.html", "de", {}, False),
+        ("http://stifter.literature.at/de_DE/witiko/h15-22b.html", "de", {}, True),
+        ("http://stifter.literature.at/en_US/witiko/h15-22b.html", "de", {}, False),
+        (
             "http://www.stiftung.koerber.de/bg/recherche/de/beitrag.php?id=15132&refer=",
             "de",
-        )
-        is True
-    )
-    assert (
-        lang_filter("http://www.solingen-internet.de/si-hgw/eiferer.htm", "de") is True
-    )
-    assert (
-        lang_filter(
-            "http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html",
-            "de",
-            strict=True,
-        )
-        is True
-    )
-    assert (
-        lang_filter(
-            "http://ig.cs.tu-berlin.de/oldstatic/w2000/ir1/aufgabe2/ir1-auf2-gr16.html",
-            "de",
-            strict=False,
-        )
-        is True
-    )
-    assert (
-        lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=False)
-        is True
-    )
-    assert (
-        lang_filter("http://bz.berlin1.de/kino/050513/fans.html", "de", strict=True)
-        is False
-    )
-    # both path segments differ from target — was always True when two-occurrence branch was dead
-    assert lang_filter("https://x.com/fr/x/de/", "en") is False
-    # invalid territory (en_XY) is not a confident match, so the de segment wins (0, -1 → -1)
-    assert lang_filter("https://x.com/en_XY/x/de/", "en") is False
-    # >2 candidates: unreliable, score stays 0
-    assert lang_filter("https://x.com/en/x/de/x/fr/", "en") is True
-    # adjacent segments: the matching /en/ must still be seen despite the shared
-    # slash (regression: consuming regex counted /de/en/ as one occurrence)
-    assert lang_filter("https://x.com/de/en/", "en") is True
-    assert lang_filter("https://x.com/de/fr/", "en") is False
-
-    # /ch/ is not a language code, no rejection
-    assert lang_filter("http://www.verfassungen.de/ch/basel/verf03.htm", "de") is True
+            {},
+            True,
+        ),
+        ("http://www.solingen-internet.de/si-hgw/eiferer.htm", "de", {}, True),
+        (_TU_BERLIN, "de", {"strict": True}, True),
+        (_TU_BERLIN, "de", {"strict": False}, True),
+        ("http://bz.berlin1.de/kino/050513/fans.html", "de", {"strict": False}, True),
+        ("http://bz.berlin1.de/kino/050513/fans.html", "de", {"strict": True}, False),
+        # both path segments differ from target
+        ("https://x.com/fr/x/de/", "en", {}, False),
+        # invalid territory: de segment wins
+        ("https://x.com/en_XY/x/de/", "en", {}, False),
+        # >2 candidates: unreliable, score stays 0
+        ("https://x.com/en/x/de/x/fr/", "en", {}, True),
+        # adjacent segments (regression: consuming regex)
+        ("https://x.com/de/en/", "en", {}, True),
+        ("https://x.com/de/fr/", "en", {}, False),
+        # /ch/ is not a language code
+        ("http://www.verfassungen.de/ch/basel/verf03.htm", "de", {}, True),
+        # multiple path occurrences / strict host+path
+        ("http://example.com/en/page/en-US/test", "en", {"strict": True}, True),
+        ("http://example.com/en/page/de/test", "en", {"strict": True}, True),
+        ("http://de.example.com/en/page", "en", {"strict": True}, True),
+        ("http://fr.example.com/de/page", "en", {"strict": True}, False),
+        ("http://en.example.com/de/page", "en", {"strict": True}, True),
+    ],
+)
+def test_lang_filter(url, lang, kwargs, expected):
+    assert lang_filter(url, lang, **kwargs) is expected
 
 
 def test_langcodes_score():
@@ -595,6 +544,10 @@ def test_validate():
 
     assert not is_valid_url("http://www.test[.org/test")
     assert is_valid_url("http://test.org/test")
+    # non-string input
+    assert not is_valid_url(None)
+    assert not is_valid_url(123)
+    assert not is_valid_url(b"http://test.org/test")
 
     # verdict no longer flips on port/userinfo/case; short valid domains accepted
     assert is_valid_url("http://t.co/")
@@ -613,7 +566,8 @@ def test_validate():
 
 
 def test_normalization():
-    assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de/"
+    # canonical root form has no trailing slash
+    assert normalize_url("HTTPS://WWW.DWDS.DE/") == "https://www.dwds.de"
     assert (
         normalize_url("http://test.net/foo.html#bar", strict=True)
         == "http://test.net/foo.html"
@@ -637,17 +591,50 @@ def test_normalization():
     assert (
         normalize_url("https://hanxiao.io//404.html") == "https://hanxiao.io/404.html"
     )
+    # leading /../ segments are removed
+    assert (
+        normalize_url("https://example.org/../path/page.html")
+        == "https://example.org/path/page.html"
+    )
+    assert normalize_path("/../../a//b") == "/a/b"
+
+    # the (url, base, path) split needs a host: without one urlunsplit drops the
+    # "//" and slicing past the base would cut into the path
+    assert normalize_and_split(
+        urlsplit("https://ex.org/a?b=1#f"), False, None, True
+    ) == (
+        "https://ex.org/a?b=1#f",
+        "https://ex.org",
+        "/a?b=1#f",
+    )
+    with pytest.raises(ValueError, match="no host"):
+        normalize_and_split(urlsplit("https:path"), False, None, True)
 
     # IPv6: default port stripped (was missed by the old \w-lookbehind regex)
-    assert normalize_url("http://[::1]:80/") == "http://[::1]/"
-    assert normalize_url("https://[::1]:443/") == "https://[::1]/"
+    assert normalize_url("http://[::1]:80/") == "http://[::1]"
+    assert normalize_url("https://[::1]:443/") == "https://[::1]"
     # non-default port preserved
-    assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080/"
+    assert normalize_url("http://[::1]:8080/") == "http://[::1]:8080"
+
+    # userinfo case is preserved (credentials are case-sensitive)
+    assert (
+        normalize_url("https://User:PassWord@Example.COM/Path")
+        == "https://User:PassWord@example.com/Path"
+    )
+    # empty userinfo is dropped
+    assert normalize_url("http://@example.com/x") == "http://example.com/x"
+    # trailing FQDN dot is stripped from the host
+    assert normalize_url("http://example.com./page") == "http://example.com/page"
+    assert (
+        normalize_url("http://example.com.:8080/page") == "http://example.com:8080/page"
+    )
 
     # punycode
     assert normalize_url("http://xn--Mnchen-3ya.de") == "http://münchen.de"
     assert normalize_url("http://Mnchen-3ya.de") == "http://mnchen-3ya.de"
     assert normalize_url("http://xn--München.de") == "http://xn--münchen.de"
+    # punycode with non-default port
+    assert normalize_url("http://xn--n3h:8080/") == "http://☃:8080"
 
     # account for particular characters
     assert (
@@ -662,19 +649,24 @@ def test_normalization():
     )
 
     # trackers
-    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org/"
-    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org/"
-    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org/"
-    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org/"
+    assert normalize_url("http://test.org/?s_cid=123&clickid=1") == "http://test.org"
+    assert normalize_url("http://test.org/?aftr_source=0") == "http://test.org"
+    assert normalize_url("http://test.org/?fb_ref=0") == "http://test.org"
+    assert normalize_url("http://test.org/?this_affiliate=0") == "http://test.org"
     assert (
         normalize_url("http://test.org/?utm_source=rss&utm_medium=rss")
-        == "http://test.org/"
+        == "http://test.org"
     )
     assert (
         normalize_url("http://test.org/?utm_source=rss&#038;utm_medium=rss")
-        == "http://test.org/"
+        == "http://test.org"
     )
-    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org/"
+    # numeric ampersand entity variants: all must decode to &
+    assert normalize_url("http://test.org/?a=1&#38;b=2") == "http://test.org/?a=1&b=2"
+    assert normalize_url("http://test.org/?a=1&#x26;b=2") == "http://test.org/?a=1&b=2"
+    assert normalize_url("http://test.org/?a=1&#0038;b=2") == "http://test.org/?a=1&b=2"
+    assert normalize_url("http://test.org/?a=1&#X26;b=2") == "http://test.org/?a=1&b=2"
+    assert normalize_url("http://test.org/#partnerid=123") == "http://test.org"
     assert (
         normalize_url(
             "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
@@ -753,6 +745,31 @@ def test_urlcheck_type_and_spam():
         )
         is not None
     )
+    # feeds are rejected whether or not the path keeps its trailing slash
+    for url in (
+        "http://example.org/feed/",
+        "http://example.org/rss/",
+        "http://example.org/feed/#f",
+        "http://example.org/feed?x=1",
+    ):
+        assert check_url(url) is None
+        assert check_url(url, trailing_slash=False) is None
+
+    # patterns hidden in the query or the fragment, which normalization removes
+    assert check_url("https://example.org/page?file=movie.mp4", strict=True) is None
+    assert (
+        check_url("http://example.org/page?utm_source=a&file=b.mp4", strict=True)
+        is None
+    )
+    assert check_url("http://example.org/page#movie.mp4", strict=True) is None
+    assert check_url("https://example.org/page?p=/tags/x/") is None
+    assert check_url("https://example.org/page?next=/wp-admin/") is None
+
+    # patterns normalization creates itself, seen only on the final form
+    assert check_url("http://example.org/tags//x/") is None
+    assert check_url("http://example.org//tags//x/") is None
+    assert check_url("http://example.org/category//123/") is None
+    assert check_url("http://example.org/tags/x/?") is None
 
 
 def test_urlcheck_language():
@@ -861,16 +878,44 @@ def test_urlcheck_domain():
     # bare suffix has no registrable domain, though domain_filter alone accepts it
     assert check_url("https://a.ck/page") is None
     assert check_url("https://co.uk/page") is None
-    # trailing-dot FQDN URLs are valid; domain matches extract_domain stripping
+    # trailing-dot FQDN URLs are valid and normalized to the dotless form
     assert check_url("http://example.com./page") == (
-        "http://example.com./page",
+        "http://example.com/page",
         "example.com",
     )
     assert check_url("http://192.168.0.1./x") == (
-        "http://192.168.0.1./x",
+        "http://192.168.0.1/x",
         "192.168.0.1",
     )
     assert check_url("http://example.com../page") is None
+
+
+def test_urlcheck_fixed_point():
+    "check_url is idempotent: re-checking its own output changes nothing."
+    urls = [
+        "http://test.org/?s_cid=123&clickid=1",
+        "http://test.org/?utm_source=&utm_medium=",
+        "http://test.org/#partnerid=123",
+        "https://example.org/?",
+        "http://EXAMPLE.org:80/a//b/?page=2#frag",
+        "https://example.org/index.html?document=report.pdf",
+        "http://www.example.org/path/?utm_source=x",
+        "https://example.org/datenschutzerklärung",
+        "http://de.example.org/en/page/",
+        "http://xn--nxasmq6b.com:8080/feed",
+    ]
+    configs = (
+        {"strict": False},
+        {"strict": True},
+        {"strict": False, "language": "de"},
+        {"strict": True, "language": "en"},
+        {"strict": True, "trailing_slash": False},
+    )
+    for url in urls:
+        for config in configs:
+            first = check_url(url, **config)
+            if first:
+                assert check_url(first[0], **config) == first, (url, config)
 
 
 def test_urlcheck_port():
@@ -884,80 +929,88 @@ def test_urlcheck_port():
     # bracketed IPv6 with a port (urlsplit netloc shape)
     assert check_url("http://[::1]:8080/x") == ("http://[::1]:8080/x", "::1")
     assert check_url("http://[::1]:99999/x") is None
+    # IDN host with a port
+    assert check_url("http://xn--h1aagokeh.xn--p1ai:8888") == (
+        "http://историк.рф:8888",
+        "историк.рф",
+    )
 
 
-def test_domain_filter():
+_DNS_253 = "a." * 125 + "abc"  # 253 chars — at the DNS length limit
+_DNS_254 = "a." * 125 + "abcd"  # 254 chars — over
+
+
+@pytest.mark.parametrize(
+    "domain, expected",
+    [
+        ("", False),
+        ("a" * 254 + ".com", False),  # exceeds DNS length limit
+        (_DNS_253, True),
+        (_DNS_254, False),
+        ("too-long" + "g" * 60 + ".org", False),
+        ("long" + "g" * 50 + ".org", True),
+        ("example.-com", False),
+        ("example.", False),
+        ("-example.com", False),
+        ("_example.com", False),
+        ("example.com:", False),
+        ("a......b.com", False),
+        ("*.example.com", False),
+        ("exa-mple.co.uk", True),
+        ("kräuter.de", True),
+        ("xn--h1aagokeh.xn--p1ai", True),
+        ("kräuter.de:8080", True),  # port split before IDNA
+        ("историк.рф:8888", True),
+        ("kräuter.de:99999", False),
+        ("ä" * 100 + ".de", False),  # non-ASCII too long to punycode
+        ("`$smarty.server.server_name`", False),
+        ("$`)}if(a.tryconvertencoding)trycatch(e)const", False),
+        ("00x200.jpg,", False),
+        ("-100x100.webp", False),
+        ("0.gravata.html", False),
+        ("https:", False),
+        # IPv4
+        ("127.0.0.1", True),
+        ("::1", True),
+        ("900.200.100.75", False),
+        ("111.111.111", False),
+        ("0127.0.0.1", False),
+        ("127.0.0.1:8080", True),
+        ("900.200.100.75:8080", False),  # invalid IP, with port
+        ("1.2.3.4:65535", True),
+        ("1.2.3.4:99999", False),
+        ("1.2.3.4:0", False),
+        ("1.2.3.4:0080", False),  # leading zero rejected
+        # bracketed IPv6
+        ("[::1]", True),
+        ("[2001:db8::1]", True),
+        ("[::1]:8080", True),
+        ("[::1]:0", False),
+        ("[::1]:0080", False),
+        ("[::1]:99999", False),
+        ("[not-an-ip]", False),
+        ("[::1", False),
+        # trailing-dot FQDN
+        ("example.com.", True),
+        ("www.example.com.", True),
+        ("example.com.:8080", True),
+        ("192.168.0.1.", True),
+        ("192.168.0.1.:8080", True),
+        ("example.com..", False),  # multiple trailing dots stay invalid
+        # hex-only strings that are not IPs
+        ("abc.de", True),
+        ("aced.de", True),
+        ("dead.beef", True),
+        # file extensions / gravatar / numeric
+        ("example.jpg", False),
+        ("example.html", False),
+        ("0.gravatar.com", False),
+        ("12345.org", False),
+    ],
+)
+def test_domain_filter(domain, expected):
     "Test filters related to domain and hostnames."
-    assert domain_filter("") is False
-    assert domain_filter("a" * 254 + ".com") is False  # exceeds DNS length limit
-    d_ok = "a." * 125 + "abc"  # 253 chars — at the DNS length limit
-    d_long = "a." * 125 + "abcd"  # 254 chars — over
-    assert len(d_ok) == 253 and len(d_long) == 254
-    assert domain_filter(d_ok) is True
-    assert domain_filter(d_long) is False
-    assert domain_filter("too-long" + "g" * 60 + ".org") is False
-    assert domain_filter("long" + "g" * 50 + ".org") is True
-    assert domain_filter("example.-com") is False
-    assert domain_filter("example.") is False
-    assert domain_filter("-example.com") is False
-    assert domain_filter("_example.com") is False
-    assert domain_filter("example.com:") is False
-    assert domain_filter("a......b.com") is False
-    assert domain_filter("*.example.com") is False
-    assert domain_filter("exa-mple.co.uk") is True
-    assert domain_filter("kräuter.de") is True
-    assert domain_filter("xn--h1aagokeh.xn--p1ai") is True
-    # non-ASCII label too long to punycode -> UnicodeError -> rejected
-    assert domain_filter("ä" * 100 + ".de") is False
-    assert domain_filter("`$smarty.server.server_name`") is False
-    assert domain_filter("$`)}if(a.tryconvertencoding)trycatch(e)const") is False
-    assert domain_filter("00x200.jpg,") is False
-    assert domain_filter("-100x100.webp") is False
-    assert domain_filter("0.gravata.html") is False
-    assert domain_filter("https:") is False
-
-    assert domain_filter("127.0.0.1") is True
-    assert domain_filter("::1") is True
-    assert domain_filter("900.200.100.75") is False
-    assert domain_filter("111.111.111") is False
-    assert domain_filter("0127.0.0.1") is False
-    # IPv4 with a port is accepted like the portless form (was wrongly rejected)
-    assert domain_filter("127.0.0.1:8080") is True
-    assert domain_filter("900.200.100.75:8080") is False  # invalid IP, with port
-    # port must be in range and well-formed, like the domain path (VALID_DOMAIN_PORT)
-    assert domain_filter("1.2.3.4:65535") is True
-    assert domain_filter("1.2.3.4:99999") is False
-    assert domain_filter("1.2.3.4:0") is False
-    assert domain_filter("1.2.3.4:0080") is False  # leading zero rejected
-    # bracketed IPv6 (urlsplit netloc), with and without port
-    assert domain_filter("[::1]") is True
-    assert domain_filter("[2001:db8::1]") is True
-    assert domain_filter("[::1]:8080") is True
-    assert domain_filter("[::1]:0") is False
-    assert domain_filter("[::1]:0080") is False
-    assert domain_filter("[::1]:99999") is False
-    assert domain_filter("[not-an-ip]") is False
-    assert domain_filter("[::1") is False
-    # trailing-dot FQDN (absolute DNS form) matches extract_domain, not false-reject
-    assert domain_filter("example.com.") is True
-    assert domain_filter("www.example.com.") is True
-    assert domain_filter("example.com.:8080") is True
-    assert domain_filter("192.168.0.1.") is True
-    assert domain_filter("192.168.0.1.:8080") is True
-    assert (
-        domain_filter("example.com..") is False
-    )  # multiple trailing dots stay invalid
-
-    # hex-only strings that are not IPs must still be validated as domains
-    assert domain_filter("abc.de") is True
-    assert domain_filter("aced.de") is True
-    assert domain_filter("dead.beef") is True
-
-    assert domain_filter("example.jpg") is False
-    assert domain_filter("example.html") is False
-    assert domain_filter("0.gravatar.com") is False
-    assert domain_filter("12345.org") is False
-    # assert domain_filter("test.invalidtld") is False
+    assert domain_filter(domain) is expected
 
 
 def test_urlcheck_redirects():
@@ -1072,6 +1125,19 @@ def test_urlutils():
     )
     assert get_host_and_path("https://example.org/") == ("https://example.org", "/")
     assert get_host_and_path("https://example.org") == ("https://example.org", "/")
+    # query keys that are HTML entity names used to be turned into characters
+    assert get_host_and_path("https://example.org/a?b=1&param=2") == (
+        "https://example.org",
+        "/a?b=1&param=2",
+    )
+    assert get_host_and_path("https://example.org/a?b=1&sect=2&copy=3") == (
+        "https://example.org",
+        "/a?b=1&sect=2&copy=3",
+    )
+    assert get_host_and_path("https://example.org/a?b=1&amp;c=2") == (
+        "https://example.org",
+        "/a?b=1&c=2",
+    )
     assert get_hostinfo("https://httpbun.org/") == (
         "httpbun.org",
         "https://httpbun.org",
@@ -1103,72 +1169,75 @@ def test_urlutils():
     assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
 
 
-def test_tld():
-    "Test get_registrable_domain; inputs mirror urlsplit().hostname's pre-cleaned shape."
-    cases = {
+@pytest.mark.parametrize(
+    "host, expected",
+    [
         # standard cases
-        "www.bbc.co.uk": ("bbc", "bbc.co.uk"),
-        "example.com": ("example", "example.com"),
-        "a.b.example.com": ("example", "example.com"),
-        "foo.ne.jp": ("foo", "foo.ne.jp"),
-        "shop.example.org.au": ("example", "example.org.au"),
-        # IPv4 / numeric final label rejected (even with non-numeric labels)
-        "192.168.0.1": (None, None),
-        "www.example.42": (None, None),
-        # only ASCII digits count as numeric (WHATWG); fullwidth is an ordinary label
-        "example.４２": ("example", "example.４２"),
-        # hex IPv4 (browser-resolvable) rejected like decimal
-        "0xc0.0xa8.0x0.0x1": (None, None),
-        "foo.0x1": (None, None),
-        "foo.0x": (None, None),
-        # IPv6 (brackets already stripped) carries colons, rejected
-        "2001:db8::1": (None, None),
-        "::ffff:192.0.2.128": (None, None),
-        # trailing-dot FQDN is normalized
-        "www.example.com.": ("example", "example.com"),
+        ("www.bbc.co.uk", ("bbc", "bbc.co.uk")),
+        ("example.com", ("example", "example.com")),
+        ("a.b.example.com", ("example", "example.com")),
+        ("foo.ne.jp", ("foo", "foo.ne.jp")),
+        ("shop.example.org.au", ("example", "example.org.au")),
+        # IPv4 / numeric final label rejected
+        ("192.168.0.1", (None, None)),
+        ("www.example.42", (None, None)),
+        ("example.４２", ("example", "example.４２")),  # fullwidth digits are ordinary
+        # hex IPv4 rejected like decimal
+        ("0xc0.0xa8.0x0.0x1", (None, None)),
+        ("foo.0x1", (None, None)),
+        ("foo.0x", (None, None)),
+        # IPv6 (colons) rejected
+        ("2001:db8::1", (None, None)),
+        ("::ffff:192.0.2.128", (None, None)),
+        # trailing-dot FQDN normalized
+        ("www.example.com.", ("example", "example.com")),
         # malformed / edge cases
-        "": (None, None),
-        None: (None, None),
-        "localhost": (None, None),
-        "a..b.com": (None, None),
-        ".uk": (None, None),
-        ".foo.ck": (None, None),  # leading dot + bare wildcard suffix
-        # suffix-set boundary: last two labels not a known compound suffix
-        "sub.unknown.xyz": ("unknown", "unknown.xyz"),
-        "blog.ax": ("blog", "blog.ax"),
-        # a bare public suffix has no registrable domain
-        "co.uk": (None, None),
-        # www IS the registrable label here (old CLEAN_FLD_REGEX wrongly stripped it)
-        "www.co.uk": ("www", "www.co.uk"),
-        "www.gov.uk": ("www", "www.gov.uk"),
-        # matching is case-insensitive, original case kept in the result
-        "BBC.CO.UK": ("BBC", "BBC.CO.UK"),
-        "Example.COM": ("Example", "Example.COM"),
-        "FOO.CK": (None, None),
-        "X.CITY.KOBE.JP": ("CITY", "CITY.KOBE.JP"),
-        "FOO.LØDINGEN.NO": ("FOO", "FOO.LØDINGEN.NO"),
-        # full-PSL coverage: ccTLDs outside the old ~208-entry curated set
-        "x.co.tz": ("x", "x.co.tz"),
-        # 3-label suffix resolved via longest-match (was mis-split under the
-        # old fixed 2-label span logic)
-        "school.act.edu.au": ("school", "school.act.edu.au"),
-        # both Unicode and xn-- forms of the suffix match (old tld missed xn--)
-        "foo.lødingen.no": ("foo", "foo.lødingen.no"),
-        "foo.xn--ldingen-q1a.no": ("foo", "foo.xn--ldingen-q1a.no"),
+        ("", (None, None)),
+        (None, (None, None)),
+        ("localhost", (None, None)),
+        ("a..b.com", (None, None)),
+        (".uk", (None, None)),
+        (".foo.ck", (None, None)),  # leading dot + bare wildcard suffix
+        # suffix-set boundary
+        ("sub.unknown.xyz", ("unknown", "unknown.xyz")),
+        ("blog.ax", ("blog", "blog.ax")),
+        # bare public suffix
+        ("co.uk", (None, None)),
+        # www IS the registrable label
+        ("www.co.uk", ("www", "www.co.uk")),
+        ("www.gov.uk", ("www", "www.gov.uk")),
+        # case-insensitive matching, original case kept
+        ("BBC.CO.UK", ("BBC", "BBC.CO.UK")),
+        ("Example.COM", ("Example", "Example.COM")),
+        ("FOO.CK", (None, None)),
+        ("X.CITY.KOBE.JP", ("CITY", "CITY.KOBE.JP")),
+        ("FOO.LØDINGEN.NO", ("FOO", "FOO.LØDINGEN.NO")),
+        # full-PSL coverage
+        ("x.co.tz", ("x", "x.co.tz")),
+        # 3-label suffix via longest-match
+        ("school.act.edu.au", ("school", "school.act.edu.au")),
+        # Unicode and xn-- suffix forms
+        ("foo.lødingen.no", ("foo", "foo.lødingen.no")),
+        ("foo.xn--ldingen-q1a.no", ("foo", "foo.xn--ldingen-q1a.no")),
         # ICANN-only: private-suffix hosts resolve as ordinary domains
-        "user.github.io": ("github", "github.io"),
+        ("user.github.io", ("github", "github.io")),
         # wildcard (*.) and exception (!) PSL rules
-        "www.foo.ck": ("www", "www.foo.ck"),  # *.ck -> foo.ck is the suffix
-        "foo.ck": (None, None),  # bare wildcard suffix
-        "www.ck": ("www", "www.ck"),  # !www.ck exception
-        "a.b.kobe.jp": ("a", "a.b.kobe.jp"),  # *.kobe.jp
-        "x.city.kobe.jp": ("city", "city.kobe.jp"),  # !city.kobe.jp exception
-        "foo.sch.uk": (None, None),  # bare *.sch.uk suffix
-        "bar.foo.sch.uk": ("bar", "bar.foo.sch.uk"),  # *.sch.uk
-    }
-    for host, expected in cases.items():
-        assert get_registrable_domain(host) == expected, host
-    # overlong non-ASCII label falls back instead of raising
+        ("www.foo.ck", ("www", "www.foo.ck")),
+        ("foo.ck", (None, None)),
+        ("www.ck", ("www", "www.ck")),  # !www.ck exception
+        ("a.b.kobe.jp", ("a", "a.b.kobe.jp")),
+        ("x.city.kobe.jp", ("city", "city.kobe.jp")),  # !city.kobe.jp exception
+        ("foo.sch.uk", (None, None)),
+        ("bar.foo.sch.uk", ("bar", "bar.foo.sch.uk")),
+    ],
+)
+def test_tld(host, expected):
+    "Test get_registrable_domain."
+    assert get_registrable_domain(host) == expected
+
+
+def test_tld_idna_fallback():
+    "Overlong non-ASCII label falls back instead of raising."
     overlong_cjk = "".join(chr(0x4E00 + i) for i in range(50))
     assert _idna_label(overlong_cjk) == overlong_cjk
     assert get_registrable_domain(f"{overlong_cjk}.example.com") == (
@@ -1628,7 +1697,9 @@ def test_cli(tmp_path):
     # test for Windows and the rest
     assert (
         subprocess.run(
-            [courlan_bin, "-i", inputfile, "-o", outputfile, "-p", "1"], env=env
+            [courlan_bin, "-i", inputfile, "-o", outputfile, "-p", "1"],
+            env=env,
+            check=False,
         ).returncode
         == 0
     )
@@ -1778,3 +1849,105 @@ def test_meta():
     assert get_registrable_domain.cache_info().currsize == 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0
+
+
+# --- mutation-gap tests ---
+
+
+def test_extract_links_loop_resilience():
+    "Filtered/invalid/duplicate links must not prevent extraction of later valid links."
+    # nofollow before valid link
+    html = '<html><a href="https://test.com/skip" rel="nofollow"/><a href="https://test.com/keep"/></html>'
+    assert "https://test.com/keep" in extract_links(html, "https://test.com/", False)
+    # invalid link before valid
+    html = '<html><a href="http://t.g/x"/><a href="https://test.com/ok"/></html>'
+    result = extract_links(html, "https://test.com/", False)
+    assert "https://test.com/ok" in result
+    # duplicate before unique
+    html = '<html><a href="https://test.com/a"/><a href="https://test.com/a"/><a href="https://test.com/b"/></html>'
+    result = extract_links(html, "https://test.com/", False)
+    assert "https://test.com/a" in result and "https://test.com/b" in result
+
+
+def test_clean_url_protocol_detection():
+    "Double-URL detection must not fire on single-protocol URLs."
+    # single protocol — must survive unchanged
+    assert clean_url("http://example.org/page") == "http://example.org/page"
+    # double protocol — inner URL extracted
+    result = clean_url("http://redirect.com/?url=http://real.com/page")
+    assert result == "http://real.com/page"
+
+
+def test_scrub_url_trailing_slash():
+    "Trailing-slash strip fires on root URLs (3 slashes) but not on paths."
+    # path with trailing slash preserved
+    assert scrub_url("http://example.org/path/") == "http://example.org/path/"
+    # root URL (exactly 3 slashes) gets stripped
+    assert scrub_url("http://example.org/") == "http://example.org"
+
+
+def test_clean_query_param_ordering():
+    "Strict: disallowed param must not prevent later allowed params. Tracker likewise."
+    # strict: disallowed 'badparam' then allowed 'page'
+    result = clean_query("badparam=1&page=2", strict=True)
+    assert "page=2" in result
+    assert "badparam" not in result
+    # tracker then non-tracker
+    result = clean_query("utm_source=twitter&title=hello", strict=False)
+    assert "title=hello" in result
+    assert "utm_source" not in result
+
+
+def test_normalize_path_leading_dotdot():
+    "Leading /../ segments are collapsed."
+    assert normalize_path("/../foo/bar") == "/foo/bar"
+    assert normalize_path("/../../a/b") == "/a/b"
+    assert normalize_path("/a/../b") == "/a/../b"  # only leading ones
+
+
+def test_basic_filter_boundaries():
+    "basic_filter boundary: 10-char URL passes, 9-char fails; non-http rejected."
+    assert basic_filter("http://x.y") is True  # exactly 10
+    assert basic_filter("http://x.") is False  # 9 chars
+    assert basic_filter("ftp://example.org/page") is False  # non-http, >10 chars
+    assert basic_filter("httpx://example.org") is True  # starts with "http"
+
+
+def test_notcrawlable_schemes():
+    "NOTCRAWLABLE catches javascript:, mailto:, tel:, whatsapp: in path."
+    assert path_filter("/javascript:void(0)", "") is False
+    assert path_filter("/mailto:user@example.com", "") is False
+    assert path_filter("/tel:+1234567890", "") is False
+    assert path_filter("/whatsapp:send", "") is False
+    assert path_filter("/normal-page", "") is True
+
+
+def test_strip_trailing_dot_edge_cases():
+    "Double trailing dots stay invalid; userinfo+port handled."
+    assert _strip_trailing_dot("example.com.") == "example.com"
+    assert _strip_trailing_dot("example.com..") == "example.com.."
+    assert _strip_trailing_dot("example.com.:8080") == "example.com:8080"
+    # with userinfo — the host:port branch should not fire
+    assert _strip_trailing_dot("user@example.com.:80") == "user@example.com.:80"
+
+
+def test_get_tldinfo_ipv6():
+    "IPv6 addresses through get_tldinfo."
+    from courlan.urlutils import get_tldinfo
+
+    # bracketed IPv6
+    assert get_tldinfo("https://[2001:db8::1]/path") == ("2001:db8::1", "2001:db8::1")
+    # unbracketed IPv6 (2 colons minimum)
+    assert get_tldinfo("http://2001:db8::1/path") == ("2001:db8::1", "2001:db8::1")
+
+
+def test_hosts_hex_labels():
+    "Hex numeric labels (0xAB) detected as numeric, preventing domain registration."
+    from courlan.hosts import _is_numeric_label
+
+    assert _is_numeric_label("0xAB") is True
+    assert _is_numeric_label("0xA") is True
+    assert _is_numeric_label("0x") is True  # empty hex digits
+    assert _is_numeric_label("0xGG") is False
+    assert _is_numeric_label("123") is True
+    assert _is_numeric_label("abc") is False

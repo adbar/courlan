@@ -3,11 +3,11 @@ Functions related to URL manipulation and extraction of URL parts.
 """
 
 import re
-from html import unescape
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 from .hosts import _canonical_ip, get_registrable_domain
 
+_NUMERIC_AMP = re.compile(r"&#0*38;|&#x0*26;", re.I)
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
 
 
@@ -25,11 +25,8 @@ def get_tldinfo(url: str) -> tuple[str | None, str | None]:
     "Extract domain info via the public-suffix lookup, returning a ``(domain, full_domain)`` tuple."
     if not isinstance(url, str) or not url:
         return None, None
-    try:
-        parsed = _parse(url)
-        host = parsed.hostname
-    except ValueError:  # e.g. unbalanced brackets in the netloc
-        return None, None
+    parsed = _parse(url)  # never raises: malformed netlocs degrade to empty parts
+    host = parsed.hostname
     if host:
         host = _strip_trailing_dot(host)  # FQDN form would defeat the IP gate below
     # IP literals are returned in canonical form; gates avoid the exception
@@ -64,7 +61,10 @@ def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
         try:
-            parsed_url = urlsplit(unescape(url))
+            # "&amp;" and numeric ampersand entities only: full unescape()
+            # also expands query keys that happen to be entity names,
+            # turning "&param=" into "\xb6m="
+            parsed_url = urlsplit(_NUMERIC_AMP.sub("&", url.replace("&amp;", "&")))
         except ValueError:
             # malformed URL (e.g. bad IPv6 literal): degrade to empty parts like a hostless URL.
             parsed_url = SplitResult("", "", "", "", "")
@@ -114,11 +114,14 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
     if url.startswith("{"):
         return url
 
-    parsed_base = urlsplit(baseurl)
-    base_netloc = parsed_base.netloc
-    split_url = urlsplit(url)
+    # a malformed netloc passes through unchanged, like an absolute URL
+    try:
+        parsed_base = urlsplit(baseurl)
+        split_url = urlsplit(url)
+    except ValueError:
+        return url
 
-    if split_url.netloc not in (base_netloc, ""):
+    if split_url.netloc not in (parsed_base.netloc, ""):
         if split_url.scheme:
             return url
         return urlunsplit(split_url._replace(scheme=parsed_base.scheme or "http"))
@@ -151,6 +154,16 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     return domain != ref
 
 
+def _swap_scheme(url: str) -> str:
+    "Switch between http and https in a URL or scheme-prefixed domain."
+    return "http" + url[5:] if url.startswith("https") else "https" + url[4:]
+
+
+def _slash_variant(url: str) -> str:
+    "Add a trailing slash, or drop the trailing ones if there are any."
+    return url.rstrip("/") if url[-1] == "/" else url + "/"
+
+
 def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     if not link:
@@ -160,21 +173,13 @@ def is_known_link(link: str, known_links: set[str]) -> bool:
         return True
 
     # check link and variants with trailing slashes
-    slash_test = link.rstrip("/") if link[-1] == "/" else link + "/"
-    if slash_test in known_links:
+    if _slash_variant(link) in known_links:
         return True
 
     # check link and variants with modified protocol
     if link.startswith("http"):
-        protocol_test = (
-            "http" + link[5:] if link.startswith("https") else "https" + link[4:]
-        )
-        slash_test = (
-            protocol_test.rstrip("/")
-            if protocol_test[-1] == "/"
-            else protocol_test + "/"
-        )
-        if protocol_test in known_links or slash_test in known_links:
+        protocol_test = _swap_scheme(link)
+        if protocol_test in known_links or _slash_variant(protocol_test) in known_links:
             return True
 
     return False

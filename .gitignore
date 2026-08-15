@@ -8,6 +8,7 @@
 dist/
 build/
 *.egg-info/
+uv.lock
 
 # tests
 .cache/

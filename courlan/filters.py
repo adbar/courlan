@@ -35,6 +35,8 @@ VALID_DOMAIN_PORT = re.compile(
 )
 
 # content filters
+# feeds + blogspot, at the end of the path and with any number of slashes
+FEED_FILTER = re.compile(r"(?:/(?:feed|rss)|_archive\.html)/*$")
 SITE_STRUCTURE = re.compile(
     # wordpress
     r"/(?:wp-(?:admin|content|includes|json|themes)|"
@@ -68,7 +70,7 @@ ALL_PATH_LANGS_NO_TRAILING = re.compile(
     r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
-    r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?/", re.IGNORECASE
+    r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?(?:/|$)", re.IGNORECASE
 )
 
 # navigation/crawls
@@ -77,7 +79,7 @@ NAVIGATION_FILTER = re.compile(
     re.IGNORECASE,
 )
 NOTCRAWLABLE = re.compile(
-    r"/([ck]onta[ck]t|datenschutzerkl.{1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|"
+    r"/([ck]onta[ck]t|datenschutzerkl(?:.|%[0-9a-f]{2}){1,2}rung|login|impressum|imprint)(\.[a-z]{3,4})?/?$|/login\?|"
     r"/(javascript:|mailto:|tel\.?:|whatsapp:)",
     re.IGNORECASE,
 )
@@ -127,6 +129,12 @@ def _valid_port(tail: str) -> bool:
     return bool(tail) and tail[:1] != "0" and tail.isdigit() and int(tail) < 65536
 
 
+def _split_port(value: str) -> tuple[str, str]:
+    "Split a trailing valid port off a host, else return the host unchanged."
+    host, sep, port = value.rpartition(":")
+    return (host, port) if sep and _valid_port(port) else (value, "")
+
+
 def domain_filter(domain: str) -> bool:
     "Find invalid domain/host names."
     # FQDN absolute form ("example.com.") is valid; extract_domain already strips it
@@ -147,16 +155,20 @@ def domain_filter(domain: str) -> bool:
     if all(c in IP_SET for c in domain):
         if _canonical_ip(domain):
             return True
-        head, sep, tail = domain.rpartition(":")
-        if sep and _valid_port(tail) and _canonical_ip(head):
+        head, port = _split_port(domain)
+        if port and _canonical_ip(head):
             return True
 
     # malformed domains: retry against the punycode form before rejecting
     if not VALID_DOMAIN_PORT.match(domain):
+        # the port is not part of the IDNA encoding
+        host, port = _split_port(domain)
         try:
-            ascii_domain = _idna_encode(domain)
+            ascii_domain = _idna_encode(host)
         except UnicodeError:
             return False
+        if port:
+            ascii_domain = f"{ascii_domain}:{port}"
         if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
@@ -209,23 +221,25 @@ def path_filter(urlpath: str, query: str) -> bool:
 def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
     """Make sure the target URL is from a suitable type (HTML page with primarily text).
     Strict: Try to filter out other document types, spam, video and adult websites."""
-    if (
-        # feeds + blogspot
-        url.endswith(("/feed", "/rss", "_archive.html"))
+    return not (
+        # feeds: on the path only, query and fragment cannot hold one
+        (
+            ("feed" in url or "rss" in url or "_archive.html" in url)
+            and FEED_FILTER.search(url.partition("?")[0].partition("#")[0])
+        )
         or
         # website structure
         (SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)))
         or
         # type (also hidden in parameters), videos, adult content
         (strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)))
-    ):
-        return False
-    # default
-    return True
+    )
 
 
 def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     "Parse and validate the input."
+    if not isinstance(url, str):
+        return False, None
     try:
         parsed_url = urlsplit(url)
     except ValueError:

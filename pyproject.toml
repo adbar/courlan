@@ -50,10 +50,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "urllib3 >= 1.26, < 3",
+    "urllib3 >= 2, < 3",
 ]
 
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
 packages = ["courlan"]
 
@@ -72,9 +71,9 @@ courlan = "courlan.cli:main"
 # Development extras
 [project.optional-dependencies]
 dev = [
-    "ruff==0.15.15",
-    "mypy==2.1.0",
-    "pytest==9.0.3",
+    "ruff==0.16.2",
+    "mypy==2.3.0",
+    "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-httpserver==1.1.5",
 ]
@@ -86,28 +85,25 @@ docs = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = "tests/*test*.py"
+testpaths = ["tests"]
+# the test files are named "*_tests.py"; docs/test_docs.py runs separately in CI
+python_files = ["*_tests.py"]
 
 [tool.ruff]
 target-version = "py310"
 
 [tool.ruff.lint]
-# ruff defaults (E4, E7, E9, F) plus import sorting (I),
-# pyupgrade (UP) and bugbear (B)
-extend-select = ["I", "UP", "B"]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
 
 [tool.mypy]
 python_version = "3.10"
+strict = true
 ignore_missing_imports = true
-pretty = true
-warn_unused_ignores = true
-warn_redundant_casts = true
 
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]
 branch = true
 source = ["courlan"]
-omit = ["tests/*", "setup.py", "scripts/*"]
 
 [tool.coverage.report]
 exclude_lines = [
