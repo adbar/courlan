@@ -65,6 +65,7 @@ courlan = "courlan.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/adbar/courlan"
+"Documentation" = "https://courlan.readthedocs.io/en/latest/"
 "Blog" = "https://adrien.barbaresi.eu/blog/"  # /tag/courlan.html
 "Tracker" = "https://github.com/adbar/courlan/issues"
 
@@ -82,6 +83,8 @@ docs = [
     "myst-parser>=0.19.0",
     "sphinx-rtd-theme>=1.2.0",
     "sphinx-copybutton>=0.5.0",
+    "sphinxext-opengraph>=0.9.0",
+    "sphinx-sitemap>=2.5.0",
 ]
 
 [tool.pytest.ini_options]

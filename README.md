@@ -4,7 +4,37 @@
 [![Python package](https://img.shields.io/pypi/v/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Python versions](https://img.shields.io/pypi/pyversions/courlan.svg)](https://pypi.python.org/pypi/courlan)
 [![Code Coverage](https://img.shields.io/codecov/c/github/adbar/courlan.svg)](https://codecov.io/gh/adbar/courlan)
-[![Documentation](https://readthedocs.org/projects/courlan/badge/?version=latest)](http://courlan.readthedocs.org/en/latest/)
+[![Documentation](https://readthedocs.org/projects/courlan/badge/?version=latest)](https://courlan.readthedocs.io/en/latest/)
+
+
+## Quickstart (1–2 minutes)
+
+Install and try courlan from PyPI:
+
+```bash
+pip install courlan
+```
+
+Python quickstart — validate and clean a URL:
+
+```python
+from courlan import check_url
+result = check_url('https://example.org/page?utm_source=twitter')
+if result:
+    cleaned, domain = result
+    print(cleaned)  # 'https://example.org/page'
+    print(domain)   # 'example.org'
+```
+
+Command-line quickstart — filter a file of URLs:
+
+```bash
+# one URL per line in urls.txt
+courlan -i urls.txt -o cleaned.txt -d discarded.txt
+# cleaned.txt contains accepted URLs, discarded.txt contains rejected ones
+```
+
+These examples are minimal — see the docs for advanced usage: language filtering, strict mode, sampling, and UrlStore persistence.
 
 
 ## Why coURLan?
@@ -50,7 +80,7 @@ retrieval:
 
 **Let the coURLan fish up juicy bits for you!**
 
-<img src="https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg" width="65%" alt="Courlan bird"/>
+<img src="https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg" alt="" role="presentation" style="max-width: 65%;"/>
 
 Here is a [courlan](https://en.wiktionary.org/wiki/courlan) (source:
 [Limpkin at Harn's Marsh by
@@ -84,6 +114,8 @@ Most filters revolve around the `strict` and `language` arguments.
 
 All useful operations chained in `check_url(url)`:
 
+Note: `check_url` returns `None` for rejected URLs — check the return value before unpacking.
+
 ``` python
 >>> from courlan import check_url
 
@@ -95,57 +127,16 @@ All useful operations chained in `check_url(url)`:
 >>> check_url('http://666.0.0.1/')
 >>>
 
-# tracker removal
->>> check_url('http://test.net/foo.html?utm_source=twitter#gclid=123')
-('http://test.net/foo.html', 'test.net')
-
-# use strict for further trimming
->>> my_url = 'https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org'
->>> check_url(my_url, strict=True)
-('https://httpbin.org/redirect-to', 'httpbin.org')
-
-# check for redirects (HEAD request)
->>> url, domain_name = check_url(my_url, with_redirects=True)
-
-# include navigation pages instead of discarding them
->>> check_url('http://www.example.org/page/10/', with_nav=True)
-
-# remove trailing slash
->>> check_url('https://github.com/adbar/courlan/', trailing_slash=False)
-```
-
-Language-aware heuristics, notably internationalization in URLs, are
-available in `lang_filter(url, language)`:
-
-``` python
-# optional language argument
->>> url = 'https://www.un.org/en/about-us'
-
-# success: returns clean URL and domain name
->>> check_url(url, language='en')
+# language-aware filtering
+>>> check_url('https://www.un.org/en/about-us', language='en')
 ('https://www.un.org/en/about-us', 'un.org')
-
-# failure: doesn't return anything
->>> check_url(url, language='de')
->>>
-
-# optional argument: strict
->>> url = 'https://en.wikipedia.org/'
->>> check_url(url, language='de', strict=False)
-('https://en.wikipedia.org', 'wikipedia.org')
->>> check_url(url, language='de', strict=True)
+>>> check_url('https://www.un.org/en/about-us', language='de')
 >>>
 ```
 
-Define stricter restrictions on the expected content type with
-`strict=True`. This also blocks certain platforms and page types
-where machines get lost.
-
-``` python
-# strict filtering: blocked as it is a major platform
->>> check_url('https://www.twitch.com/', strict=True)
->>>
-```
+For the full set of options (`strict`, `with_redirects`, `with_nav`,
+`trailing_slash`, …) see the
+[documentation](https://courlan.readthedocs.io/en/latest/api/core.html).
 
 ### Sampling by domain name
 
@@ -156,97 +147,27 @@ where machines get lost.
 # optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
 ```
 
+See the [API reference](https://courlan.readthedocs.io/en/latest/api/index.html) for details.
+
 ### Web crawling and URL handling
 
-Link extraction and preprocessing:
+Use `extract_links()` for general-purpose link extraction. For
+crawl-aware extraction with robots.txt rules and link prioritization,
+use `filter_links()` instead — it returns two lists: regular links and
+priority (navigation) links.
 
 ``` python
 >>> from courlan import extract_links
 >>> doc = '<html><body><a href="test/link.html">Link</a></body></html>'
->>> url = "https://example.org"
->>> extract_links(doc, url)
+>>> extract_links(doc, "https://example.org")
 {'https://example.org/test/link.html'}
-# other options: external_bool, no_filter, language, strict, redirects, ...
 ```
 
-The `filter_links()` function provides additional filters for crawling
-purposes: use of robots.txt rules and link prioritization. It returns two
-lists: regular links and priority (navigation) links.
-
-``` python
->>> from courlan import filter_links
->>> doc = '<html><body><a href="page1.html">1</a><a href="/tag/listing">Tag</a></body></html>'
->>> links, links_priority = filter_links(doc, "https://example.org")
->>> links
-['https://example.org/page1.html']
->>> links_priority
-['https://example.org/tag/listing']
-```
-
-Determine if a link leads to another host:
-
-``` python
->>> from courlan import is_external
->>> is_external('https://github.com/', 'https://www.microsoft.com/')
-True
-# default
->>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True)
-False
-# taking suffixes into account
->>> is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=False)
-True
-```
-
-Other useful functions dedicated to URL handling:
-
--   `extract_domain(url, fast=True)`: find domain and subdomain or just
-    domain with `fast=False`
--   `get_base_url(url)`: strip the URL of some of its parts
--   `get_host_and_path(url)`: decompose URLs in two parts: protocol +
-    host/domain and path
--   `get_hostinfo(url)`: extract domain and host info (protocol +
-    host/domain)
--   `fix_relative_urls(baseurl, url)`: prepend necessary information to
-    relative links
-
-``` python
->>> from courlan import *
->>> url = 'https://www.un.org/en/about-us'
-
->>> get_base_url(url)
-'https://www.un.org'
-
->>> get_host_and_path(url)
-('https://www.un.org', '/en/about-us')
-
->>> get_hostinfo(url)
-('un.org', 'https://www.un.org')
-
->>> fix_relative_urls('https://www.un.org', 'en/about-us')
-'https://www.un.org/en/about-us'
-```
-
-Other filters dedicated to crawl frontier management:
-
--   `is_not_crawlable(url)`: check for deep web or pages generally not
-    usable in a crawling context
--   `is_navigation_page(url)`: check for navigation and overview pages
-
-``` python
->>> from courlan import is_navigation_page, is_not_crawlable
->>> is_navigation_page('https://www.randomblog.net/category/myposts')
-True
->>> is_not_crawlable('https://www.randomblog.net/login')
-True
-```
-
-See also [URL management page](https://trafilatura.readthedocs.io/en/latest/url-management.html)
-of the Trafilatura documentation.
-
+For frontier management utilities (`is_external`, `is_navigation_page`,
+`is_not_crawlable`, …) see the
+[crawling guide](https://courlan.readthedocs.io/en/latest/usage/crawling.html).
 
 ### Python helpers
-
-Helper function, scrub and normalize:
 
 ``` python
 >>> from courlan import clean_url
@@ -254,153 +175,43 @@ Helper function, scrub and normalize:
 'https://www.dwds.de'
 ```
 
-Basic scrubbing only:
+For `normalize_url`, `validate_url`, `get_base_url`, `get_hostinfo`,
+and other utilities see the
+[API reference](https://courlan.readthedocs.io/en/latest/api/index.html).
 
-``` python
->>> from courlan import scrub_url
-```
+Courlan uses an internal cache to speed up URL parsing. It can be
+reset with `courlan.meta.clear_caches()`.
 
-Basic canonicalization/normalization only, i.e. modifying and
-standardizing URLs in a consistent manner:
-
-``` python
->>> from urllib.parse import urlparse
->>> from courlan import normalize_url
->>> my_url = normalize_url(urlparse(my_url))
-# passing URL strings directly also works
->>> my_url = normalize_url(my_url)
-# remove unnecessary components and re-order query elements
->>> normalize_url('http://test.net/foo.html?utm_source=twitter&post=abc&page=2#fragment', strict=True)
-'http://test.net/foo.html?page=2&post=abc'
-```
-
-Basic URL validation only:
-
-``` python
->>> from courlan import validate_url
->>> validate_url('http://1234')
-(False, None)
->>> validate_url('http://www.example.org/')
-(True, ParseResult(scheme='http', netloc='www.example.org', path='/', params='', query='', fragment=''))
-```
-
-### Troubleshooting
-
-Courlan uses an internal cache to speed up URL parsing. It can be reset
-as follows:
-
-``` python
->>> from courlan.meta import clear_caches
->>> clear_caches()
-```
 
 ## UrlStore class
 
-The `UrlStore` class allow for storing and retrieving domain-classified
+The `UrlStore` class allows for storing and retrieving domain-classified
 URLs, where a URL like `https://example.org/path/testpage` is stored as
-the path `/path/testpage` within the domain `https://example.org`. It
-features the following methods:
+the path `/path/testpage` within the domain `https://example.org`:
 
-- URL management
-   - `add_urls(urls=None, appendleft=None, visited=False)`: Add a
-     list of URLs to the (possibly) existing one. Optional:
-     append certain URLs to the left, specify if the URLs have
-     already been visited.
-   - `add_from_html(htmlstring, url, external=False, lang=None, with_nav=True)`:
-     Extract and filter links in a HTML string.
-   - `discard(domains)`: Declare domains void and prune the store.
-   - `dump_urls()`: Return a list of all known URLs.
-   - `print_urls()`: Print all URLs in store (URL + TAB + visited or not).
-   - `print_unvisited_urls()`: Print all unvisited URLs in store.
-   - `get_all_counts()`: Return all download counts for the hosts in store.
-   - `get_known_domains()`: Return all known domains as a list.
-   - `get_unvisited_domains()`: Find all domains for which there are unvisited URLs.
-   - `total_url_number()`: Find number of all URLs in store.
-   - `is_known(url)`: Check if the given URL has already been stored.
-   - `has_been_visited(url)`: Check if the given URL has already been visited.
-   - `filter_unknown_urls(urls)`: Take a list of URLs and return the currently unknown ones.
-   - `filter_unvisited_urls(urls)`: Take a list of URLs and return the currently unvisited ones.
-   - `find_known_urls(domain)`: Get all already known URLs for the
-     given domain (ex. `https://example.org`).
-   - `find_unvisited_urls(domain)`: Get all unvisited URLs for the given domain.
-   - `reset()`: Re-initialize the URL store.
+``` python
+>>> from courlan import UrlStore
+>>> store = UrlStore()
+>>> store.add_urls(['https://example.org/page1', 'https://example.org/page2'])
+>>> store.get_url('https://example.org')
+'https://example.org/page1'
+>>> store.find_unvisited_urls('https://example.org')
+['https://example.org/page2']
+```
 
-- Crawling and downloads
-   - `get_url(domain)`: Retrieve a single URL and consider it to
-     be visited (with corresponding timestamp).
-   - `get_rules(domain)`: Return the stored crawling rules for the given website.
-   - `store_rules(website, rules)`: Store crawling rules for a given website.
-   - `get_crawl_delay()`: Return the delay as extracted from robots.txt, or a given default.
-   - `get_download_urls(time_limit=10, max_urls=10000)`: Get a list of immediately
-     downloadable URLs according to the given time limit per domain.
-   - `establish_download_schedule(max_urls=100, time_limit=10)`:
-     Get up to the specified number of URLs along with a suitable
-     backoff schedule (in seconds).
-   - `download_threshold_reached(threshold)`: Find out if the
-     download limit (in seconds) has been reached for one of the
-     websites in store.
-   - `unvisited_websites_number()`: Return the number of websites
-     for which there are still URLs to visit.
-   - `is_exhausted_domain(domain)`: Tell if all known URLs for
-     the website have been visited.
-
-- Persistance
-   - `write(filename)`: Save the store to disk.
-   - `load_store(filename)`: Read a UrlStore from disk (separate function, not class method).
-
-- Optional settings:
-   - `compressed=True`: activate compression of URLs and rules
-   - `language=XX`: focus on a particular target language (two-letter code)
-   - `strict=True`: stricter URL filtering
-   - `verbose=True`: dump URLs if interrupted (requires use of `signal`)
+For the full method reference, optional settings (`compressed`, `language`,
+`strict`, `verbose`), and crawl scheduling see the
+[UrlStore documentation](https://courlan.readthedocs.io/en/latest/api/urlstore.html).
 
 
 ## Command-line
 
-The main fonctions are also available through a command-line utility:
-
 ``` bash
 $ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
 $ courlan --help
-usage: courlan [-h] -i INPUTFILE -o OUTPUTFILE [-d DISCARDEDFILE] [-v]
-               [-p PARALLEL] [--strict] [-l LANGUAGE] [-r] [--sample SAMPLE]
-               [--exclude-max EXCLUDE_MAX] [--exclude-min EXCLUDE_MIN]
-
-Command-line interface for Courlan
-
-options:
-  -h, --help            show this help message and exit
-
-I/O:
-  Manage input and output
-
-  -i INPUTFILE, --inputfile INPUTFILE
-                        name of input file (required)
-  -o OUTPUTFILE, --outputfile OUTPUTFILE
-                        name of output file (required)
-  -d DISCARDEDFILE, --discardedfile DISCARDEDFILE
-                        name of file to store discarded URLs (optional)
-  -v, --verbose         increase output verbosity
-  -p PARALLEL, --parallel PARALLEL
-                        number of parallel processes (not used for sampling)
-
-Filtering:
-  Configure URL filters
-
-  --strict              perform more restrictive tests
-  -l LANGUAGE, --language LANGUAGE
-                        use language filter (ISO 639-1 code)
-  -r, --redirects       check redirects
-
-Sampling:
-  Use sampling by host, configure sample size
-
-  --sample SAMPLE       size of sample per domain
-  --exclude-max EXCLUDE_MAX
-                        exclude domains with more than n URLs
-  --exclude-min EXCLUDE_MIN
-                        exclude domains with less than n URLs
 ```
+
+See the [CLI documentation](https://courlan.readthedocs.io/en/latest/usage/cli.html) for all options.
 
 
 ## License
@@ -414,12 +225,9 @@ Versions prior to v1 were under GPLv3+ license.
 ## Settings
 
 `courlan` is optimized for English and German but its generic approach
-is also usable in other contexts.
-
-Details of strict URL filtering can be reviewed and changed in the file
-`settings.py`. To override the default settings, clone the repository and
-[re-install the package
-locally](https://packaging.python.org/tutorials/installing-packages/#installing-from-a-local-src-tree).
+is also usable in other contexts. See the
+[settings reference](https://courlan.readthedocs.io/en/latest/api/settings.html)
+for how to review and override filtering rules.
 
 
 ## Author
@@ -440,15 +248,15 @@ Reach out via the software repository or the [contact
 page](https://adrien.barbaresi.eu/) for inquiries, collaborations, or
 feedback.
 
-For more on Courlan's' software ecosystem see [this
+For more on Courlan's software ecosystem see [this
 graphic](https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png).
 
 
 ## Similar work
 
-These Python libraries perform similar handling and normalization tasks
-but do not entail language or content filters. They also do not
-primarily focus on crawl optimization:
+These Python libraries perform URL handling and normalization but do not
+provide language-aware filtering, content heuristics, crawl scheduling,
+or a domain-classified URL store:
 
 -   [furl](https://github.com/gruns/furl)
 -   [ural](https://github.com/medialab/ural)

@@ -15,19 +15,68 @@ There are many ways to contribute:
 A special thanks to the [contributors](https://github.com/adbar/courlan/graphs/contributors) who have played a part in Courlan.
 
 
-## Testing and evaluating the code
+## Testing, development setup, and CI expectations
 
-Courlan requires Python 3.10 or higher. Here is how you can run the tests and code quality checks. Pull requests will only be accepted if the changes are tested and if there are no errors.
+Courlan requires Python 3.10 or higher. Follow these steps to set up a
+local development environment, run tests and linters, and prepare a
+pull request.
 
-1. Install the package along with its development dependencies from a checkout: `pip install -e ".[dev]"`
-2. Run the tests and code quality tools:
-   - Tests with `pytest`
-   - Linting and import sorting with `ruff check courlan tests`
-   - Code formatting with `ruff format courlan tests`
-   - Type checking with `mypy -p courlan`
+1. Clone and create a virtual environment
 
+```bash
+git clone https://github.com/adbar/courlan.git
+cd courlan
+python -m venv .venv
+# macOS / Linux
+source .venv/bin/activate
+# Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+```
 
-For further questions you can use [GitHub issues](https://github.com/adbar/courlan/issues) or [E-Mail](https://adrien.barbaresi.eu/).
+2. Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install -e '.[dev]'
+```
+
+3. Run tests and quality checks (recommended sequence)
+
+```bash
+# run unit tests
+pytest -q
+
+# linting
+ruff check courlan tests
+
+# apply formatting if needed
+ruff format courlan tests
+
+# static typing
+mypy -p courlan
+```
+
+4. Pre-commit and CI
+
+- Run `pre-commit run --all-files` if pre-commit is configured locally.
+- Ensure all CI checks pass (tests, ruff, mypy) before opening a PR. CI
+  expectation: tests green, linting passes, and type checks report no
+  new errors.
+
+5. Pull request guidance
+
+- Branch from `main` and use a descriptive branch name: `fix/url-cleaning`
+  or `feat/urlstore-persistence`.
+- Update or add tests for bug fixes and new features.
+- Keep commits small and focused. Use conventional commit messages
+  where helpful. Include the Co-authored-by trailer when relevant.
+- In the PR description, explain the problem, your approach, and any
+  user-facing changes (CLI flags, default behavior).
+
+6. Contact and support
+
+If you have questions, open an issue on GitHub or reach out via the
+contact details in the README.
 
 Thanks,
 

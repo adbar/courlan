@@ -1,6 +1,6 @@
-# CLI Reference
+# Command-Line Interface
 
-The courlan command-line utility is installed as the `courlan` entry point.
+The main functions are also available through the `courlan` command-line utility, which reads URLs from a text file and writes accepted ones to an output file.
 
 ```bash
 courlan -i INPUTFILE -o OUTPUTFILE [options]
@@ -51,12 +51,12 @@ courlan -i urls.txt -o cleaned.txt -d discarded.txt
 ```
 https://www.example.com/page1
 https://www.example.com/page2
+https://example.com/archive
 https://example.org/article
 ```
 
 `discarded.txt` (rejected URLs):
 ```
-https://example.com/archive
 https://cdn.example.com/image.jpg
 ```
 
@@ -91,7 +91,7 @@ https://example.com/page3
 https://another.org/article
 ```
 
-**Command** (2 URLs per domain, exclude domains with <2 URLs):
+**Command** (2 URLs per domain, exclude domains with fewer than 2 URLs):
 ```bash
 courlan -i large_urls.txt -o sample.txt --sample 2 --exclude-min 2
 ```

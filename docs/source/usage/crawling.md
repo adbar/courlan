@@ -1,12 +1,11 @@
 # Web Crawling with Courlan
 
-Guide to building web crawlers with courlan: frontier management, crawl delays, link extraction, and persistence.
+Guide to building web crawlers with courlan: crawl delays, robots.txt, download scheduling, frontier management, and link extraction.
 
-## UrlStore for Crawler State
+This guide assumes familiarity with `UrlStore` basics — see the [URL Store guide](urlstore.md) first.
 
-The `UrlStore` class manages the crawl frontier: tracking visited/unvisited URLs per domain and handling robots.txt rules.
 
-### Basic Crawler Loop
+## Basic crawler loop
 
 ```python
 from courlan import UrlStore
@@ -25,28 +24,13 @@ while store.unvisited_websites_number() > 0:
             continue
         print(f"Visiting: {url}")
         # response = requests.get(url, timeout=10)
-        # store.add_urls(extract_links(response.text, url))
+        # store.add_from_html(response.text, url)
 ```
 
-### Key UrlStore Methods
 
-| Method | Purpose |
-|--------|---------|
-| `add_urls(urls)` | Add URLs to frontier |
-| `get_url(domain)` | Retrieve next URL and mark as visited |
-| `get_unvisited_domains()` | Domains with unvisited URLs |
-| `unvisited_websites_number()` | Count of domains with remaining URLs |
-| `establish_download_schedule(max_urls, time_limit)` | Batch URLs with per-domain delays |
-| `download_threshold_reached(threshold)` | Check if time limit exceeded |
-| `find_unvisited_urls(domain)` | List unvisited URLs for a domain |
-| `is_exhausted_domain(domain)` | Check if domain has no more URLs |
-| `write(filename)` | Save state to disk |
+## Crawl delays and robots.txt
 
----
-
-## Crawl Delays
-
-Use `get_crawl_delay()` to read the delay from stored robots.txt rules, and `store_rules()` / `get_rules()` to persist them.
+Use `store_rules()` / `get_rules()` to persist robots.txt rules, and `get_crawl_delay()` to read the delay.
 
 ```python
 from courlan import UrlStore
@@ -56,7 +40,7 @@ import time
 store = UrlStore()
 domain = 'https://example.com'
 
-# Store robots.txt rules after fetching
+# Fetch and store robots.txt rules (requires network access)
 rules = RobotFileParser(f'{domain}/robots.txt')
 rules.read()
 store.store_rules(domain, rules)
@@ -67,7 +51,8 @@ time.sleep(delay)
 url = store.get_url(domain)
 ```
 
-### Scheduled Download Strategy
+
+## Scheduled downloads
 
 For large crawls, `establish_download_schedule()` batches URLs with appropriate per-domain delays:
 
@@ -91,11 +76,10 @@ for delay, url in schedule:
         break
 ```
 
----
 
-## Crawler Frontier Management
+## Frontier management
 
-### Scope Detection
+### Scope detection
 
 ```python
 from courlan import is_external
@@ -104,36 +88,28 @@ if not is_external(found_url, 'https://example.com', ignore_suffix=False):
     store.add_urls([found_url])
 ```
 
-### Navigation Page Detection
+### Crawlability detection
 
 ```python
-from courlan import is_navigation_page
+from courlan import is_not_crawlable, is_navigation_page
 
 for url in candidate_urls:
-    if not is_navigation_page(url):
-        store.add_urls([url])  # content page, high priority
+    if is_not_crawlable(url):
+        continue  # skip login pages, deep web, etc.
+    if is_navigation_page(url):
+        continue  # skip listing/index pages
+    store.add_urls([url])
 ```
 
-### Crawlability Detection
 
-```python
-from courlan import is_not_crawlable
-
-for url in candidate_urls:
-    if not is_not_crawlable(url):
-        store.add_urls([url])
-```
-
----
-
-## Extracting Links from HTML
+## Extracting links from HTML
 
 ```python
 from courlan import extract_links
 
 links = extract_links(
     html,
-    base_url,
+    url,
     external_bool=False,
     language='en',
     strict=True,
@@ -141,29 +117,10 @@ links = extract_links(
 store.add_urls(links)
 ```
 
-`extract_links` also accepts `no_filter`, `redirects`, and `with_nav` — see the API reference for details.
+`extract_links` also accepts `no_filter`, `redirects`, and `with_nav` — see the [API reference](../api/core.md) for details.
 
----
 
-## Persistence and Resume
-
-```python
-from courlan import UrlStore, load_store
-
-store = UrlStore()
-store.add_urls(['https://example.com/page1', 'https://example.com/page2'])
-store.get_url('https://example.com')
-
-store.write('crawler_state.db')
-
-# Later session:
-store = load_store('crawler_state.db')
-print(f"Unvisited domains: {store.get_unvisited_domains()}")
-```
-
----
-
-## Best Practices
+## Best practices
 
 | Practice | Reason |
 |----------|--------|
@@ -176,9 +133,8 @@ print(f"Unvisited domains: {store.get_unvisited_domains()}")
 | Handle errors gracefully | Don't crash on bad pages |
 | Limit crawl scope | Stay on target domain(s) |
 
----
 
-## Complete Example
+## Complete example
 
 ```python
 from courlan import UrlStore, extract_links, is_not_crawlable
@@ -205,9 +161,8 @@ while store.unvisited_websites_number() > 0 and pages_crawled < 100:
 store.write('crawler_state.db')
 ```
 
----
 
-## Troubleshooting
+## Troubleshooting crawls
 
 **URL not added to store** — `UrlStore.add_urls()` silently drops invalid URLs. Validate first:
 

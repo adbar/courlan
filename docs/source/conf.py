@@ -16,6 +16,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx_copybutton",
+    "sphinxext.opengraph",
+    "sphinx_sitemap",
 ]
 
 napoleon_google_docstring = True
@@ -36,9 +38,22 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 
+# -- HTML output -----------------------------------------------------------
+
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
-html_title = project
+html_title = "courlan — URL Filtering and Normalization for Python"
+html_baseurl = "https://courlan.readthedocs.io/en/latest/"
+sitemap_url_scheme = "{link}"
+sitemap_excludes = ["search.html", "genindex.html"]
+
+# -- OpenGraph metadata ----------------------------------------------------
+
+ogp_site_url = "https://courlan.readthedocs.io/en/latest/"
+ogp_site_name = "courlan"
+ogp_description_length = 200
+
+# -- Intersphinx -----------------------------------------------------------
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
