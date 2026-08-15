@@ -1875,7 +1875,7 @@ def test_clean_url_protocol_detection():
     assert clean_url("http://example.org/page") == "http://example.org/page"
     # double protocol — inner URL extracted
     result = clean_url("http://redirect.com/?url=http://real.com/page")
-    assert "real.com" in result
+    assert result == "http://real.com/page"
 
 
 def test_scrub_url_trailing_slash():

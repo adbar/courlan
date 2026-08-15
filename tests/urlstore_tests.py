@@ -833,7 +833,7 @@ def test_get_download_urls_skips_exhausted():
     assert s.urldict["http://a.com"].state != State.OPEN
     urls = s.get_download_urls(time_limit=0)
     assert len(urls) == 1
-    assert "b.com" in urls[0]
+    assert urls[0] == "http://b.com/1"
 
 
 def test_schedule_integer_division():
