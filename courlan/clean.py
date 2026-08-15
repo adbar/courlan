@@ -77,19 +77,14 @@ def scrub_url(url: str) -> str:
         match = SELECTION.match(url)
         if match and is_valid_url(match[1]):
             url = match[1]
-            LOGGER.debug("taking url: %s", url)
         else:
             match = MIDDLE_URL.match(url)
             if match and is_valid_url(match[1]):
                 url = match[1]
-                LOGGER.debug("taking url: %s", url)
 
-    # too long and garbled URLs e.g. due to quotes URLs
     match = TRAILING_PARTS.match(url)
     if match:
         url = match[1]
-    if len(url) > 500:  # arbitrary choice
-        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
         url = url.rstrip("/")
@@ -97,9 +92,7 @@ def scrub_url(url: str) -> str:
     return url
 
 
-def clean_query(
-    querystring: str, strict: bool = False, language: str | None = None
-) -> str:
+def clean_query(querystring: str, strict: bool, language: str | None = None) -> str:
     "Strip unwanted query elements"
     if not querystring:
         return ""
@@ -122,7 +115,6 @@ def clean_query(
             and teststr in LANG_PARAMS
             and str(qdict[qelem][0]) not in TARGET_LANGS[language]
         ):
-            LOGGER.debug("bad lang: %s %s", language, qelem)
             raise ValueError
         # insert
         newqdict[qelem] = qdict[qelem]

@@ -50,10 +50,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "urllib3 >= 1.26, < 3",
+    "urllib3 >= 2, < 3",
 ]
 
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
 packages = ["courlan"]
 
@@ -94,23 +93,17 @@ python_files = ["*_tests.py"]
 target-version = "py310"
 
 [tool.ruff.lint]
-# pin the historical defaults instead of tracking ruff's own,
-# plus import sorting (I), pyupgrade (UP) and bugbear (B)
-select = ["E4", "E7", "E9", "F"]
-extend-select = ["I", "UP", "B"]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
 
 [tool.mypy]
 python_version = "3.10"
+strict = true
 ignore_missing_imports = true
-pretty = true
-warn_unused_ignores = true
-warn_redundant_casts = true
 
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]
 branch = true
 source = ["courlan"]
-omit = ["tests/*", "setup.py", "scripts/*"]
 
 [tool.coverage.report]
 exclude_lines = [

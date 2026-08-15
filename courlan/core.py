@@ -2,7 +2,6 @@
 Core functions needed to make the module work.
 """
 
-# import locale
 import logging
 import re
 from urllib.robotparser import RobotFileParser
@@ -58,8 +57,8 @@ def check_url(
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
         with_nav: set to True to include navigation pages instead of discarding them
-        trailing_slash: set to False to trim trailing slashes from paths
-                  (the root form never keeps one)
+        trailing_slash: keep trailing slashes on non-root paths (default True);
+                  the root slash is always stripped
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -73,7 +72,6 @@ def check_url(
     try:
         # length test
         if basic_filter(url) is False:
-            LOGGER.debug("rejected, basic filter: %s", url)
             raise ValueError
 
         # clean
@@ -86,7 +84,6 @@ def check_url(
         # split and validate
         validation_test, parsed_url = validate_url(url)
         if validation_test is False or parsed_url is None:
-            LOGGER.debug("rejected, validation test: %s", url)
             raise ValueError
 
         # normalized parts, shared with the rebuild; the query comes last as
@@ -95,20 +92,17 @@ def check_url(
 
         # content filter based on extensions
         if extension_filter(path) is False:
-            LOGGER.debug("rejected, extension filter: %s", url)
             raise ValueError
 
         scheme, netloc, host = normalize_netloc_parts(parsed_url)
 
         # unsuitable domain/host name (without userinfo; domain_filter expects host[:port])
         if not host or domain_filter(host) is False:
-            LOGGER.debug("rejected, domain name: %s", url)
             raise ValueError
 
         # spam & structural elements, also hidden in the query or the fragment
         pre_normalized = url
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
-            LOGGER.debug("rejected, type filter: %s", url)
             raise ValueError
 
         query = clean_query(parsed_url.query, strict, language)
@@ -117,7 +111,6 @@ def check_url(
         # normalization, else a stripped param keeps an index page that
         # check_url would reject on a second pass
         if strict and path_filter(path, query) is False:
-            LOGGER.debug("rejected, path filter: %s", url)
             raise ValueError
 
         # rebuild
@@ -137,7 +130,6 @@ def check_url(
             url != pre_normalized
             and type_filter(url, strict=strict, with_nav=with_nav) is False
         ):
-            LOGGER.debug("rejected, type filter: %s", url)
             raise ValueError
 
         # internationalization and language heuristics in URL
@@ -145,16 +137,13 @@ def check_url(
             language is not None
             and lang_filter(url, language, strict, trailing_slash) is False
         ):
-            LOGGER.debug("rejected, lang filter: %s", url)
             raise ValueError
 
         # domain info: use blacklist in strict mode only
         domain = extract_domain(url, blacklist=BLACKLIST if strict else None)
         if domain is None:
-            LOGGER.debug("rejected, domain name: %s", url)
             return None
 
-    # handle exceptions
     except (AttributeError, ValueError):
         LOGGER.debug("discarded URL: %s", url)
         return None
@@ -185,8 +174,8 @@ def extract_links(
         no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
-        trailing_slash: set to False to trim trailing slashes from paths
-                  (the root form never keeps one)
+        trailing_slash: keep trailing slashes on non-root paths (default True);
+                  the root slash is always stripped
         with_nav: set to True to include navigation pages instead of discarding them
         redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation

@@ -185,7 +185,7 @@ class UrlStore:
         self._lock = Lock()
 
     def _buffer_urls(
-        self, data: list[str], visited: bool = False
+        self, data: list[str], visited: bool
     ) -> defaultdict[str, deque[UrlPathTuple]]:
         inputdict: defaultdict[str, deque[UrlPathTuple]] = defaultdict(deque)
         for url in dict.fromkeys(data):
@@ -194,7 +194,6 @@ class UrlStore:
                 # validate
                 validation_result, parsed_url = validate_url(url)
                 if validation_result is False or parsed_url is None:
-                    LOGGER.debug("Invalid URL: %s", url)
                     raise ValueError
                 # host and path come from the normalized parts, no second parse
                 normalized, hostinfo, urlpath = normalize_and_split(
@@ -208,7 +207,6 @@ class UrlStore:
                     )
                     is False
                 ):
-                    LOGGER.debug("Wrong language: %s", url)
                     raise ValueError
                 inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
             except (TypeError, ValueError):
@@ -220,22 +218,14 @@ class UrlStore:
             return deque()
         raw = self.urldict[domain].tuples
         if isinstance(raw, bytes):  # compressed
-            urls: deque[UrlPathTuple] = COMPRESSOR.decompress(raw)
-            return urls
+            result: deque[UrlPathTuple] = COMPRESSOR.decompress(raw)
+            return result
         return raw
 
     def _set_done(self) -> None:
         if not self.done and all(v.state != State.OPEN for v in self.urldict.values()):
             with self._lock:
                 self.done = True
-
-    def _canonical_domain(self, domain: str) -> str:
-        "Read-only: return the key the domain is stored under, http/https twin included."
-        if domain not in self.urldict and domain.startswith(("http://", "https://")):
-            candidate = _swap_scheme(domain)
-            if candidate in self.urldict:
-                return candidate
-        return domain
 
     def _merge_entries(self, target: str, source: str) -> None:
         "Merge the source entry into the target one; a discarded twin voids the domain."
@@ -247,7 +237,6 @@ class UrlStore:
         known = {u.path() for u in urls}
         _dedup_extend(urls, known, self._load_urls(source))
         tgt.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
-        tgt.total = len(urls)
         tgt.count += src.count
         if tgt.rules is None:
             tgt.rules = src.rules
@@ -304,19 +293,17 @@ class UrlStore:
                 _dedup_extend(urls, known, to_left, left=True)
 
         with self._lock:
-            if self.compressed:
-                self.urldict[domain].tuples = COMPRESSOR.compress(urls)
-            else:
-                self.urldict[domain].tuples = urls
-            self.urldict[domain].total = len(urls)
+            entry = self.urldict[domain]
+            entry.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
+            entry.total = len(urls)
 
             if timestamp is not None:
-                self.urldict[domain].timestamp = timestamp
+                entry.timestamp = timestamp
 
             if all(u.visited for u in urls):
-                self.urldict[domain].state = State.ALL_VISITED
+                entry.state = State.ALL_VISITED
             else:
-                self.urldict[domain].state = State.OPEN
+                entry.state = State.OPEN
                 if self.done:
                     self.done = False
 
@@ -367,7 +354,6 @@ class UrlStore:
         with_nav: bool = True,
     ) -> None:
         "Find links in a HTML document, filter them and add them to the data store."
-        # lang = lang or self.language
         base_url = get_base_url(url)
         rules = self.get_rules(base_url)
         links, links_priority = filter_links(
@@ -415,7 +401,6 @@ class UrlStore:
         if domain in self.urldict:
             return self.urldict[domain].state != State.OPEN
         return False
-        # raise KeyError("website not in store")
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
@@ -455,7 +440,6 @@ class UrlStore:
 
     def get_url(self, domain: str, as_visited: bool = True) -> str | None:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
-        # not fully used
         # merge any twin first so the replace-store below stays on one key
         domain = self._merge_twin(domain)
         if not self.is_exhausted_domain(domain):
@@ -543,8 +527,8 @@ class UrlStore:
             ):
                 schedule_secs = 0.0
             else:
-                schedule_secs = time_limit - float(
-                    f"{(now - original_timestamp).total_seconds():.2f}"
+                schedule_secs = time_limit - round(
+                    (now - original_timestamp).total_seconds(), 2
                 )
             for urlpath in urlpaths:
                 targets.append((schedule_secs, domain + urlpath))
@@ -561,20 +545,20 @@ class UrlStore:
 
     def store_rules(self, website: str, rules: RobotFileParser | None) -> None:
         "Store crawling rules for a given website."
-        website = self._canonical_domain(website)
+        website = self._merge_twin(website)
         if self.compressed:
             rules = COMPRESSOR.compress(rules)
         self.urldict[website].rules = rules
 
     def get_rules(self, website: str) -> RobotFileParser | None:
         "Return the stored crawling rules for the given website."
-        website = self._canonical_domain(website)  # rules may sit under the https twin
+        website = self._merge_twin(website)
         if website not in self.urldict:
             return None
         raw = self.urldict[website].rules
         if isinstance(raw, bytes):  # compressed
-            rules: RobotFileParser = COMPRESSOR.decompress(raw)
-            return rules
+            result: RobotFileParser = COMPRESSOR.decompress(raw)
+            return result
         return raw
 
     def get_crawl_delay(self, website: str, default: float = 5) -> float:
@@ -601,10 +585,7 @@ class UrlStore:
 
     def dump_urls(self) -> list[str]:
         "Return a list of all known URLs."
-        urls = []
-        for domain in self.urldict:
-            urls.extend(self.find_known_urls(domain))
-        return urls
+        return [url for domain in self.urldict for url in self.find_known_urls(domain)]
 
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
@@ -624,7 +605,7 @@ class UrlStore:
                 flush=True,
             )
 
-    # PERSISTANCE
+    # PERSISTENCE
 
     def write(self, filename: str) -> None:
         "Write the URL store to disk as a pickle file, see load_store()."
