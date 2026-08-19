@@ -57,8 +57,9 @@ def check_url(
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
         with_nav: set to True to include navigation pages instead of discarding them
-        trailing_slash: keep trailing slashes on non-root paths (default True);
-                  the root slash is always stripped
+        trailing_slash: preserve trailing slashes (default True); when False,
+                  strip them from paths without a query string. A bare root
+                  slash is always stripped unless a query or fragment is present
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -174,8 +175,9 @@ def extract_links(
         no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
-        trailing_slash: keep trailing slashes on non-root paths (default True);
-                  the root slash is always stripped
+        trailing_slash: preserve trailing slashes (default True); when False,
+                  strip them from paths without a query string. A bare root
+                  slash is always stripped unless a query or fragment is present
         with_nav: set to True to include navigation pages instead of discarding them
         redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation

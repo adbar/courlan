@@ -11,21 +11,16 @@ filters
 clean
 urlutils
 urlstore
+sampling
 settings
 ```
 
 
-## Minor modules
-
-### courlan.sampling
-
-```{automodule} courlan.sampling
-:members:
-:undoc-members:
-:show-inheritance:
-```
+## Internal modules
 
 ### courlan.network
+
+HTTP redirect resolution used by `check_url(with_redirects=True)`.
 
 ```{automodule} courlan.network
 :members:
@@ -35,6 +30,8 @@ settings
 
 ### courlan.meta
 
+LRU cache management. Use `clear_caches()` in long-running processes.
+
 ```{automodule} courlan.meta
 :members:
 :undoc-members:
@@ -43,7 +40,7 @@ settings
 
 ### courlan.cli
 
-Internal entry point for the `courlan` command. See the [CLI reference](../usage/cli.md) for usage.
+Entry point for the `courlan` command. See the [CLI reference](../usage/cli.md) for usage.
 
 ```{automodule} courlan.cli
 :members:

@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: "How to validate, clean, normalize, and filter URLs in Python with courlan."
+---
+
 # URL Checking, Cleaning, and Filtering in Python
 
 Most filters revolve around the `strict` and `language` arguments. This page covers URL checking, cleaning, normalization, link extraction, and sampling.
@@ -8,8 +14,7 @@ Most filters revolve around the `strict` and `language` arguments. This page cov
 `check_url` is the main entry point — it validates, normalizes, and filters a URL in one call. Returns `(url, domain)` on success or `None` if rejected.
 
 ```{note}
-`check_url` returns `None` for rejected URLs — check the return value before unpacking.
-Always check the return value before unpacking.
+`check_url` returns `None` for rejected URLs — always check the return value before unpacking.
 ```
 
 ```python
@@ -46,17 +51,21 @@ if lang_filter('https://example.com/en/article', language='en'):
 
 ### Strict mode
 
-`strict=True` enables more aggressive filtering. Concretely, it activates the following additional checks compared to the default mode:
+`strict=True` enables more aggressive filtering — blacklisted domains, adult content, and suspicious paths are rejected, query parameters are trimmed more aggressively, and language detection uses subdomains too.
+
+:::{dropdown} Full comparison: default vs strict
+:icon: table
 
 | Area | Default | With `strict=True` |
 |------|---------|-------------------|
 | **Query parameters** | Only known trackers removed | All parameters removed except a small allowlist (`page`, `id`, `post`, etc.) |
 | **URL fragments** | Normalized | Stripped entirely |
-| **File types** | Not checked | URLs matching media/binary extensions rejected (`.pdf`, `.jpg`, `.mp4`, `.zip`, etc.) |
+| **File extensions** | Non-web extensions rejected (`.jpg`, `.pdf`, `.zip`, etc.) | Same, plus pattern-based detection (e.g. `/img/`, `?format=pdf`) |
 | **Adult/video content** | Not checked | URLs with adult or video path patterns rejected |
 | **Domain blacklist** | Not applied | URLs from ~77 blacklisted platforms rejected (social media, CDNs, e-commerce, etc.) |
 | **Path filtering** | Not applied | URLs with suspicious path patterns rejected (e.g. long query-heavy paths) |
 | **Language detection** | Path-based only | Subdomain-based language signals also considered |
+:::
 
 ```python
 # blocked in strict mode: major platform in the blacklist
@@ -67,8 +76,8 @@ check_url('https://www.twitch.com/', strict=True)
 check_url('https://httpbin.org/redirect-to?url=http%3A%2F%2Fexample.org', strict=True)
 # ('https://httpbin.org/redirect-to', 'httpbin.org')
 
-# media file rejected
-check_url('https://cdn.example.com/image.jpg', strict=True)
+# adult content pattern rejected in strict mode
+check_url('https://example.com/porn/page', strict=True)
 # None
 ```
 
@@ -91,13 +100,16 @@ Options add overhead in this order, from cheapest to most expensive:
 3. **Strict mode** — `check_url(url, strict=True)` — more conditions checked
 4. **Redirect checks** — `check_url(url, with_redirects=True)` — network I/O; avoid on large datasets
 
+All options compose freely, e.g. `check_url(url, language='en', strict=True)`.
+
 
 ## Cleaning and normalizing URLs
 
 ```{warning}
-`clean_url` normalizes but does **not** validate — it will return a
-munged string even for garbage input. Use `check_url` or `validate_url`
-if you need to reject invalid URLs.
+`clean_url` normalizes but does **not** validate. It can return `None`
+on malformed input but will happily return a munged string for
+structurally valid garbage. Use `check_url` or `validate_url` if you
+need to reject invalid URLs.
 ```
 
 For cleaning without the full filtering pipeline:
@@ -108,6 +120,15 @@ from courlan import clean_url
 # Lowercase scheme/host, strip default port, remove trackers
 clean_url('HTTPS://WWW.DWDS.DE:443/')
 # 'https://www.dwds.de'
+```
+
+For low-level scrubbing only (strip markup residues, control characters, and tracking artifacts without normalizing):
+
+```python
+from courlan import scrub_url
+
+scrub_url('<![CDATA[http://example.com]]>')
+# 'http://example.com'
 ```
 
 For canonicalization only (reorder query params, strip fragments):
@@ -128,7 +149,16 @@ validate_url('http://1234')
 # (False, None)
 
 validate_url('http://www.example.org/')
-# (True, ParseResult(...))
+# (True, SplitResult(...))
+```
+
+For a simple boolean check (wrapper around `validate_url`):
+
+```python
+from courlan import is_valid_url
+
+is_valid_url('http://www.example.org/')
+# True
 ```
 
 
@@ -183,7 +213,7 @@ links, priority_links = filter_links(html, 'https://example.org', lang='en')
 # priority_links = ['https://example.org/tag/listing']
 ```
 
-Both accept `external_bool`, `no_filter`, `language`/`lang`, `strict`, and `with_nav`. See the [API reference](../api/core.md) for full signatures.
+`extract_links` accepts `external_bool`, `no_filter`, `language`, `strict`, `trailing_slash`, `with_nav`, `redirects`, `reference`, and `base_url`; `filter_links` accepts `external`, `lang`, `rules`, `strict`, and `with_nav`. See the [API reference](../api/core.md) for full signatures.
 
 
 ## Sampling URLs by domain with sample_urls
@@ -217,8 +247,8 @@ from courlan import is_external
 is_external('https://github.com/', 'https://www.microsoft.com/')
 # True
 
-# Ignore domain suffixes (treats .com and .co.uk as same)
-is_external('https://google.com/', 'https://www.google.co.uk/', ignore_suffix=True)
+# Ignore domain suffixes — the default (treats .com and .co.uk as same)
+is_external('https://google.com/', 'https://www.google.co.uk/')
 # False
 ```
 

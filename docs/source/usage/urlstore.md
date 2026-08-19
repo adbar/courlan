@@ -37,6 +37,7 @@ store.find_unvisited_urls('https://example.com')
 | `compressed=True` | Compress stored URLs and rules to reduce memory |
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
 | `strict=True` | Apply stricter URL filtering on add |
+| `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |
 | `verbose=True` | Dump URLs on interrupt (requires `signal`) |
 
 ```python
@@ -75,6 +76,9 @@ store.add_from_html(html, 'https://example.com')
 
 # include external links
 store.add_from_html(html, 'https://example.com', external=True)
+
+# filter by language (note: the parameter is `lang`, not `language`)
+store.add_from_html(html, 'https://example.com', lang='en')
 ```
 
 
@@ -92,6 +96,15 @@ store.is_exhausted_domain('https://example.com')  # all URLs visited?
 store.find_known_urls('https://example.com')
 store.find_unvisited_urls('https://example.com')
 store.dump_urls()                # all URLs as a flat list
+```
+
+
+## Printing and resetting
+
+```python
+store.print_unvisited_urls()     # print all unvisited URLs to stdout
+store.print_urls()               # print all URLs with visited/unvisited status
+store.reset()                    # clear the store and internal caches
 ```
 
 
@@ -145,10 +158,12 @@ seed_urls = ['https://example.com']
 store.add_urls(seed_urls)
 
 while store.unvisited_websites_number() > 0:
-    host = store.get_unvisited_domains()[0]
-    url = store.get_url(host)
+    domains = store.get_unvisited_domains()
+    if not domains:
+        break
+    url = store.get_url(domains[0])
     html = fetch(url)  # your downloader
-    links, nav = store.add_from_html(html, url, external=False)
+    store.add_from_html(html, url, external=False)
     # process page and enqueue new links
     if should_checkpoint():
         store.write('crawler_state_checkpoint.db')
@@ -162,6 +177,11 @@ periodically, and prefer compressed mode for long runs.
 arbitrary code when loading. Only load files you have written yourself
 or that you trust. Consider exporting via `dump_urls()` for sharing.
 ```
+
+
+## Thread safety
+
+Readers are safe and writers are serialized, but a logical write is not globally atomic — drive mutations from a single writer thread.
 
 
 ## Performance tips

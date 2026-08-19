@@ -65,7 +65,7 @@ mypy -p courlan
 
 5. Pull request guidance
 
-- Branch from `main` and use a descriptive branch name: `fix/url-cleaning`
+- Branch from `master` and use a descriptive branch name: `fix/url-cleaning`
   or `feat/urlstore-persistence`.
 - Update or add tests for bug fixes and new features.
 - Keep commits small and focused. Use conventional commit messages

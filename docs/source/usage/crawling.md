@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: "Build web crawlers with courlan: crawl delays, robots.txt, download scheduling, frontier management."
+---
+
 # Web Crawling with Courlan
 
 Guide to building web crawlers with courlan: crawl delays, robots.txt, download scheduling, frontier management, and link extraction.
@@ -68,6 +74,9 @@ store.add_urls([
 
 schedule = store.establish_download_schedule(max_urls=100, time_limit=10)
 
+# or get a flat list of immediately-downloadable URLs (no delays)
+ready = store.get_download_urls(max_urls=50, time_limit=10)
+
 for delay, url in schedule:
     time.sleep(delay)
     print(f"Fetching: {url}")
@@ -101,6 +110,12 @@ for url in candidate_urls:
     store.add_urls([url])
 ```
 
+```{note}
+`filter_links` already separates navigation pages into a priority list
+(via `with_nav=True` by default). The manual check above is useful when
+you process URLs outside of `filter_links`.
+```
+
 
 ## Extracting links from HTML
 
@@ -112,12 +127,12 @@ links = extract_links(
     url,
     external_bool=False,
     language='en',
-    strict=True,
+    # strict=True is the default for extract_links
 )
 store.add_urls(links)
 ```
 
-`extract_links` also accepts `no_filter`, `redirects`, and `with_nav` — see the [API reference](../api/core.md) for details.
+`extract_links` also accepts `no_filter`, `trailing_slash`, `with_nav`, `redirects`, `reference`, and `base_url` — see the [API reference](../api/core.md) for details.
 
 
 ## Best practices
@@ -128,7 +143,7 @@ store.add_urls(links)
 | Set crawl delays | Avoid overloading servers |
 | Identify User-Agent | Tell servers who you are |
 | Save crawler state | Resume after interruptions |
-| Skip navigation pages | Focus on content |
+| Separate navigation pages | Crawl them for link discovery, deprioritize for content extraction |
 | Validate URLs | Avoid malformed requests |
 | Handle errors gracefully | Don't crash on bad pages |
 | Limit crawl scope | Stay on target domain(s) |

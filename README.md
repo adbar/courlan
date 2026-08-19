@@ -114,12 +114,10 @@ Most filters revolve around the `strict` and `language` arguments.
 
 All useful operations chained in `check_url(url)`:
 
-Note: `check_url` returns `None` for rejected URLs — check the return value before unpacking.
-
 ``` python
 >>> from courlan import check_url
 
-# return url and domain name
+# return url and domain name (None if rejected)
 >>> check_url('https://github.com/adbar/courlan')
 ('https://github.com/adbar/courlan', 'github.com')
 
@@ -200,7 +198,7 @@ the path `/path/testpage` within the domain `https://example.org`:
 ```
 
 For the full method reference, optional settings (`compressed`, `language`,
-`strict`, `verbose`), and crawl scheduling see the
+`strict`, `trailing_slash`, `verbose`), and crawl scheduling see the
 [UrlStore documentation](https://courlan.readthedocs.io/en/latest/api/urlstore.html).
 
 

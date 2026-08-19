@@ -6,19 +6,29 @@
 
 ## Install
 
-Install the latest release from PyPI, e.g. with pip or uv:
+:::::{tab-set}
 
+::::{tab-item} pip
 ```bash
 pip install courlan
 ```
+::::
 
-Or install from source for development:
+::::{tab-item} uv
+```bash
+uv add courlan
+```
+::::
 
+::::{tab-item} From source
 ```bash
 git clone https://github.com/adbar/courlan.git
 cd courlan
 pip install -e .
 ```
+::::
+
+:::::
 
 
 ## Quick check
@@ -27,9 +37,8 @@ pip install -e .
 from courlan import check_url
 
 # returns (cleaned_url, domain) or None if rejected
-# Note: check_url returns None for rejected URLs — check the return value before unpacking.
-check_url('https://example.com/page?utm_source=twitter')
-# ('https://example.com/page', 'example.com')
+check_url('https://example.org/page?utm_source=twitter')
+# ('https://example.org/page', 'example.org')
 ```
 
 From the command line:
@@ -49,4 +58,5 @@ courlan -i urls.txt -o cleaned.txt
 - **[URL Store](usage/urlstore.md)**: domain-classified URL storage
 - **[Web Crawling](usage/crawling.md)**: building crawlers with courlan
 - **[CLI Reference](usage/cli.md)**: all flags and examples
+- **[Troubleshooting](troubleshooting.md)**: common issues and fixes
 - **[API Reference](api/index.md)**: full module reference

@@ -16,6 +16,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx_copybutton",
+    "sphinx_design",
     "sphinxext.opengraph",
     "sphinx_sitemap",
 ]
@@ -40,9 +41,15 @@ myst_enable_extensions = [
 
 # -- HTML output -----------------------------------------------------------
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_static_path = ["_static"]
 html_title = "courlan — URL Filtering and Normalization for Python"
+
+html_theme_options = {
+    "source_repository": "https://github.com/adbar/courlan",
+    "source_branch": "master",
+    "source_directory": "docs/source/",
+}
 html_baseurl = "https://courlan.readthedocs.io/en/latest/"
 sitemap_url_scheme = "{link}"
 sitemap_excludes = ["search.html", "genindex.html"]

@@ -1,4 +1,4 @@
-# Troubleshooting & FAQ
+# Courlan Troubleshooting & FAQ
 
 This page lists common issues and quick fixes when using courlan.
 
@@ -52,6 +52,18 @@ This page lists common issues and quick fixes when using courlan.
 - Use a downloader with retry/backoff for transient network errors.
 - Keep `--redirects` off for large batches to avoid long-running HTTP
   calls.
+
+## TypeError with language parameter
+
+`UrlStore.add_from_html` and `filter_links` use `lang=` while most other functions use `language=`. Passing the wrong name raises a `TypeError`:
+
+```python
+# wrong — raises TypeError
+store.add_from_html(html, url, language='en')
+
+# correct
+store.add_from_html(html, url, lang='en')
+```
 
 ## Still stuck?
 

@@ -54,18 +54,5 @@ print(settings.BLACKLIST)
 print(settings.ALLOWED_PARAMS)
 ```
 
-### Overriding defaults
-
-- Temporary (runtime): patch the imported module before calling filters:
-
-```python
-import courlan.settings as settings
-settings.BLACKLIST.add('myinternal.example')
-```
-
-- Permanent: edit `courlan/settings.py` and reinstall in editable mode
-  (`pip install -e .`) or ship a wrapper that sets the desired values at
-  process startup.
-
 Be cautious: overly aggressive changes (e.g., emptying BLACKLIST) can
 significantly alter filtering behavior.
