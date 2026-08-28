@@ -129,10 +129,10 @@ links = extract_links(
     language='en',
     # strict=True is the default for extract_links
 )
-store.add_urls(links)
+store.add_urls(list(links))
 ```
 
-`extract_links` also accepts `no_filter`, `trailing_slash`, `with_nav`, `redirects`, `reference`, and `base_url` — see the [API reference](../api/core.md) for details.
+`extract_links` also accepts `no_filter`, `trailing_slash`, `with_nav`, `redirects`, and `reference` — see the [API reference](../api/core.md) for details.
 
 
 ## Best practices

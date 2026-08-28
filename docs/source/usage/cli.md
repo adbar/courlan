@@ -16,7 +16,7 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 | `-v, --verbose` | Enable debug logging |
 | `-p, --parallel` | Worker processes for batch mode (default: number of CPUs) |
 | `--strict` | Enable more restrictive filtering |
-| `-l, --language` | Keep only URLs matching this ISO 639-1 code (e.g. `en`, `de`) |
+| `-l, --language` | Keep only URLs matching this ISO 639-1 code (e.g. `en`, `de`) — batch mode only |
 | `-r, --redirects` | Check HTTP redirects (slow — see below) |
 | `--sample N` | Sample N URLs per domain instead of full processing |
 | `--exclude-min N` | Skip domains with fewer than N URLs (sampling only) |
@@ -25,7 +25,7 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 ## Behavior
 
 - **Batch mode** (default): processes all URLs, writes accepted URLs to `--outputfile` and rejected ones to `--discardedfile` if specified. Parallelism controlled by `-p`.
-- **Sampling mode** (`--sample`): samples N URLs per domain; `-p` is ignored.
+- **Sampling mode** (`--sample`): samples N URLs per domain. Only `-i`, `-o`, `--strict`, `-v` and the `--exclude-*` bounds apply; `-p`, `-l`, `-r` and `-d` are ignored. `--sample 0` falls back to batch mode.
 
 ## Examples
 

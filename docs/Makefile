@@ -1,10 +1,10 @@
 SPHINXBUILD   = sphinx-build
-SOURCEDIR     = docs/source
-BUILDDIR      = docs/_build
+SOURCEDIR     = source
+BUILDDIR      = _build
 
 .PHONY: html
 html:
-	$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)/html"
+	$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)"
 
 .PHONY: clean
 clean:

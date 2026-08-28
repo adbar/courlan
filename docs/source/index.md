@@ -83,5 +83,6 @@ usage/cli
 troubleshooting
 changelog
 api/index
+about
 
 ```

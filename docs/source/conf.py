@@ -1,5 +1,6 @@
 import os
 import sys
+from urllib.parse import urljoin
 
 sys.path.insert(0, os.path.abspath("../../"))
 
@@ -31,7 +32,6 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 
-templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 myst_enable_extensions = [
@@ -50,15 +50,23 @@ html_theme_options = {
     "source_branch": "master",
     "source_directory": "docs/source/",
 }
-html_baseurl = "https://courlan.readthedocs.io/en/latest/"
+# per-version URL on Read the Docs, needed by sitemap and OpenGraph
+html_baseurl = (
+    os.environ.get(
+        "READTHEDOCS_CANONICAL_URL", "https://courlan.readthedocs.io/en/latest/"
+    ).rstrip("/")
+    + "/"
+)
 sitemap_url_scheme = "{link}"
 sitemap_excludes = ["search.html", "genindex.html"]
 
 # -- OpenGraph metadata ----------------------------------------------------
 
-ogp_site_url = "https://courlan.readthedocs.io/en/latest/"
+ogp_site_url = html_baseurl
 ogp_site_name = "courlan"
 ogp_description_length = 200
+ogp_image = urljoin(html_baseurl, "_static/courlan_harns-march.jpg")
+ogp_image_alt = "coURLan — URL filtering and normalization for Python"
 
 # -- Intersphinx -----------------------------------------------------------
 

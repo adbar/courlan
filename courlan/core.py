@@ -51,15 +51,17 @@ def check_url(
     trailing_slash: bool = True,
 ) -> tuple[str, str] | None:
     """Check links for appropriateness and sanity
+
     Args:
         url: url to check
         strict: set to True for stricter filtering
         with_redirects: set to True for redirection test (per HTTP HEAD request)
         language: set target language (ISO 639-1 codes)
         with_nav: set to True to include navigation pages instead of discarding them
-        trailing_slash: preserve trailing slashes (default True); when False,
-                  strip them from paths without a query string. A bare root
-                  slash is always stripped unless a query or fragment is present
+        trailing_slash: preserve trailing slashes (default True); when
+            False, strip them from paths without a query string. With the
+            default True and strict=False, a bare root slash is only kept
+            when a query or fragment follows it, otherwise it is stripped
 
     Returns:
         A tuple consisting of canonical URL and extracted domain
@@ -167,17 +169,19 @@ def extract_links(
     base_url: str | None = None,
 ) -> set[str]:
     """Filter links in a HTML document using a series of heuristics
+
     Args:
         pagecontent: whole page as a string
         url: full URL of the original page
         external_bool: set to True for external links only, False for
-                  internal links only
+            internal links only
         no_filter: override settings and bypass checks to return all possible URLs
         language: set target language (ISO 639-1 codes)
         strict: set to True for stricter filtering
-        trailing_slash: preserve trailing slashes (default True); when False,
-                  strip them from paths without a query string. A bare root
-                  slash is always stripped unless a query or fragment is present
+        trailing_slash: preserve trailing slashes (default True); when
+            False, strip them from paths without a query string. With the
+            default True and strict=False, a bare root slash is only kept
+            when a query or fragment follows it, otherwise it is stripped
         with_nav: set to True to include navigation pages instead of discarding them
         redirects: set to True for redirection test (per HTTP HEAD request)
         reference: provide a host reference for external/internal evaluation

@@ -43,7 +43,7 @@ check_url('https://www.un.org/en/about-us', language='de')
 For standalone language detection without the full check_url pipeline, use `lang_filter`:
 
 ```python
-from courlan.filters import lang_filter
+from courlan import lang_filter
 
 if lang_filter('https://example.com/en/article', language='en'):
     print("Language matches")
@@ -60,16 +60,16 @@ if lang_filter('https://example.com/en/article', language='en'):
 |------|---------|-------------------|
 | **Query parameters** | Only known trackers removed | All parameters removed except a small allowlist (`page`, `id`, `post`, etc.) |
 | **URL fragments** | Normalized | Stripped entirely |
-| **File extensions** | Non-web extensions rejected (`.jpg`, `.pdf`, `.zip`, etc.) | Same, plus pattern-based detection (e.g. `/img/`, `?format=pdf`) |
+| **File extensions** | Non-web extensions rejected (`.jpg`, `.pdf`, `.zip`, etc.) | Same, plus pattern-based detection (e.g. `/img/`, `?file=doc.pdf`) |
 | **Adult/video content** | Not checked | URLs with adult or video path patterns rejected |
-| **Domain blacklist** | Not applied | URLs from ~77 blacklisted platforms rejected (social media, CDNs, e-commerce, etc.) |
-| **Path filtering** | Not applied | URLs with suspicious path patterns rejected (e.g. long query-heavy paths) |
+| **Domain blacklist** | Not applied | URLs from the platforms listed in `BLACKLIST` rejected (social media, CDNs, e-commerce, etc.) |
+| **Path filtering** | Not applied | Index/landing pages without a query string (`index`, `home`, `default`), plus contact/login/imprint paths, are rejected |
 | **Language detection** | Path-based only | Subdomain-based language signals also considered |
 :::
 
 ```python
 # blocked in strict mode: major platform in the blacklist
-check_url('https://www.twitch.com/', strict=True)
+check_url('https://www.twitter.com/', strict=True)
 # None
 
 # query parameters trimmed more aggressively
@@ -121,6 +121,9 @@ from courlan import clean_url
 clean_url('HTTPS://WWW.DWDS.DE:443/')
 # 'https://www.dwds.de'
 ```
+
+`clean_url` also takes `language` (ISO 639-1), which discards URLs whose
+`lang`/`language` query parameter contradicts the target language.
 
 For low-level scrubbing only (strip markup residues, control characters, and tracking artifacts without normalizing):
 
@@ -189,6 +192,10 @@ from courlan import filter_urls
 subset = filter_urls(url_list, urlfilter='example.com')
 ```
 
+The result is sorted and deduplicated. Note the fallback: if `urlfilter`
+matches nothing, `filter_urls` returns the feed-like URLs
+(`feedburner`/`feedproxy`) instead of an empty list.
+
 
 ## Extracting links from HTML with extract_links
 
@@ -213,7 +220,7 @@ links, priority_links = filter_links(html, 'https://example.org', lang='en')
 # priority_links = ['https://example.org/tag/listing']
 ```
 
-`extract_links` accepts `external_bool`, `no_filter`, `language`, `strict`, `trailing_slash`, `with_nav`, `redirects`, `reference`, and `base_url`; `filter_links` accepts `external`, `lang`, `rules`, `strict`, and `with_nav`. See the [API reference](../api/core.md) for full signatures.
+`extract_links` accepts `external_bool`, `no_filter`, `language`, `strict`, `trailing_slash`, `with_nav`, `redirects`, and `reference` (the former `base_url` was deprecated in 1.3.2 — passing it raises `ValueError`); `filter_links` accepts `external`, `lang`, `rules`, `strict`, and `with_nav`. See the [API reference](../api/core.md) for full signatures.
 
 
 ## Sampling URLs by domain with sample_urls
@@ -233,6 +240,9 @@ Exclude domains that are too small or too large:
 ```python
 sample = sample_urls(urls, samplesize=5, exclude_min=2, exclude_max=1000)
 ```
+
+`sample_urls` also accepts `strict` (stricter filtering on the input URLs)
+and `verbose` (log the domains that were skipped).
 
 See also `courlan --sample` in the [CLI reference](cli.md).
 

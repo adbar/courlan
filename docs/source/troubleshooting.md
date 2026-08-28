@@ -37,9 +37,17 @@ This page lists common issues and quick fixes when using courlan.
 
 ## Language detection surprises
 
-- Language signals use path segments, query parameters, and subdomains.
-  Some sites do not encode language explicitly; use `language=None` to
-  disable strict filtering or add custom `TARGET_LANGS` entries.
+- Language signals come from three places, and they do not share a
+  configuration: path segments and subdomains are matched against the CLDR
+  code sets in `courlan.langcodes`, while a `lang`/`language` query parameter
+  is matched against [`TARGET_LANGS`](api/settings.md). Subdomain signals are
+  only consulted with `strict=True`.
+- Adding a `TARGET_LANGS` entry therefore only affects query parameters — it
+  cannot change how a `/fr/` path segment is scored. Conversely, if the target
+  language is missing from `TARGET_LANGS`, the query-parameter check is skipped
+  and such URLs are accepted.
+- Some sites do not encode language explicitly. `language=None` (the default)
+  disables language filtering altogether.
 
 ## Tests failing locally
 

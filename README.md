@@ -7,36 +7,6 @@
 [![Documentation](https://readthedocs.org/projects/courlan/badge/?version=latest)](https://courlan.readthedocs.io/en/latest/)
 
 
-## Quickstart (1–2 minutes)
-
-Install and try courlan from PyPI:
-
-```bash
-pip install courlan
-```
-
-Python quickstart — validate and clean a URL:
-
-```python
-from courlan import check_url
-result = check_url('https://example.org/page?utm_source=twitter')
-if result:
-    cleaned, domain = result
-    print(cleaned)  # 'https://example.org/page'
-    print(domain)   # 'example.org'
-```
-
-Command-line quickstart — filter a file of URLs:
-
-```bash
-# one URL per line in urls.txt
-courlan -i urls.txt -o cleaned.txt -d discarded.txt
-# cleaned.txt contains accepted URLs, discarded.txt contains rejected ones
-```
-
-These examples are minimal — see the docs for advanced usage: language filtering, strict mode, sampling, and UrlStore persistence.
-
-
 ## Why coURLan?
 
 > "It is important for the crawler to visit 'important' pages first,
@@ -57,8 +27,8 @@ filters, enhancing the quality of resulting document collections:
 - Identify specific pages based on language or text content
 - Pinpoint pages relevant for efficient link gathering
 
-Additional utilities needed include URL storage, filtering, and
-deduplication.
+On top of the filters, courlan provides the utilities a crawler needs around
+them: URL storage, deduplication, and download scheduling.
 
 ## Features
 
@@ -80,7 +50,7 @@ retrieval:
 
 **Let the coURLan fish up juicy bits for you!**
 
-<img src="https://raw.githubusercontent.com/adbar/courlan/master/courlan_harns-march.jpg" alt="" role="presentation" style="max-width: 65%;"/>
+<img src="https://raw.githubusercontent.com/adbar/courlan/master/docs/source/_static/courlan_harns-march.jpg" alt="" role="presentation" style="max-width: 65%;"/>
 
 Here is a [courlan](https://en.wiktionary.org/wiki/courlan) (source:
 [Limpkin at Harn's Marsh by
@@ -93,17 +63,42 @@ CC BY 2.0).
 This package requires Python 3.10 or higher and is tested on Linux, macOS
 and Windows systems.
 
-Courlan is available on the package repository [PyPI](https://pypi.org/)
-and can notably be installed with the Python package manager `pip`:
+courlan is available on [PyPI](https://pypi.org/) and installs with `pip`:
 
 ``` bash
 $ pip install courlan
 $ pip install --upgrade courlan # to make sure you have the latest version
-$ pip install git+https://github.com/adbar/courlan.git # latest available code (see build status above)
+$ pip install git+https://github.com/adbar/courlan.git # latest available code
 ```
 
 The last version to support Python 3.6 and 3.7 is `courlan==1.2.0`.
 The last version to support Python 3.8 and 3.9 is `courlan==1.3.2`.
+
+
+## Quickstart
+
+In Python — validate and clean a URL:
+
+```python
+from courlan import check_url
+result = check_url('https://example.org/page?utm_source=twitter')
+if result:
+    cleaned, domain = result
+    print(cleaned)  # 'https://example.org/page'
+    print(domain)   # 'example.org'
+```
+
+On the command line — filter a file of URLs:
+
+```bash
+# one URL per line in urls.txt
+courlan -i urls.txt -o cleaned.txt -d discarded.txt
+# cleaned.txt contains accepted URLs, discarded.txt contains rejected ones
+```
+
+These examples are minimal. For language filtering, strict mode, sampling and
+`UrlStore` persistence, see the
+[documentation](https://courlan.readthedocs.io/en/latest/).
 
 
 ## Python
@@ -121,15 +116,13 @@ All useful operations chained in `check_url(url)`:
 >>> check_url('https://github.com/adbar/courlan')
 ('https://github.com/adbar/courlan', 'github.com')
 
-# filter out bogus domains
->>> check_url('http://666.0.0.1/')
->>>
+# rejected URLs return None
+>>> check_url('http://666.0.0.1/')  # bogus domain
 
 # language-aware filtering
 >>> check_url('https://www.un.org/en/about-us', language='en')
 ('https://www.un.org/en/about-us', 'un.org')
->>> check_url('https://www.un.org/en/about-us', language='de')
->>>
+>>> check_url('https://www.un.org/en/about-us', language='de')  # returns None
 ```
 
 For the full set of options (`strict`, `with_redirects`, `with_nav`,
@@ -142,10 +135,11 @@ For the full set of options (`strict`, `with_redirects`, `with_nav`,
 >>> from courlan import sample_urls
 >>> my_urls = ['https://example.org/' + str(x) for x in range(100)]
 >>> my_sample = sample_urls(my_urls, 10)
-# optional: exclude_min=None, exclude_max=None, strict=False, verbose=False
 ```
 
-See the [API reference](https://courlan.readthedocs.io/en/latest/api/index.html) for details.
+Optional arguments: `exclude_min`, `exclude_max`, `strict` and `verbose`. See
+the [API reference](https://courlan.readthedocs.io/en/latest/api/index.html)
+for details.
 
 ### Web crawling and URL handling
 
@@ -212,14 +206,6 @@ $ courlan --help
 See the [CLI documentation](https://courlan.readthedocs.io/en/latest/usage/cli.html) for all options.
 
 
-## License
-
-*coURLan* is distributed under the [Apache 2.0
-license](https://www.apache.org/licenses/LICENSE-2.0.html).
-
-Versions prior to v1 were under GPLv3+ license.
-
-
 ## Settings
 
 `courlan` is optimized for English and German but its generic approach
@@ -248,6 +234,14 @@ feedback.
 
 For more on Courlan's software ecosystem see [this
 graphic](https://github.com/adbar/trafilatura/blob/master/docs/software-ecosystem.png).
+
+
+## License
+
+*coURLan* is distributed under the [Apache 2.0
+license](https://www.apache.org/licenses/LICENSE-2.0.html).
+
+Versions prior to v1 were under GPLv3+ license.
 
 
 ## Similar work

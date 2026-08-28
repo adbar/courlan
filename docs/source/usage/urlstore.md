@@ -38,7 +38,7 @@ store.find_unvisited_urls('https://example.com')
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
 | `strict=True` | Apply stricter URL filtering on add |
 | `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |
-| `verbose=True` | Dump URLs on interrupt (requires `signal`) |
+| `verbose=True` | Dump unvisited URLs on SIGINT/SIGTERM (POSIX only, main thread only; replaces existing handlers) |
 
 ```python
 store = UrlStore(language='en', strict=True, compressed=True)
@@ -95,7 +95,9 @@ store.is_exhausted_domain('https://example.com')  # all URLs visited?
 # Per-domain inspection
 store.find_known_urls('https://example.com')
 store.find_unvisited_urls('https://example.com')
-store.dump_urls()                # all URLs as a flat list
+
+# Store-wide
+store.dump_urls()                # all URLs from all domains, as a flat list
 ```
 
 

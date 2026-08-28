@@ -19,7 +19,6 @@ uv.lock
 # docs
 docs/_autosummary/
 docs/_build/
-docs/_static/
 docs/_template/
 
 # profiling
