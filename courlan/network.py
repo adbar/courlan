@@ -6,9 +6,9 @@ import logging
 
 import urllib3
 
-
 LOGGER = logging.getLogger(__name__)
-urllib3.disable_warnings()
+# only silence the warning triggered by cert_reqs="CERT_NONE" triggers
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 RETRY_STRATEGY = urllib3.util.Retry(
@@ -52,27 +52,30 @@ def redirection_test(url: str) -> str:
         The final URL seen.
 
     Raises:
-        Nothing.
+        ValueError: if the URL cannot be reached or returns an unacceptable status.
     """
     # headers.update({
     #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
     # })
     try:
-        rhead = HTTP_POOL.request("HEAD", url)  # type:ignore[no-untyped-call]
+        rhead = HTTP_POOL.request("HEAD", url)
     except Exception as err:
-        LOGGER.exception("unknown HEAD error: %s %s", url, err)
-    else:
-        if rhead.status in ACCEPTABLE_CODES:
-            LOGGER.debug("result found: %s %s", rhead.geturl(), rhead.status)
-            return rhead.geturl()  # type: ignore
-        # Some sites don't implement HEAD, fallback to GET
-        elif rhead.status == 500:
-            try:
-                rhead = HTTP_POOL.request("GET", url)  # type:ignore[no-untyped-call]
-                if rhead.status in ACCEPTABLE_CODES:
-                    LOGGER.debug("result found with GET: %s %s", rhead.geturl(), rhead.status)
-                    return rhead.geturl()  # type: ignore
-            except Exception as err:
-                LOGGER.exception("unknown GET error: %s %s", url, err)
-    # else:
-    raise ValueError(f"cannot reach URL: ${url}")
+        LOGGER.warning("cannot reach URL: %s %s", url, err)
+        raise ValueError(f"cannot reach URL: {url}") from err
+    # response
+    if rhead.status in ACCEPTABLE_CODES:
+        # geturl() works across urllib3 1.26+/2.x; in 2.x it is Optional[str]
+        final_url = rhead.geturl() or url
+        LOGGER.debug("result found: %s %s", final_url, rhead.status)
+        return final_url
+    # Some sites don't implement HEAD, fallback to GET
+    if rhead.status == 500:
+        try:
+            rget = HTTP_POOL.request("GET", url)
+            if rget.status in ACCEPTABLE_CODES:
+                final_url = rget.geturl() or url
+                LOGGER.debug("result found with GET: %s %s", final_url, rget.status)
+                return final_url
+        except Exception as err:
+            LOGGER.warning("cannot reach URL with GET: %s %s", url, err)
+    raise ValueError(f"cannot reach URL: {url}")

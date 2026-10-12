@@ -8,6 +8,7 @@
 dist/
 build/
 *.egg-info/
+uv.lock
 
 # tests
 .cache/
@@ -18,7 +19,6 @@ build/
 # docs
 docs/_autosummary/
 docs/_build/
-docs/_static/
 docs/_template/
 
 # profiling

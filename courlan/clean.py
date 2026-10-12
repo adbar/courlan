@@ -4,31 +4,29 @@ Functions performing URL trimming and cleaning
 
 import logging
 import re
-
-from typing import Optional, Union
-from urllib.parse import parse_qs, quote, urlencode, urlunsplit, SplitResult
+from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
 
 from .filters import is_valid_url
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
-from .urlutils import _parse
-
+from .urlutils import _parse, _strip_trailing_dot
 
 LOGGER = logging.getLogger(__name__)
 
 # parsing
 PROTOCOLS = re.compile(r"https?://")
-SELECTION = re.compile(
-    r'(https?://[^">&? ]+?)(?:https?://)|(?:https?://[^/]+?/[^/]+?[&?]u(rl)?=)(https?://[^"> ]+)'
-)
+SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)')
 
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
-NETLOC_RE = re.compile(r"(?<=\w):(?:80|443)")
+
+# netloc
+DEFAULT_PORTS = {"http": 80, "https": 443}
 
 # path
 PATH1 = re.compile(r"/+")
 PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
 
 # scrub
+CONTROL_CHARS = "".join(map(chr, range(0x20)))
 REMAINING_MARKUP = re.compile(r"</?[a-z]{,4}?>|{.+?}")
 TRAILING_AMP = re.compile(r"/\&$")
 TRAILING_PARTS = re.compile(r'(.*?)[<>"\s]')
@@ -39,16 +37,16 @@ TRAILING_PARTS = re.compile(r'(.*?)[<>"\s]')
 TRACKERS_RE = re.compile(
     r"^(?:dc|fbc|gc|twc|yc|ysc)lid|"
     r"^(?:click|gbra|msclk|igsh|partner|wbra)id|"
-    r"^(?:ads?|mc|ga|gs|itm|mc|mkt|ml|mtm|oly|pk|utm|vero)_|"
+    r"^(?:ads?|mc|ga|gs|itm|mkt|ml|mtm|oly|pk|utm|vero)_|"
     r"(?:\b|_)(?:aff|affi|affiliate|campaign|cl?id|eid|ga|gl|"
     r"kwd|keyword|medium|ref|referr?er|session|source|uid|xtor)"
 )
 
 
-def clean_url(url: str, language: Optional[str] = None) -> Optional[str]:
+def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
-        return normalize_url(scrub_url(url), False, language)
+        return normalize_url(scrub_url(url), False, language, False)
     except (AttributeError, ValueError):
         return None
 
@@ -57,10 +55,7 @@ def scrub_url(url: str) -> str:
     "Strip unnecessary parts and make sure only one URL is considered"
     # remove leading/trailing space and unescaped control chars
     # strip space in input string
-    url = "".join(url.split()).strip(
-        "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
-    )
+    url = "".join(url.split()).strip(CONTROL_CHARS)
 
     # <![CDATA[http://...]]>
     if url.startswith("<![CDATA["):
@@ -82,20 +77,14 @@ def scrub_url(url: str) -> str:
         match = SELECTION.match(url)
         if match and is_valid_url(match[1]):
             url = match[1]
-            LOGGER.debug("taking url: %s", url)
         else:
             match = MIDDLE_URL.match(url)
             if match and is_valid_url(match[1]):
                 url = match[1]
-                LOGGER.debug("taking url: %s", url)
 
-    # too long and garbled URLs e.g. due to quotes URLs
     match = TRAILING_PARTS.match(url)
     if match:
         url = match[1]
-    if len(url) > 500:  # arbitrary choice
-        LOGGER.debug("invalid-looking link %s of length %d", url[:50] + "…", len(url))
-
     # trailing slashes in URLs without path or in embedded URLs
     if url.count("/") == 3 or url.count("://") > 1:
         url = url.rstrip("/")
@@ -103,9 +92,7 @@ def scrub_url(url: str) -> str:
     return url
 
 
-def clean_query(
-    querystring: str, strict: bool = False, language: Optional[str] = None
-) -> str:
+def clean_query(querystring: str, strict: bool, language: str | None = None) -> str:
     "Strip unwanted query elements"
     if not querystring:
         return ""
@@ -128,7 +115,6 @@ def clean_query(
             and teststr in LANG_PARAMS
             and str(qdict[qelem][0]) not in TARGET_LANGS[language]
         ):
-            LOGGER.debug("bad lang: %s %s", language, qelem)
             raise ValueError
         # insert
         newqdict[qelem] = qdict[qelem]
@@ -160,7 +146,7 @@ def normalize_part(url_part: str) -> str:
     return quote(url_part, safe="/%!=:,-")
 
 
-def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
+def normalize_fragment(fragment: str, language: str | None = None) -> str:
     "Look for trackers in URL fragments using query analysis, normalize the output."
     if "=" in fragment:
         if "&" in fragment:
@@ -170,38 +156,98 @@ def normalize_fragment(fragment: str, language: Optional[str] = None) -> str:
     return normalize_part(fragment)
 
 
+def normalize_netloc_parts(parsed_url: SplitResult) -> tuple[str, str, str]:
+    "Return the normalized (scheme, netloc, hostport), hostport without userinfo."
+    userinfo, _, hostport = parsed_url.netloc.rpartition("@")
+    hostport = hostport.lower()
+    # split port before punycode decoding (e.g. "xn--n3h:8080")
+    host, sep, port = hostport.rpartition(":")
+    # a colon left in an unbracketed host means a malformed netloc (e.g. "x:80:80")
+    if not (sep and port.isascii() and port.isdecimal()) or (
+        ":" in host and not host.endswith("]")
+    ):
+        host, port = hostport, ""
+    host = decode_punycode(_strip_trailing_dot(host))
+    scheme = parsed_url.scheme.lower()
+    # strip only the scheme's default port
+    if port and DEFAULT_PORTS.get(scheme) == int(port):
+        port = ""
+    hostport = f"{host}:{port}" if port else host
+    netloc = f"{userinfo}@{hostport}" if userinfo else hostport
+    return scheme, netloc, hostport
+
+
+def normalize_path(path: str) -> str:
+    "Collapse repeated slashes, drop leading /../ segments, then percent-normalize."
+    # https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
+    # leading /../'s in the path are removed
+    return normalize_part(PATH2.sub("", PATH1.sub("/", path)))
+
+
+def rebuild_url(
+    scheme: str,
+    netloc: str,
+    path: str,
+    query: str,
+    fragment: str,
+    strict: bool,
+    language: str | None,
+    trailing_slash: bool,
+) -> str:
+    "Assemble the final URL string from already normalized parts."
+    newfragment = "" if strict else normalize_fragment(fragment, language)
+    if query and not path:
+        path = "/"
+    elif path == "/" and not query and not newfragment:
+        # canonical root form has no trailing slash (matches scrub_url)
+        path = ""
+    elif not trailing_slash and not query and path.endswith("/"):
+        path = path.rstrip("/")
+    return urlunsplit((scheme, netloc, path, query, newfragment))
+
+
+def normalize_and_split(
+    parsed_url: SplitResult,
+    strict: bool,
+    language: str | None,
+    trailing_slash: bool,
+) -> tuple[str, str, str]:
+    "Return the normalized (url, base, path) triple from a single set of parts."
+    scheme, netloc, _ = normalize_netloc_parts(parsed_url)
+    url = rebuild_url(
+        scheme,
+        netloc,
+        normalize_path(parsed_url.path),
+        clean_query(parsed_url.query, strict, language),
+        parsed_url.fragment,
+        strict,
+        language,
+        trailing_slash,
+    )
+    # without a netloc urlunsplit drops the "//" and the slice below would cut
+    # into the path instead of past the host
+    if not netloc:
+        raise ValueError(f"no host to split off: {url}")
+    base = f"{scheme}://{netloc}"
+    return url, base, url[len(base) :] or "/"
+
+
 def normalize_url(
-    parsed_url: Union[SplitResult, str],
+    parsed_url: SplitResult | str,
     strict: bool = False,
-    language: Optional[str] = None,
+    language: str | None = None,
     trailing_slash: bool = True,
 ) -> str:
-    "Takes a URL string or a parsed URL and returns a normalized URL string"
+    "Takes a URL string or a parsed URL and returns a normalized URL string."
     parsed_url = _parse(parsed_url)
-    # lowercase + remove fragments + normalize punycode
-    scheme = parsed_url.scheme.lower()
-    netloc = decode_punycode(parsed_url.netloc.lower())
-    # port
-    try:
-        if parsed_url.port in (80, 443):
-            netloc = NETLOC_RE.sub("", netloc)
-    except ValueError:
-        pass  # Port could not be cast to integer value
-    # path: https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
-    # leading /../'s in the path are removed
-    newpath = normalize_part(PATH2.sub("", PATH1.sub("/", parsed_url.path)))
-    # strip unwanted query elements
-    newquery = clean_query(parsed_url.query, strict, language) or ""
-    if newquery and not newpath:
-        newpath = "/"
-    elif (
-        not trailing_slash
-        and not newquery
-        and len(newpath) > 1
-        and newpath.endswith("/")
-    ):
-        newpath = newpath.rstrip("/")
-    # fragment
-    newfragment = "" if strict else normalize_fragment(parsed_url.fragment, language)
-    # rebuild
-    return urlunsplit((scheme, netloc, newpath, newquery, newfragment))
+    scheme, netloc, _ = normalize_netloc_parts(parsed_url)
+    return rebuild_url(
+        scheme,
+        netloc,
+        normalize_path(parsed_url.path),
+        clean_query(parsed_url.query, strict, language),
+        parsed_url.fragment,
+        strict,
+        language,
+        trailing_slash,
+    )

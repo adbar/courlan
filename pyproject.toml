@@ -1,17 +1,17 @@
 # https://pip.pypa.io/en/stable/reference/build-system/pyproject-toml/
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "courlan"
 description = "Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters."
 readme = "README.md"
-license = { text = "Apache 2.0" }
+license = "Apache-2.0"
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
-  {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
+  {name = "Adrien Barbaresi"}
 ]
 keywords=[
     "cleaner",
@@ -31,18 +31,17 @@ classifiers = [
     "Intended Audience :: Education",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Security",
@@ -51,12 +50,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "babel >= 2.16.0",
-    "tld >= 0.13",
-    "urllib3 >= 1.26, < 3",
+    "urllib3 >= 2, < 3",
 ]
 
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
 packages = ["courlan"]
 
@@ -69,19 +65,53 @@ courlan = "courlan.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/adbar/courlan"
+"Documentation" = "https://courlan.readthedocs.io/en/latest/"
 "Blog" = "https://adrien.barbaresi.eu/blog/"  # /tag/courlan.html
 "Tracker" = "https://github.com/adbar/courlan/issues"
 
 # Development extras
 [project.optional-dependencies]
 dev = [
-    "black",
-    "flake8",
-    "mypy",
-    "pytest",
-    "pytest-cov",
-    "types-urllib3",
+    "ruff==0.16.2",
+    "mypy==2.3.0",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "pytest-httpserver==1.1.5",
+]
+docs = [
+    "sphinx>=6.2",
+    "myst-parser>=0.19.0",
+    "furo>=2024.1.29",
+    "sphinx-copybutton>=0.5.0",
+    "sphinx-design>=0.6.0",
+    "sphinxext-opengraph>=0.9.0",
+    "sphinx-sitemap>=2.5.0",
 ]
 
 [tool.pytest.ini_options]
-testpaths = "tests/*test*.py"
+testpaths = ["tests"]
+# the test files are named "*_tests.py"; docs/test_docs.py runs separately in CI
+python_files = ["*_tests.py"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+# https://coverage.readthedocs.io/en/latest/config.html
+[tool.coverage.run]
+branch = true
+source = ["courlan"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "ImportError:",
+]
