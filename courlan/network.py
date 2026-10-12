@@ -18,7 +18,6 @@ RETRY_STRATEGY = urllib3.util.Retry(
     status_forcelist=[
         429,
         499,
-        500,
         502,
         503,
         504,
@@ -69,4 +68,14 @@ def redirection_test(url: str) -> str:
         final_url = rhead.geturl() or url
         LOGGER.debug("result found: %s %s", final_url, rhead.status)
         return final_url
+    # Some sites don't implement HEAD, fallback to GET
+    if rhead.status == 500:
+        try:
+            rget = HTTP_POOL.request("GET", url)
+            if rget.status in ACCEPTABLE_CODES:
+                final_url = rget.geturl() or url
+                LOGGER.debug("result found with GET: %s %s", final_url, rget.status)
+                return final_url
+        except Exception as err:
+            LOGGER.warning("cannot reach URL with GET: %s %s", url, err)
     raise ValueError(f"cannot reach URL: {url}")
