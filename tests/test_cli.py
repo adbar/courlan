@@ -110,7 +110,7 @@ def test_cli_main(tmp_path, capsys, restore_courlan_level):
         pytest.raises(SystemExit) as pipe_err,
     ):
         cli.main()
-    assert pipe_err.value.code == 1
+    assert pipe_err.value.code == 141
     # one URL per host
     assert len(outputfile.read_text(encoding="utf-8").splitlines()) == 4
     assert err.value.code == 2
@@ -118,12 +118,19 @@ def test_cli_main(tmp_path, capsys, restore_courlan_level):
     # e.g. -p above the Windows limit of ProcessPoolExecutor
     with (
         patch.object(sys, "argv", testargs),
-        patch.object(cli, "process_args", side_effect=ValueError("max_workers")),
+        patch.object(cli, "process_args", side_effect=cli._CliError("max_workers")),
         pytest.raises(SystemExit) as value_err,
     ):
         cli.main()
     assert value_err.value.code == 2
     assert "courlan: error: max_workers" in capsys.readouterr().err
+    # other errors are bugs and keep their traceback
+    with (
+        patch.object(sys, "argv", testargs),
+        patch.object(cli, "process_args", side_effect=ValueError("bug")),
+        pytest.raises(ValueError, match="bug"),
+    ):
+        cli.main()
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="no signal dump")
@@ -200,6 +207,7 @@ def test_cli_arguments_validation(tmp_path, capsys):
     assert inputfile.read_text(encoding="utf-8") == "https://example.org/a\n"
     assert not os.path.exists(outfile)
     assert cli.parse_args(["-i", os.devnull, "-o", os.devnull])
+    assert cli.parse_args([*base, "-o", os.devnull, "-d", os.devnull])
     parsed = cli.parse_args([*base, "--sample", "1", "--exclude-max", "0"])
     assert parsed.exclude_max == 0
 
@@ -228,12 +236,45 @@ def test_cli_file_errors(tmp_path):
         ["-i", infile, "-o", str(tmp_path / "adir")],
         ["-i", infile, "-o", str(tmp_path / "adir"), "--sample", "1"],
         ["-i", infile, "-o", outfile, "-d", str(tmp_path / "adir")],
+        ["-i", infile, "-o", outfile, "-d", outfile],
     ]:
         result = run_cli(*testargs)
         assert result.returncode == 2
         assert result.stderr.startswith("courlan: error:")
         assert "Traceback" not in result.stderr
     assert inputfile.read_text(encoding="utf-8") == "https://example.org/a\n"
+
+
+def test_cli_output_checks(tmp_path):
+    """bad or shared outputs are refused before any output is truncated"""
+    inputfile = tmp_path / "input.txt"
+    inputfile.write_text("https://example.org/a\n", encoding="utf-8")
+    outfile = tmp_path / "output.txt"
+    outfile.write_text("kept\n", encoding="utf-8")
+    os.link(outfile, tmp_path / "hardlink.txt")
+    base = ["-i", str(inputfile), "-o", str(outfile)]
+    same = [outfile, tmp_path / "." / "output.txt", tmp_path / "hardlink.txt"]
+    case_insensitive = os.path.exists(tmp_path / "OUTPUT.txt")
+    if case_insensitive:
+        same.append(tmp_path / "OUTPUT.txt")
+    for discarded in same:
+        with pytest.raises(cli._CliError, match="is the discarded file"):
+            cli.process_args(cli.parse_args([*base, "-d", str(discarded)]))
+    for discarded in [str(tmp_path / "no" / "out.txt"), ""]:
+        with pytest.raises(OSError):
+            cli.process_args(cli.parse_args([*base, "-d", discarded]))
+    assert outfile.read_text(encoding="utf-8") == "kept\n"
+    # outputs that do not exist yet
+    newout, newdiscard = tmp_path / "Out.txt", tmp_path / "out.txt"
+    testargs = ["-i", str(inputfile), "-o", str(newout), "-d", str(newdiscard)]
+    if case_insensitive:
+        with pytest.raises(cli._CliError):
+            cli.process_args(cli.parse_args(testargs))
+    else:
+        cli.process_args(cli.parse_args(testargs))
+        assert newout.read_text(encoding="utf-8") == "https://example.org/a\n"
+    cli.process_args(cli.parse_args([*base, "-d", os.devnull]))
+    assert outfile.read_text(encoding="utf-8") == "https://example.org/a\n"
 
 
 def test_cli_executor_error(tmp_path):
@@ -246,7 +287,7 @@ def test_cli_executor_error(tmp_path):
     testargs = ["-i", str(inputfile), "-o", str(outfile), "-d", str(discardfile)]
     with (
         patch.object(cli, "ProcessPoolExecutor", side_effect=ValueError),
-        pytest.raises(ValueError),
+        pytest.raises(cli._CliError),
     ):
         cli.process_args(cli.parse_args(testargs))
     for path in (outfile, discardfile):
@@ -281,18 +322,23 @@ def test_cli_broken_pipe(tmp_path):
             assert proc.stdout is not None and proc.stderr is not None
             assert proc.stdout.readline().startswith(b"https://")
             proc.stdout.close()
-            assert proc.wait() == 1
+            assert proc.wait() == 141
             assert not proc.stderr.read()
 
 
-def test_cli_input_opened_once(tmp_path):
-    """the input is opened once, so pipes and FIFOs are not consumed twice"""
+def test_cli_files_opened_once(tmp_path):
+    """each file is opened once, so pipes and FIFOs are not consumed twice"""
     inputfile = tmp_path / "input.txt"
     inputfile.write_text("https://example.org/a\n", encoding="utf-8")
-    testargs = ["-i", str(inputfile), "-o", str(tmp_path / "s.txt"), "--sample", "1"]
-    with patch("builtins.open", wraps=open) as mock_open:
-        cli.process_args(cli.parse_args(testargs))
-    assert [c.args[0] for c in mock_open.call_args_list].count(str(inputfile)) == 1
+    paths = [str(inputfile), str(tmp_path / "o.txt"), str(tmp_path / "d.txt")]
+    for testargs in [
+        ["-i", paths[0], "-o", paths[1], "--sample", "1"],
+        ["-i", paths[0], "-o", paths[1], "-d", paths[2]],
+    ]:
+        with patch("builtins.open", wraps=open) as mock_open:
+            cli.process_args(cli.parse_args(testargs))
+        opened = [c.args[0] for c in mock_open.call_args_list]
+        assert all(opened.count(path) == 1 for path in paths if path in testargs)
 
 
 def test_cli_input_handling(tmp_path, caplog):

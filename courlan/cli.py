@@ -5,6 +5,7 @@ Implements a basic command-line interface.
 import argparse
 import logging
 import os
+import stat
 import sys
 from collections.abc import Iterable, Iterator, Sequence
 from concurrent.futures import ProcessPoolExecutor
@@ -22,14 +23,13 @@ LOGGER = logging.getLogger(__name__)
 
 def _int_at_least(value: str, minimum: int) -> int:
     "Argparse type for integers with a lower bound."
+    message = f"{value} is not an integer of at least {minimum}"
     try:
         number = int(value)
     except ValueError:
-        number = minimum - 1
+        raise argparse.ArgumentTypeError(message) from None
     if number < minimum:
-        raise argparse.ArgumentTypeError(
-            f"{value} is not an integer of at least {minimum}"
-        )
+        raise argparse.ArgumentTypeError(message)
     return number
 
 
@@ -40,6 +40,10 @@ def _same_path(first: str, second: str) -> bool:
         and os.path.isfile(second)
         and os.path.samefile(first, second)
     )
+
+
+class _CliError(ValueError):
+    "Unusable arguments found once processing has started."
 
 
 def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
@@ -193,6 +197,7 @@ def _cli_sample(args: argparse.Namespace) -> None:
             args.sample,
             exclude_min=args.exclude_min,
             exclude_max=args.exclude_max,
+            verbose=args.verbose,
         ):
             outputfh.write(url + "\n")
 
@@ -203,19 +208,33 @@ def _cli_process(args: argparse.Namespace) -> None:
         # input and executor first, so bad arguments do not truncate the outputs.
         # Workers only start on submit, so a failure there still truncates them.
         inputfh = stack.enter_context(_open(args.inputfile))
-        executor = ProcessPoolExecutor(
-            max_workers=args.parallel,
-            initializer=_init_logging,
-            initargs=(args.verbose,),
-        )
+        try:
+            executor = ProcessPoolExecutor(
+                max_workers=args.parallel,
+                initializer=_init_logging,
+                initargs=(args.verbose,),
+            )
+        except ValueError as err:
+            # e.g. -p above the Windows limit
+            raise _CliError(err) from err
         # on errors, drop the queued batches, running ones still finish
         stack.callback(executor.shutdown, cancel_futures=True)
-        outputfh = stack.enter_context(_open(args.outputfile, "w"))
+        # open every output before truncating any, and compare the opened files
+        outputfh = stack.enter_context(_open(args.outputfile, "a"))
         discardfh = (
-            stack.enter_context(_open(args.discardedfile, "w"))
+            stack.enter_context(_open(args.discardedfile, "a"))
             if args.discardedfile is not None
             else None
         )
+        handles = [fh for fh in (outputfh, discardfh) if fh is not None]
+        stats = [os.fstat(fh.fileno()) for fh in handles]
+        regular = [stat.S_ISREG(fstat.st_mode) for fstat in stats]
+        if len(stats) == 2 and regular[0] and os.path.samestat(*stats):
+            raise _CliError(f"output file is the discarded file: {args.outputfile}")
+        # pipes and devices cannot be truncated
+        for fh, is_regular in zip(handles, regular, strict=True):
+            if is_regular:
+                fh.truncate(0)
         batches = _batch_lines(inputfh, 1000)
         # submit up to 1000 batches at a time and write results in input order
         while chunk := list(islice(batches, 1000)):
@@ -252,9 +271,9 @@ def main() -> None:
     try:
         process_args(args)
     except BrokenPipeError:
-        # the reader stopped early, e.g. with head
-        sys.exit(1)
-    except (OSError, ValueError) as err:
+        # the reader stopped early, e.g. with head, 128 + SIGPIPE as in shells
+        sys.exit(141)
+    except (OSError, _CliError) as err:
         print(f"courlan: error: {err}", file=sys.stderr)
         sys.exit(2)
 

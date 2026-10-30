@@ -26,7 +26,7 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 
 - **Batch mode** (default): processes all URLs, writes accepted URLs to `--outputfile` and rejected ones to `--discardedfile` if specified. Parallelism controlled by `-p`.
 - **Sampling mode** (`--sample`): samples N URLs per domain. Only `-i`, `-o`, `--strict`, `-l`, `-v` and the `--exclude-*` bounds apply. `-p`, `-r` and `-d` are rejected. `--exclude-*` without `--sample` is rejected too, and `-p` and `--sample` take positive integers.
-- **Input**: UTF-8 with or without BOM. Blank lines are skipped. Lines with invalid UTF-8 go to `--discardedfile` in batch mode and are skipped in sampling mode, with a count logged by `-v`. The run is refused if an output file is the input file. Unreadable or unwritable files end the run with an error and exit code 2. If the output is piped to a reader that stops early, such as `-o /dev/stdout | head`, the run ends quietly with exit code 1.
+- **Input**: UTF-8 with or without BOM. Blank lines are skipped. Lines with invalid UTF-8 go to `--discardedfile` in batch mode. In sampling mode they are skipped, and `-v` logs their count. The run is refused if an output file is the input file, or if `--outputfile` and `--discardedfile` are the same file. Unreadable or unwritable files end the run with an error and exit code 2. If the output is piped to a reader that stops early, such as `-o /dev/stdout | head`, the run ends quietly with exit code 141.
 
 ## Examples
 

@@ -41,7 +41,7 @@ store.find_unvisited_urls('https://example.com')
 | `verbose=True` | Dump unvisited URLs on SIGINT/SIGTERM (POSIX only, main thread only; replaces existing handlers) |
 
 ```python
-store = UrlStore(language='en', strict=True, compressed=True)
+filtered_store = UrlStore(language='en', strict=True, compressed=True)
 ```
 
 

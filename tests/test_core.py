@@ -2,6 +2,7 @@
 Unit tests for the courlan package: check_url, link extraction and network.
 """
 
+import logging
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
@@ -389,6 +390,15 @@ def test_extraction():
         "https://test.com/a",
         "https://test.com/b",
     }
+
+
+def test_extraction_unresolvable(caplog):
+    """links failing to resolve are dropped and logged, even without filters"""
+    pagecontent = '<html><a href="/a">x</a><a href="https://ok.org/z">z</a></html>'
+    with caplog.at_level(logging.DEBUG, logger="courlan.core"):
+        links = extract_links(pagecontent, url="http://[::1", no_filter=True)
+    assert links == {"https://ok.org/z"}
+    assert "unresolvable link: /a" in caplog.text
 
 
 def test_extraction_navigation():

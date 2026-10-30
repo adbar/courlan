@@ -232,6 +232,7 @@ def extract_links(
             try:
                 link = fix_relative_urls(url, link)
             except ValueError:
+                LOGGER.debug("unresolvable link: %s", link)
                 continue
         # check
         if no_filter is False:
