@@ -8,8 +8,10 @@ import os
 import signal
 import subprocess
 import sys
+from collections import Counter
 from contextlib import redirect_stdout
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -184,7 +186,7 @@ def test_cli_arguments_validation(tmp_path, capsys):
             "0 is not an integer of at least 1",
         ),
         (["-i", infile, "-o", outfile, "--sample", "-1"], "at least 1"),
-        (["-i", infile, "-o", outfile, "-p", "0"], "at least 1"),
+        (["-i", infile, "-o", outfile, "-p", "0"], "0 is not an integer"),
         (["-i", infile, "-o", outfile, "--sample", "x"], "x is not an integer"),
         (["-i", infile, "-o", outfile, "-p", "x"], "x is not an integer"),
         (["-i", infile, "-o", outfile, "--exclude-min", "2"], "require --sample"),
@@ -238,6 +240,7 @@ def test_cli_arguments_validation(tmp_path, capsys):
 def test_cli_parallel_bound(monkeypatch, capsys):
     """-p is capped at 61 on Windows only"""
     testargs = ["-i", os.devnull, "-o", os.devnull, "-p", "62"]
+    monkeypatch.setattr(sys, "platform", "linux")
     assert cli.parse_args(testargs).parallel == 62
     monkeypatch.setattr(sys, "platform", "win32")
     assert cli.parse_args(testargs[:-1] + ["61"]).parallel == 61
@@ -411,14 +414,10 @@ def test_sample(caplog):
     example_urls = [f"https://www.example.org/{a}" for a in range(100)]
     other_urls = [f"https://www.other.org/{a}" for a in range(10000)]
     urls = test_urls + example_urls + other_urls
-    sample = sample_urls(urls, 10)
-    assert len([u for u in sample if "test.org" in u]) == 10
-    assert len([u for u in sample if "example.org" in u]) == 10
-    assert len([u for u in sample if "other.org" in u]) == 10
-    sample = sample_urls(urls, 150)
-    assert len([u for u in sample if "test.org" in u]) == 150
-    assert len([u for u in sample if "example.org" in u]) == 100
-    assert len([u for u in sample if "other.org" in u]) == 150
+    hosts = Counter(urlsplit(u).hostname for u in sample_urls(urls, 10))
+    assert hosts == {"test.org": 10, "www.example.org": 10, "www.other.org": 10}
+    hosts = Counter(urlsplit(u).hostname for u in sample_urls(urls, 150))
+    assert hosts == {"test.org": 150, "www.example.org": 100, "www.other.org": 150}
 
     # size exclusions are logged as INFO, or WARNING with verbose
     logger = logging.getLogger("courlan.sampling")
