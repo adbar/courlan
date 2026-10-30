@@ -4,6 +4,7 @@ Unit tests for the courlan package: check_url, link extraction and network.
 
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
+from urllib.robotparser import RobotFileParser
 
 import pytest
 
@@ -15,9 +16,7 @@ from courlan import (
     validate_url,
 )
 from courlan.core import filter_links
-from courlan.hosts import (
-    get_registrable_domain,
-)
+from courlan.hosts import get_registrable_domain
 from courlan.langcodes import langcodes_score
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
@@ -174,7 +173,6 @@ def test_urlcheck_domain():
     assert check_url("http://127.0.0.1") is not None
     assert check_url("http://111.111.111.111") is not None
     assert check_url("http://0127.0.0.1") is None
-    # assert check_url("http://::1") is not None
     assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
     # bracketed form is what urlsplit produces for a valid IPv6 URL
     assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") == (
@@ -251,7 +249,6 @@ def test_urlcheck_redirects():
     "Test redirection checks with a mocked HTTP pool."
 
     def _fake_head(status, location):
-        "Stand-in for a urllib3 HEAD response."
         resp = MagicMock()
         resp.status = status
         resp.geturl.return_value = location
@@ -327,74 +324,71 @@ def test_extraction():
     }
     # link known under another form
     pagecontent = '<html><a href="https://test.org/example"/><a href="https://test.org/example/&"/></html>'
-    assert len(extract_links(pagecontent, "https://test.org", False)) == 1
+    assert extract_links(pagecontent, "https://test.org", False) == {
+        "https://test.org/example"
+    }
     # nofollow
     pagecontent = '<html><a href="https://test.com/example" rel="nofollow ugc"/></html>'
     assert not extract_links(pagecontent, "https://test.com/", False)
     pagecontent = '<html><a href="https://test.com/rel/nofollow-guide"/></html>'
-    assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
+    assert extract_links(pagecontent, "https://test.com/", False) == {
+        "https://test.com/rel/nofollow-guide"
+    }
     # language
+    example = {"https://test.com/example"}
     pagecontent = '<html><a href="https://test.com/example" hreflang="de-DE"/></html>'
-    assert len(extract_links(pagecontent, "https://test.com/", False)) == 1
+    assert extract_links(pagecontent, "https://test.com/", False) == example
     assert not extract_links(pagecontent, "https://test.com/", True)
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     assert not extract_links(pagecontent, "https://test.com/", False, language="en")
     pagecontent = "<html><a href=https://test.com/example hreflang=de-DE/></html>"
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     # x-default
     pagecontent = (
         '<html><a href="https://test.com/example" hreflang="x-default"/></html>'
     )
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="en")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="en") == example
     )
     pagecontent = '<html><a href="https://test.com/example" hreflang="DE-DE"/></html>'
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     assert not extract_links(pagecontent, "https://test.com/", False, language="en")
     pagecontent = (
         '<html><a href="https://test.com/example" hreflang="X-DEFAULT"/></html>'
     )
     assert (
-        len(extract_links(pagecontent, "https://test.com/", False, language="de")) == 1
+        extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     # language + content
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
     links = extract_links(pagecontent, "https://test.com/", external_bool=False)
     assert sorted(links) == ["https://test.com/example", "https://test.com/example2"]
-    assert (
-        len(
-            extract_links(
-                pagecontent, "https://test.com/", external_bool=False, language="de"
-            )
-        )
-        == 2
-    )
+    assert extract_links(pagecontent, "https://test.com/", language="de") == set(links)
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
-    assert (
-        len(
-            extract_links(
-                pagecontent, "https://test.com/", external_bool=False, with_nav=False
-            )
-        )
-        == 1
-    )
-    assert (
-        len(
-            extract_links(
-                pagecontent, "https://test.com/", external_bool=False, with_nav=True
-            )
-        )
-        == 2
-    )
+    assert extract_links(pagecontent, "https://test.com/", with_nav=False) == example
+    assert extract_links(pagecontent, "https://test.com/", with_nav=True) == {
+        "https://test.com/example",
+        "https://test.com/page/2",
+    }
+    # filtered, invalid or duplicate links must not stop extraction of later ones
+    pagecontent = '<html><a href="https://test.com/skip" rel="nofollow"/><a href="https://test.com/keep"/></html>'
+    assert extract_links(pagecontent, "https://test.com/") == {"https://test.com/keep"}
+    pagecontent = '<html><a href="http://t.g/x"/><a href="https://test.com/ok"/></html>'
+    assert extract_links(pagecontent, "https://test.com/") == {"https://test.com/ok"}
+    pagecontent = '<html><a href="https://test.com/a"/><a href="https://test.com/a"/><a href="https://test.com/b"/></html>'
+    assert extract_links(pagecontent, "https://test.com/") == {
+        "https://test.com/a",
+        "https://test.com/b",
+    }
 
 
 def test_extraction_navigation():
@@ -402,13 +396,6 @@ def test_extraction_navigation():
     pagecontent = "<html><head><title>Links</title></head><body><a href='/links/2/0'>0</a> <a href='/links/2/1'>1</a> </body></html>"
     links = extract_links(
         pagecontent, "https://httpbun.org", external_bool=False, with_nav=True
-    )
-    assert sorted(links) == [
-        "https://httpbun.org/links/2/0",
-        "https://httpbun.org/links/2/1",
-    ]
-    links = extract_links(
-        pagecontent, url="https://httpbun.org", external_bool=False, with_nav=True
     )
     assert sorted(links) == [
         "https://httpbun.org/links/2/0",
@@ -456,7 +443,6 @@ def test_extraction_navigation():
         trailing_slash=False,
         with_nav=True,
     )
-    print(links)
     assert sorted(links) == [
         "https://example.org/page",  # parameter stripped by strict filtering
         "https://example.org/page/10",
@@ -498,8 +484,9 @@ def test_extraction_navigation():
     }
     # without url, external_bool must not filter (no reference to compare)
     pagecontent = '<html><a href="https://example.com/page"/><a href="https://other.org/post"/></html>'
-    assert len(extract_links(pagecontent)) == 2
-    assert len(extract_links(pagecontent, external_bool=True)) == 2
+    expected = {"https://example.com/page", "https://other.org/post"}
+    assert extract_links(pagecontent) == expected
+    assert extract_links(pagecontent, external_bool=True) == expected
     # return all links without filters
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="/page/2"/><a href="https://example.com/gallery/"/></html>'
     result = extract_links(
@@ -513,7 +500,6 @@ def test_extraction_navigation():
 
 
 def test_filter_links():
-    "Test the filter_links helper."
     base_url = "https://example.org"
     htmlstring = '<html><body><a href="https://example.org/page1"/><a href="https://example.org/page1/"/><a href="https://test.org/page1"/></body></html>'
 
@@ -532,8 +518,6 @@ def test_filter_links():
 
 def test_filter_links_with_rules():
     "filter_links drops robots.txt-disallowed links and honors the external flag."
-    from urllib.robotparser import RobotFileParser
-
     rules = RobotFileParser()
     rules.parse(["User-agent: *", "Disallow: /private/"])
     htmlstring = (
@@ -584,7 +568,6 @@ def test_examples():
 
 
 def test_meta():
-    "Test package meta functions."
     _ = langcodes_score("en", "en_HK")
     _ = get_registrable_domain("www.example.com")
     _ = _parse("https://example.net/123/abc")
@@ -602,21 +585,3 @@ def test_meta():
     assert get_registrable_domain.cache_info().currsize == 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0  # type: ignore[attr-defined]
-
-
-# --- mutation-gap tests ---
-
-
-def test_extract_links_loop_resilience():
-    "Filtered/invalid/duplicate links must not prevent extraction of later valid links."
-    # nofollow before valid link
-    html = '<html><a href="https://test.com/skip" rel="nofollow"/><a href="https://test.com/keep"/></html>'
-    assert "https://test.com/keep" in extract_links(html, "https://test.com/", False)
-    # invalid link before valid
-    html = '<html><a href="http://t.g/x"/><a href="https://test.com/ok"/></html>'
-    result = extract_links(html, "https://test.com/", False)
-    assert "https://test.com/ok" in result
-    # duplicate before unique
-    html = '<html><a href="https://test.com/a"/><a href="https://test.com/a"/><a href="https://test.com/b"/></html>'
-    result = extract_links(html, "https://test.com/", False)
-    assert "https://test.com/a" in result and "https://test.com/b" in result

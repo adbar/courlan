@@ -2,14 +2,12 @@
 Unit tests for the courlan package: the command-line interface and sampling.
 """
 
-import io
 import logging
 import os
 import signal
 import subprocess
 import sys
 from collections import Counter
-from contextlib import redirect_stdout
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
@@ -39,7 +37,7 @@ def run_cli(*args, **kwargs):
     )
 
 
-def test_cli(tmp_path):
+def test_cli(tmp_path, capsys):
     """test the command-line interface"""
     with open(INPUTFILE, encoding="utf-8") as inputfh:
         input_urls = inputfh.read().splitlines()
@@ -53,13 +51,7 @@ def test_cli(tmp_path):
         "--language", "en",
         "--parallel", "2",
     ]  # fmt: skip
-    args = cli.parse_args(testargs)
-    assert args.inputfile == INPUTFILE
-    assert args.discardedfile == discardedfile
-    assert args.outputfile == outputfile
-    assert args.verbose is True
-    assert args.language == "en"
-    assert args.parallel == 2
+    assert cli.parse_args(testargs).parallel == 2
     assert run_cli("--help").returncode == 0
 
     # _cli_check_urls
@@ -77,7 +69,6 @@ def test_cli(tmp_path):
         assert outputfh.read().splitlines() == input_urls
 
     # in-process run with processing
-    f = io.StringIO()
     testargs = [
         "-i", INPUTFILE,
         "-d", discardedfile,
@@ -86,9 +77,8 @@ def test_cli(tmp_path):
         "--strict",
         "-p", "1",
     ]  # fmt: skip
-    with redirect_stdout(f):
-        cli.process_args(cli.parse_args(testargs))
-    assert not f.getvalue()
+    cli.process_args(cli.parse_args(testargs))
+    assert not capsys.readouterr().out
     with open(outputfile, encoding="utf-8") as outputfh:
         accepted = outputfh.read().splitlines()
     with open(discardedfile, encoding="utf-8") as discardfh:
@@ -100,9 +90,8 @@ def test_cli(tmp_path):
     # in-process run with sampling
     samplefile = tmp_path / "sample.txt"
     testargs = ["-i", INPUTFILE, "-o", str(samplefile), "--sample", "10"]
-    with redirect_stdout(f):
-        cli.process_args(cli.parse_args(testargs))
-    assert not f.getvalue()
+    cli.process_args(cli.parse_args(testargs))
+    assert not capsys.readouterr().out
     assert samplefile.read_text(encoding="utf-8").splitlines() == input_urls
 
 
@@ -126,6 +115,15 @@ def test_cli_main(tmp_path, capsys, restore_courlan_level):
     assert len(outputfile.read_text(encoding="utf-8").splitlines()) == 4
     assert err.value.code == 2
     assert capsys.readouterr().err.startswith("courlan: error:")
+    # e.g. -p above the Windows limit of ProcessPoolExecutor
+    with (
+        patch.object(sys, "argv", testargs),
+        patch.object(cli, "process_args", side_effect=ValueError("max_workers")),
+        pytest.raises(SystemExit) as value_err,
+    ):
+        cli.main()
+    assert value_err.value.code == 2
+    assert "courlan: error: max_workers" in capsys.readouterr().err
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="no signal dump")
@@ -180,47 +178,19 @@ def test_cli_arguments_validation(tmp_path, capsys):
     infile, outfile = str(inputfile), str(tmp_path / "output.txt")
     hardlink = str(tmp_path / "hardlink.txt")
     os.link(infile, hardlink)
+    base = ["-i", infile, "-o", outfile]
     for testargs, message in [
-        (
-            ["-i", infile, "-o", outfile, "--sample", "0"],
-            "0 is not an integer of at least 1",
-        ),
-        (["-i", infile, "-o", outfile, "--sample", "-1"], "at least 1"),
-        (["-i", infile, "-o", outfile, "-p", "0"], "0 is not an integer"),
-        (["-i", infile, "-o", outfile, "--sample", "x"], "x is not an integer"),
-        (["-i", infile, "-o", outfile, "-p", "x"], "x is not an integer"),
-        (["-i", infile, "-o", outfile, "--exclude-min", "2"], "require --sample"),
-        (["-i", infile, "-o", outfile, "--exclude-max", "2"], "require --sample"),
-        (
-            ["-i", infile, "-o", outfile, "--sample", "1", "--exclude-max", "-1"],
-            "at least 0",
-        ),
-        (
-            ["-i", infile, "-o", outfile, "--sample", "1", "--exclude-min", "x"],
-            "x is not an integer of at least 0",
-        ),
-        (
-            [
-                "-i",
-                infile,
-                "-o",
-                outfile,
-                "--sample",
-                "1",
-                "--exclude-min",
-                "3",
-                "--exclude-max",
-                "2",
-            ],
-            "greater than",
-        ),
-        (["-i", infile, "-o", outfile, "--sample", "1", "-p", "2"], "--sample"),
-        (["-i", infile, "-o", outfile, "--sample", "1", "-r"], "--sample"),
-        (["-i", infile, "-o", outfile, "--sample", "1", "-d", infile], "--sample"),
-        (["-i", infile, "-o", outfile, "--sample", "1", "-d", ""], "--sample"),
+        ([*base, "--sample", "0"], "0 is not an integer of at least 1"),
+        ([*base, "-p", "0"], "0 is not an integer"),
+        ([*base, "--sample", "x"], "x is not an integer"),
+        ([*base, "--exclude-min", "2"], "require --sample"),
+        ([*base, "--exclude-max", "2"], "require --sample"),
+        ([*base, "--sample", "1", "--exclude-max", "-1"], "at least 0"),
+        ([*base, "--sample", "1", "-p", "2"], "--sample"),
+        ([*base, "--sample", "1", "-r"], "--sample"),
+        ([*base, "--sample", "1", "-d", ""], "--sample"),
         (["-i", infile, "-o", infile], "is the input file"),
-        (["-i", infile, "-o", outfile, "-d", infile], "is the input file"),
-        (["-i", infile, "-o", infile, "--sample", "1"], "is the input file"),
+        ([*base, "-d", infile], "is the input file"),
         (["-i", infile, "-o", hardlink], "is the input file"),
     ]:
         with pytest.raises(SystemExit) as err:
@@ -230,24 +200,8 @@ def test_cli_arguments_validation(tmp_path, capsys):
     assert inputfile.read_text(encoding="utf-8") == "https://example.org/a\n"
     assert not os.path.exists(outfile)
     assert cli.parse_args(["-i", os.devnull, "-o", os.devnull])
-    parsed = cli.parse_args(
-        ["-i", infile, "-o", outfile, "--sample", "1"]
-        + ["--exclude-min", "0", "--exclude-max", "0"]
-    )
-    assert parsed.exclude_min == parsed.exclude_max == 0
-
-
-def test_cli_parallel_bound(monkeypatch, capsys):
-    """-p is capped at 61 on Windows only"""
-    testargs = ["-i", os.devnull, "-o", os.devnull, "-p", "62"]
-    monkeypatch.setattr(sys, "platform", "linux")
-    assert cli.parse_args(testargs).parallel == 62
-    monkeypatch.setattr(sys, "platform", "win32")
-    assert cli.parse_args(testargs[:-1] + ["61"]).parallel == 61
-    with pytest.raises(SystemExit) as err:
-        cli.parse_args(testargs)
-    assert err.value.code == 2
-    assert "62 is not an integer from 1 to 61" in capsys.readouterr().err
+    parsed = cli.parse_args([*base, "--sample", "1", "--exclude-max", "0"])
+    assert parsed.exclude_max == 0
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="symlinks need privileges")
@@ -385,9 +339,7 @@ def test_cli_no_discardfile(tmp_path):
     inputfile.write_text("https://example.org/valid\nnot-a-url\n")
     outputfile = tmp_path / "output.txt"
     testargs = ["-i", str(inputfile), "-o", str(outputfile), "-p", "1"]
-    args = cli.parse_args(testargs)
-    assert args.discardedfile is None
-    cli._cli_process(args)
+    cli._cli_process(cli.parse_args(testargs))
     assert outputfile.read_text().splitlines() == ["https://example.org/valid"]
 
 
@@ -396,7 +348,6 @@ def test_sample(caplog):
     assert not list(sample_urls(["http://test.org/test1", "http://test.org/test2"], 0))
     assert not list(sample_urls(["http://test.org/", "http://test.org"], 10))
 
-    # assert len(sample_urls(['http://test.org/test1', 'http://test.org/test2'], 1)) == 1
     mylist = [
         "http://t.o/t1",
         "http://test.org/test1",

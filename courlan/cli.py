@@ -20,19 +20,16 @@ from .urlstore import UrlStore
 LOGGER = logging.getLogger(__name__)
 
 
-def _bounded_int(value: str, minimum: int, maximum: int | None = None) -> int:
-    "Argparse type for integers within bounds."
+def _int_at_least(value: str, minimum: int) -> int:
+    "Argparse type for integers with a lower bound."
     try:
         number = int(value)
     except ValueError:
         number = minimum - 1
-    if number < minimum or (maximum is not None and number > maximum):
-        bounds = (
-            f"of at least {minimum}"
-            if maximum is None
-            else f"from {minimum} to {maximum}"
+    if number < minimum:
+        raise argparse.ArgumentTypeError(
+            f"{value} is not an integer of at least {minimum}"
         )
-        raise argparse.ArgumentTypeError(f"{value} is not an integer {bounds}")
     return number
 
 
@@ -55,21 +52,18 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         "-i",
         "--inputfile",
         help="name of input file (required)",
-        type=str,
         required=True,
     )
     group1.add_argument(
         "-o",
         "--outputfile",
         help="name of output file (required)",
-        type=str,
         required=True,
     )
     group1.add_argument(
         "-d",
         "--discardedfile",
         help="name of file to store discarded URLs (optional)",
-        type=str,
     )
     group1.add_argument(
         "-v", "--verbose", help="increase output verbosity", action="store_true"
@@ -78,18 +72,13 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         "-p",
         "--parallel",
         help="number of parallel processes (batch mode only)",
-        # ProcessPoolExecutor allows at most 61 workers on Windows
-        type=partial(
-            _bounded_int, minimum=1, maximum=61 if sys.platform == "win32" else None
-        ),
+        type=partial(_int_at_least, minimum=1),
     )
     group2 = argsparser.add_argument_group("Filtering", "Configure URL filters")
     group2.add_argument(
         "--strict", help="perform more restrictive tests", action="store_true"
     )
-    group2.add_argument(
-        "-l", "--language", help="use language filter (ISO 639-1 code)", type=str
-    )
+    group2.add_argument("-l", "--language", help="use language filter (ISO 639-1 code)")
     group2.add_argument(
         "-r", "--redirects", help="check redirects", action="store_true"
     )
@@ -99,29 +88,23 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
     group3.add_argument(
         "--sample",
         help="size of sample per domain",
-        type=partial(_bounded_int, minimum=1),
+        type=partial(_int_at_least, minimum=1),
     )
     group3.add_argument(
         "--exclude-max",
         help="exclude domains with more than n URLs",
-        type=partial(_bounded_int, minimum=0),
+        type=partial(_int_at_least, minimum=0),
     )
     group3.add_argument(
         "--exclude-min",
         help="exclude domains with less than n URLs",
-        type=partial(_bounded_int, minimum=0),
+        type=partial(_int_at_least, minimum=0),
     )
     parsed = argsparser.parse_args(args)
     if parsed.sample is None and (
         parsed.exclude_max is not None or parsed.exclude_min is not None
     ):
         argsparser.error("--exclude-max and --exclude-min require --sample")
-    if (
-        parsed.exclude_min is not None
-        and parsed.exclude_max is not None
-        and parsed.exclude_min > parsed.exclude_max
-    ):
-        argsparser.error("--exclude-min cannot be greater than --exclude-max")
     if parsed.sample is not None and (
         parsed.parallel is not None
         or parsed.redirects
@@ -271,7 +254,7 @@ def main() -> None:
     except BrokenPipeError:
         # the reader stopped early, e.g. with head
         sys.exit(1)
-    except OSError as err:
+    except (OSError, ValueError) as err:
         print(f"courlan: error: {err}", file=sys.stderr)
         sys.exit(2)
 

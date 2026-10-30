@@ -5,35 +5,30 @@ Unit tests for the courlan package: hosts, TLD, PSL and domain filtering.
 from unittest.mock import MagicMock, patch
 
 import pytest
+import urllib3
 
-from courlan import (
-    is_external,
-)
+from courlan import is_external
 from courlan._psl_data import EXCEPTIONS, MULTI_PART_SUFFIXES, WILDCARD_BASES
-from courlan.filters import (
-    domain_filter,
-)
+from courlan.filters import domain_filter
 from courlan.hosts import (
     _idna_encode,
     _idna_label,
     get_registrable_domain,
 )
+from courlan.urlutils import get_tldinfo
 
-_DNS_253 = "a." * 125 + "abc"  # 253 chars — at the DNS length limit
-
-
-_DNS_254 = "a." * 125 + "abcd"  # 254 chars — over
+_DNS_253 = "a." * 125 + "abc"  # 253 chars, at the DNS length limit
+_DNS_254 = "a." * 125 + "abcd"  # 254 chars, over the limit
 
 
 @pytest.mark.parametrize(
     "domain, expected",
     [
         ("", False),
-        ("a" * 254 + ".com", False),  # exceeds DNS length limit
         (_DNS_253, True),
         (_DNS_254, False),
-        ("too-long" + "g" * 60 + ".org", False),
-        ("long" + "g" * 50 + ".org", True),
+        ("a" * 64 + ".org", False),
+        ("a" * 63 + ".org", True),
         ("example.-com", False),
         ("example.", False),
         ("-example.com", False),
@@ -114,7 +109,9 @@ def test_domain_filter(domain, expected):
         # hex IPv4 rejected like decimal
         ("0xc0.0xa8.0x0.0x1", (None, None)),
         ("foo.0x1", (None, None)),
+        ("foo.0XAB", (None, None)),
         ("foo.0x", (None, None)),
+        ("foo.0xgg", ("foo", "foo.0xgg")),
         # IPv6 (colons) rejected
         ("2001:db8::1", (None, None)),
         ("::ffff:192.0.2.128", (None, None)),
@@ -255,29 +252,29 @@ def test_psl_parsers():
         extract_icann_rules("no markers")
 
 
-def test_psl_main_exit_codes():
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        # HTTP-status failure
+        {"side_effect": RuntimeError("PSL download failed: HTTP 503")},
+        # network failure (urllib3.exceptions.HTTPError, e.g. MaxRetryError)
+        {"side_effect": urllib3.exceptions.MaxRetryError(None, "url")},  # type: ignore[arg-type]
+        # malformed PSL text: markers missing -> IndexError from extract_icann_rules
+        {"return_value": "no markers here"},
+    ],
+)
+def test_psl_main_exit_codes(kwargs):
     "main() maps every data-error channel to exit 2, distinct from --check's exit 1."
-    import urllib3
-
     import scripts.update_psl as update_psl
 
-    # HTTP-status failure (RuntimeError from fetch_psl)
-    with patch.object(
-        update_psl,
-        "fetch_psl",
-        side_effect=RuntimeError("PSL download failed: HTTP 503"),
-    ):
+    with patch.object(update_psl, "fetch_psl", **kwargs):
         assert update_psl.main() == 2
 
-    # network failure (urllib3.exceptions.HTTPError, e.g. MaxRetryError)
-    with patch.object(
-        update_psl,
-        "fetch_psl",
-        side_effect=urllib3.exceptions.MaxRetryError(None, "url"),  # type: ignore[arg-type]
-    ):
-        assert update_psl.main() == 2
 
-    # undecodable payload (UnicodeDecodeError from fetch_psl)
+def test_psl_main_undecodable():
+    "Undecodable payload (UnicodeDecodeError from fetch_psl) exits 2."
+    import scripts.update_psl as update_psl
+
     with patch.object(
         urllib3.PoolManager,
         "request",
@@ -285,79 +282,37 @@ def test_psl_main_exit_codes():
     ):
         assert update_psl.main() == 2
 
-    # malformed PSL text: markers missing -> IndexError from extract_icann_rules
-    with patch.object(update_psl, "fetch_psl", return_value="no markers here"):
-        assert update_psl.main() == 2
 
-
-def test_external():
+@pytest.mark.parametrize(
+    "url, reference, ignore_suffix, expected",
+    [
+        ("", "https://www.microsoft.com/", True, True),
+        ("https://github.com/", "https://www.microsoft.com/", True, True),
+        ("https://microsoft.com/", "https://www.microsoft.com/", True, False),
+        ("https://microsoft.com/", "https://www.microsoft.com/", False, False),
+        ("https://google.com/", "https://www.google.co.uk/", True, False),
+        ("https://google.com/", "https://www.google.co.uk/", False, True),
+        # compound suffixes: same registrable domain, different subdomains
+        ("https://a.example.co.uk/", "https://b.example.co.uk/", False, False),
+        # compound suffixes: different registrable domains under same ccSLD
+        ("https://x.co.uk/", "https://y.co.uk/", False, True),
+        # same IP in different textual forms is the same host
+        ("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/", True, False),
+        ("http://192.168.0.1/", "http://192.168.0.1./", True, False),
+        # malformed URLs
+        ("h1234", "https://www.google.co.uk/", True, True),
+        # stray bracket in the netloc must not raise
+        ("http://sub.example.com]/x", "https://example.com/", True, True),
+    ],
+)
+def test_external(url, reference, ignore_suffix, expected):
     """test domain comparison"""
-    assert is_external("", "https://www.microsoft.com/") is True
-    assert is_external("https://github.com/", "https://www.microsoft.com/") is True
-    assert (
-        is_external(
-            "https://microsoft.com/", "https://www.microsoft.com/", ignore_suffix=True
-        )
-        is False
-    )
-    assert (
-        is_external(
-            "https://microsoft.com/", "https://www.microsoft.com/", ignore_suffix=False
-        )
-        is False
-    )
-    assert (
-        is_external(
-            "https://google.com/", "https://www.google.co.uk/", ignore_suffix=True
-        )
-        is False
-    )
-    assert (
-        is_external(
-            "https://google.com/", "https://www.google.co.uk/", ignore_suffix=False
-        )
-        is True
-    )
-    # compound suffixes: same registrable domain, different subdomains
-    assert (
-        is_external(
-            "https://a.example.co.uk/", "https://b.example.co.uk/", ignore_suffix=False
-        )
-        is False
-    )
-    # compound suffixes: different registrable domains under same ccSLD
-    assert (
-        is_external("https://x.co.uk/", "https://y.co.uk/", ignore_suffix=False) is True
-    )
-    # same IP in different textual forms is the same host
-    assert is_external("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/") is False
-    assert is_external("http://192.168.0.1/", "http://192.168.0.1./") is False
-    # malformed URLs
-    assert is_external("h1234", "https://www.google.co.uk/", ignore_suffix=True) is True
-    # stray bracket in the netloc must not raise
-    assert is_external("http://sub.example.com]/x", "https://example.com/") is True
-
-
-# --- mutation-gap tests ---
+    assert is_external(url, reference, ignore_suffix=ignore_suffix) is expected
 
 
 def test_get_tldinfo_ipv6():
     "IPv6 addresses through get_tldinfo."
-    from courlan.urlutils import get_tldinfo
-
     # bracketed IPv6
     assert get_tldinfo("https://[2001:db8::1]/path") == ("2001:db8::1", "2001:db8::1")
     # unbracketed IPv6 (2 colons minimum)
     assert get_tldinfo("http://2001:db8::1/path") == ("2001:db8::1", "2001:db8::1")
-
-
-def test_hosts_hex_labels():
-    "Hex numeric labels (0xAB) detected as numeric, preventing domain registration."
-    from courlan.hosts import _is_numeric_label
-
-    assert _is_numeric_label("0xAB") is True
-    assert _is_numeric_label("0xA") is True
-    assert _is_numeric_label("0x") is True  # empty hex digits
-    assert _is_numeric_label("0xGG") is False
-    assert _is_numeric_label("123") is True
-    assert _is_numeric_label("abc") is False

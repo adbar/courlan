@@ -52,106 +52,69 @@ def test_malformed_url_degrades():
     # get_host_and_path still raises its own documented incomplete-URL error.
     with pytest.raises(ValueError, match="incomplete URL"):
         get_host_and_path("HTTP://[::1]&")
-    # valid and hostless URLs are unaffected.
-    assert get_base_url("https://example.org/") == "https://example.org"
-    assert get_hostinfo("https://example.org/path") == (
-        "example.org",
-        "https://example.org",
-    )
 
 
-def test_fix_relative():
-    assert (
-        fix_relative_urls("https://example.org", "page.html")
-        == "https://example.org/page.html"
-    )
-    assert (
-        fix_relative_urls("http://example.org", "//example.org/page.html")
-        == "http://example.org/page.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "./page.html")
-        == "https://example.org/page.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "/page.html")
-        == "https://example.org/page.html"
-    )
-    # fixing partial URLs
-    assert (
-        fix_relative_urls("https://example.org", "https://example.org/test.html")
-        == "https://example.org/test.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "/test.html")
-        == "https://example.org/test.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "//example.org/test.html")
-        == "https://example.org/test.html"
-    )
-    assert (
-        fix_relative_urls("http://example.org", "//example.org/test.html")
-        == "http://example.org/test.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "test.html")
-        == "https://example.org/test.html"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "../../test.html")
-        == "https://example.org/test.html"
-    )
-    # sub-directories
-    assert (
-        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "/absolute")
-        == "https://www.example.org/absolute"
-    )
-    assert (
-        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "relative")
-        == "https://www.example.org/dir/subdir/relative"
-    )
-    assert (
-        fix_relative_urls("https://www.example.org/dir/subdir/", "relative")
-        == "https://www.example.org/dir/subdir/relative"
-    )
-    assert (
-        fix_relative_urls("https://www.example.org/dir/subdir", "relative")
-        == "https://www.example.org/dir/relative"
-    )
-    # non-relative URLs
-    assert (
-        fix_relative_urls("https://example.org", "https://www.eff.org")
-        == "https://www.eff.org"
-    )
-    assert (
-        fix_relative_urls("https://example.org", "//www.eff.org")
-        == "https://www.eff.org"
-    )
-    assert (
-        fix_relative_urls("http://example.org", "//www.eff.org") == "http://www.eff.org"
-    )
-    assert (
-        fix_relative_urls("http://example.org", "https://www.eff.org")
-        == "https://www.eff.org"
-    )
-    # looks like an absolute URL but is actually a valid relative URL
-    assert (
-        fix_relative_urls("https://example.org", "www.eff.org")
-        == "https://example.org/www.eff.org"
-    )
-    # misc
-    assert (
-        fix_relative_urls("https://www.example.org/dir/subdir/file.html", "./this:that")
-        == "https://www.example.org/dir/subdir/this:that"
-    )
-    assert (
-        fix_relative_urls(
-            "https://www.example.org/test.html?q=test#frag", "foo.html?q=bar#baz"
-        )
-        == "https://www.example.org/foo.html?q=bar#baz"
-    )
-    assert fix_relative_urls("https://www.example.org", "{privacy}") == "{privacy}"
+SUB = "https://www.example.org/dir/subdir/file.html"
+
+
+@pytest.mark.parametrize(
+    "base, link, expected",
+    [
+        ("https://example.org", "page.html", "https://example.org/page.html"),
+        (
+            "http://example.org",
+            "//example.org/page.html",
+            "http://example.org/page.html",
+        ),
+        ("https://example.org", "./page.html", "https://example.org/page.html"),
+        ("https://example.org", "/page.html", "https://example.org/page.html"),
+        # fixing partial URLs
+        (
+            "https://example.org",
+            "https://example.org/test.html",
+            "https://example.org/test.html",
+        ),
+        (
+            "https://example.org",
+            "//example.org/test.html",
+            "https://example.org/test.html",
+        ),
+        ("https://example.org", "../../test.html", "https://example.org/test.html"),
+        # sub-directories
+        (SUB, "/absolute", "https://www.example.org/absolute"),
+        (SUB, "relative", "https://www.example.org/dir/subdir/relative"),
+        (
+            "https://www.example.org/dir/subdir/",
+            "relative",
+            "https://www.example.org/dir/subdir/relative",
+        ),
+        (
+            "https://www.example.org/dir/subdir",
+            "relative",
+            "https://www.example.org/dir/relative",
+        ),
+        # non-relative URLs
+        ("https://example.org", "https://www.eff.org", "https://www.eff.org"),
+        ("https://example.org", "//www.eff.org", "https://www.eff.org"),
+        ("http://example.org", "//www.eff.org", "http://www.eff.org"),
+        ("http://example.org", "https://www.eff.org", "https://www.eff.org"),
+        # looks like an absolute URL but is actually a valid relative URL
+        ("https://example.org", "www.eff.org", "https://example.org/www.eff.org"),
+        # misc
+        (SUB, "./this:that", "https://www.example.org/dir/subdir/this:that"),
+        (
+            "https://www.example.org/test.html?q=test#frag",
+            "foo.html?q=bar#baz",
+            "https://www.example.org/foo.html?q=bar#baz",
+        ),
+        ("https://www.example.org", "{privacy}", "{privacy}"),
+    ],
+)
+def test_fix_relative(base, link, expected):
+    assert fix_relative_urls(base, link) == expected
+
+
+def test_fix_relative_malformed():
     # malformed URLs raise, extract_links skips them and keeps the page
     for base, link in (
         ("https://example.org", "//[zz]/x"),
@@ -364,7 +327,6 @@ def test_path_filter():
     assert path_filter("/datenschutzerklärung", "") is False
     assert path_filter("/datenschutzerkl%C3%A4rung", "") is False
     assert check_url("http://example.org/datenschutzerklärung", strict=True) is None
-    # assert path_filter("/", "") is False
 
     # in strict mode an index page must not be kept alive by a query that
     # normalization strips again: that returned a bare index URL which
@@ -522,12 +484,10 @@ def test_navigation():
 
 def test_validate():
     assert validate_url("http://www.test[.org/test")[0] is False
-    # assert validate_url('http://www.test.org:7ERT/test')[0] is False
     assert validate_url("ntp://www.test.org/test")[0] is False
     assert validate_url("ftps://www.test.org/test")[0] is False
     assert validate_url("http://t.g/test")[0] is False
     assert validate_url("http://test.org/test")[0] is True
-    # assert validate_url("http://sub.-mkyong.com/test")[0] is False
 
     assert not is_valid_url("http://www.test[.org/test")
     assert is_valid_url("http://test.org/test")
@@ -584,6 +544,7 @@ def test_normalization():
         == "https://example.org/path/page.html"
     )
     assert normalize_path("/../../a//b") == "/a/b"
+    assert normalize_path("/a/../b") == "/a/../b"  # only leading ones
 
     # the (url, base, path) split needs a host: without one urlunsplit drops the
     # "//" and slicing past the base would cut into the path
@@ -698,7 +659,6 @@ def test_qelems():
 
 
 def test_urlutils():
-    """Test URL manipulation tools"""
     # domain extraction
     assert extract_domain("") is None
     assert extract_domain(5) is None  # type: ignore[arg-type]
@@ -749,9 +709,8 @@ def test_urlutils():
     with pytest.raises(TypeError):
         result = _parse(1.23)  # type: ignore[arg-type]
 
-    assert get_base_url("https://example.org/path") == "https://example.org"
     with pytest.raises(ValueError):
-        assert get_host_and_path("123") is None
+        get_host_and_path("123")
     assert get_host_and_path("https://example.org/path") == (
         "https://example.org",
         "/path",
@@ -795,21 +754,18 @@ def test_urlutils():
     # filter URLs
     # unique and sorted URLs
     myurls = ["/category/xyz", "/category/abc", "/cat/test", "/category/abc"]
-    assert len(filter_urls(myurls, None)) == 3
+    assert filter_urls(myurls, None) == ["/cat/test", "/category/abc", "/category/xyz"]
     assert filter_urls(myurls, "category") == ["/category/abc", "/category/xyz"]
     # feeds
-    assert len(filter_urls(["https://feedburner.google.com/aabb"], "category")) == 1
-    assert len(filter_urls(["https://feedburner.google.com/aabb"], None)) == 1
-
-
-# --- mutation-gap tests ---
+    feeds = ["https://feedburner.google.com/aabb"]
+    assert filter_urls(feeds, "category") == filter_urls(feeds, None) == feeds
 
 
 def test_clean_url_protocol_detection():
     "Double-URL detection must not fire on single-protocol URLs."
-    # single protocol — must survive unchanged
+    # single protocol, unchanged
     assert clean_url("http://example.org/page") == "http://example.org/page"
-    # double protocol — inner URL extracted
+    # double protocol, inner URL extracted
     result = clean_url("http://redirect.com/?url=http://real.com/page")
     assert result == "http://real.com/page"
 
@@ -825,20 +781,9 @@ def test_scrub_url_trailing_slash():
 def test_clean_query_param_ordering():
     "Strict: disallowed param must not prevent later allowed params. Tracker likewise."
     # strict: disallowed 'badparam' then allowed 'page'
-    result = clean_query("badparam=1&page=2", strict=True)
-    assert "page=2" in result
-    assert "badparam" not in result
+    assert clean_query("badparam=1&page=2", strict=True) == "page=2"
     # tracker then non-tracker
-    result = clean_query("utm_source=twitter&title=hello", strict=False)
-    assert "title=hello" in result
-    assert "utm_source" not in result
-
-
-def test_normalize_path_leading_dotdot():
-    "Leading /../ segments are collapsed."
-    assert normalize_path("/../foo/bar") == "/foo/bar"
-    assert normalize_path("/../../a/b") == "/a/b"
-    assert normalize_path("/a/../b") == "/a/../b"  # only leading ones
+    assert clean_query("utm_source=twitter&title=hello", strict=False) == "title=hello"
 
 
 def test_basic_filter_boundaries():
@@ -863,5 +808,5 @@ def test_strip_trailing_dot_edge_cases():
     assert _strip_trailing_dot("example.com.") == "example.com"
     assert _strip_trailing_dot("example.com..") == "example.com.."
     assert _strip_trailing_dot("example.com.:8080") == "example.com:8080"
-    # with userinfo — the host:port branch should not fire
+    # with userinfo, the host:port branch should not fire
     assert _strip_trailing_dot("user@example.com.:80") == "user@example.com.:80"

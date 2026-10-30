@@ -1,11 +1,8 @@
 import logging
 import signal
-import sys
 from collections.abc import Iterator
 
 import pytest
-
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 @pytest.fixture(autouse=True)
