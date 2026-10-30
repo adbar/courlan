@@ -51,9 +51,16 @@ ruff check courlan tests
 
 # apply formatting if needed
 ruff format courlan tests
+# or only check, as in CI
+ruff format --check --diff courlan tests
 
 # static typing
 mypy -p courlan
+mypy tests
+
+# docs build, needs the docs extra
+pip install -e '.[docs]'
+pytest docs/test_docs.py
 ```
 
 4. Pre-commit and CI

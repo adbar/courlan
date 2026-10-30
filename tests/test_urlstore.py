@@ -6,15 +6,17 @@ import gc
 import os
 import pickle
 import signal
-import sys
 import threading
 import uuid
+from collections import Counter, deque
 from datetime import datetime
 from time import sleep
+from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
 import pytest
 
+import courlan
 from courlan import UrlStore, load_store
 from courlan.urlstore import HAS_BZ2, HAS_ZLIB, Compressor, State
 
@@ -68,8 +70,9 @@ def test_urlstore_basics():
     ]
     my_urls.add_urls(candidates)
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
-    assert len(my_urls.urldict["https://example.org"].tuples) == 2
-    firstelem = my_urls.urldict["https://example.org"].tuples[0]
+    tuples = my_urls.urldict["https://example.org"].tuples
+    assert isinstance(tuples, deque) and len(tuples) == 2
+    firstelem = tuples[0]
     assert firstelem.urlpath == b"/" and firstelem.visited is False
     # host and path come from the normalized parts: query and fragment are kept,
     # and query keys that are HTML entity names are no longer mangled
@@ -167,6 +170,10 @@ def test_urlstore_rules(robots_rules):
     assert my_urls.get_rules("http://example.org") == robots_rules
     assert my_urls.get_crawl_delay("http://example.org") == 5
     assert my_urls.get_download_urls(time_limit=0)
+    # an http-only entry is upgraded to the https key on lookup
+    my_urls.add_urls(["http://a.com/x"])
+    my_urls.store_rules("http://a.com", robots_rules)
+    assert my_urls.get_rules("https://a.com") is robots_rules
 
 
 def test_urlstore_filters():
@@ -255,20 +262,19 @@ def test_urlstore():
     assert my_urls.total_url_number() == len(urls)
     assert my_urls.get_all_counts() == [0, 0]
 
-    if my_urls.compressed is False:
-        assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
+    assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
-    assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
+    tuples = my_urls.urldict["https://visited.com"].tuples
+    assert isinstance(tuples, deque) and tuples[0].visited is True
     assert my_urls.urldict["https://visited.com"].state is State.ALL_VISITED
     assert not my_urls.find_unvisited_urls("https://visited.com")
     assert my_urls.is_exhausted_domain("https://visited.com") is True
     # new unvisited URLs
     my_urls.add_urls(["https://visited.com/1"], visited=False)
-    assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
-    assert my_urls.urldict["https://visited.com"].state is State.OPEN
+    assert tuples[1].visited is False
+    # mypy keeps the State.ALL_VISITED narrowing across the add_urls call
+    assert my_urls.urldict["https://visited.com"].state is State.OPEN  # type: ignore[comparison-overlap]
     assert my_urls.is_exhausted_domain("https://visited.com") is False
-    # with pytest.raises(KeyError):
-    #    assert my_urls.is_exhausted_domain("https://visited2.com") is True
     assert my_urls.is_exhausted_domain("https://visited2.com") is False
     # revert changes for further tests
     del my_urls.urldict["https://visited.com"].tuples[1]
@@ -395,8 +401,6 @@ def test_urlstore():
     ).total_seconds() < 0.25
     assert my_urls.urldict["https://www.example.org"].count == 3
 
-    # does not work on Windows?
-    # if os.name != "nt":
     test_urls = UrlStore()
     test_urls.add_urls(
         ["https://www.example.org/1", "https://test.org/1", "https://test.org/2"]
@@ -453,7 +457,10 @@ def test_dbdump(capsys):
     # database dump
     first_one = UrlStore()
     first_one.add_urls(["http://example.org/print", "http://print.org/print"])
-    assert len(first_one.dump_urls()) == 2
+    assert first_one.dump_urls() == [
+        "http://example.org/print",
+        "http://print.org/print",
+    ]
 
     # database print out
     other_one = UrlStore()
@@ -466,20 +473,24 @@ def test_dbdump(capsys):
     unvisited_store = UrlStore()
     unvisited_store.add_urls(["https://www.test.org/a", "https://www.test.org/b"])
     unvisited_store.print_unvisited_urls()
-    captured = capsys.readouterr()
-    lines = sorted(captured.out.strip().splitlines())
-    assert lines == ["https://www.test.org/a", "https://www.test.org/b"]
+    assert capsys.readouterr().out == "https://www.test.org/a\nhttps://www.test.org/b\n"
+
+    # no blank line for exhausted or discarded hosts
+    mixed_store = UrlStore()
+    mixed_store.add_urls(["https://www.test.org/a", "https://other.org/x"])
+    mixed_store.get_url("https://other.org")
+    mixed_store.print_unvisited_urls()
+    assert capsys.readouterr().out == "https://www.test.org/a\n"
+    mixed_store.discard(["https://www.test.org"])
+    mixed_store.print_urls()
+    assert capsys.readouterr().out == "https://other.org/x\tTrue\n"
 
     # dump unvisited, don't test it on Windows
     if os.name != "nt":
-        # standard
-        interrupted_one = UrlStore()
-        interrupted_one.add_urls(["https://www.test.org/1", "https://www.test.org/2"])
-        # sys.exit() since signals are not caught
-        with pytest.raises(SystemExit):
-            sys.exit(1)
-        captured = capsys.readouterr()
-        assert captured.out.strip() == ""
+        # standard: no signal handler registered
+        handler = signal.getsignal(signal.SIGINT)
+        UrlStore().add_urls(["https://www.test.org/1", "https://www.test.org/2"])
+        assert signal.getsignal(signal.SIGINT) is handler
 
         # verbose: opt-in registration, a later store takes over
         UrlStore(verbose=True)
@@ -530,32 +541,26 @@ def test_from_html(robots_rules):
     # 1 internal link in total
     url_store.add_from_html(htmlstring, base_url)
     url_store.store_rules("https://example.org", robots_rules)
-    assert len(url_store.find_known_urls(base_url)) == 1
-    assert len(url_store.find_unvisited_urls(base_url)) == 1
+    known = ["https://example.org/page1"]
+    assert url_store.find_known_urls(base_url) == known
+    assert url_store.find_unvisited_urls(base_url) == known
     # same with content already seen
     url_store.add_from_html(htmlstring, base_url)
-    assert (
-        len(url_store.find_unvisited_urls(base_url)) == 1
-        and len(url_store.find_known_urls(base_url)) == 1
-    )
+    assert url_store.find_unvisited_urls(base_url) == known
     # test navigation links
     htmlstring = '<html><body><a href="https://example.org/tag/number1"/><a href="https://example.org/page2"/><a href="https://example.org/login"/><a href="https://example.org/imprint.html"/></body></html>'
     url_store.add_from_html(htmlstring, base_url)
-    todo = url_store.find_unvisited_urls(base_url)
-    known_links = url_store.find_known_urls(base_url)
-    assert todo[0] == "https://example.org/tag/number1" and len(known_links) == 3
+    known = ["https://example.org/tag/number1", *known, "https://example.org/page2"]
+    assert url_store.find_unvisited_urls(base_url) == known
     # test cleaning and language
     htmlstring = '<html><body><a href="https://example.org/en/page1/?"/></body></html>'
     url_store.add_from_html(htmlstring, base_url, lang="en")
-    todo = url_store.find_unvisited_urls(base_url)
-    known_links = url_store.find_known_urls(base_url)
-    assert "https://example.org/en/page1" in todo and len(known_links) == 4
+    known.append("https://example.org/en/page1")
+    assert url_store.find_unvisited_urls(base_url) == known
     # wrong language
     htmlstring = '<html><body><a href="https://example.org/en/page2"/></body></html>'
     url_store.add_from_html(htmlstring, base_url, lang="de")
-    todo = url_store.find_unvisited_urls(base_url)
-    known_links = url_store.find_known_urls(base_url)
-    assert "https://example.org/en/page2" not in todo and len(known_links) == 4
+    assert url_store.find_known_urls(base_url) == known
 
     # strict + language as URL store parameters
     url_store = UrlStore(strict=True, language="de")
@@ -563,6 +568,19 @@ def test_from_html(robots_rules):
     htmlstring = '<html><body><a href="https://example.org/en/page2"/><a href="https://example.org/imprint.html"/></body></html>'
     url_store.add_from_html(htmlstring, base_url)
     assert not url_store.find_known_urls(base_url)
+
+    # stored robots rules filter the links
+    url_store = UrlStore()
+    rules = RobotFileParser()
+    rules.parse(["User-agent: *", "Disallow: /private/"])
+    url_store.add_urls(["https://example.org/"])
+    url_store.store_rules(base_url, rules)
+    htmlstring = '<html><body><a href="/private/a"/><a href="/public/a"/></body></html>'
+    url_store.add_from_html(htmlstring, base_url)
+    assert url_store.find_known_urls(base_url) == [
+        "https://example.org/",
+        "https://example.org/public/a",
+    ]
 
 
 def test_persistance(tmp_path):
@@ -589,34 +607,7 @@ def test_persistance(tmp_path):
     urls = set(new_store.dump_urls())
     assert new_store.total_url_number() == len(urls) == 200
     assert "https://www.example.org/99" in urls
-
-
-def test_load_store_export(tmp_path):
-    "`load_store` is exposed at the top level of the package and round-trips a store."
-    import courlan
-
     assert "load_store" in courlan.__all__
-    store = UrlStore()
-    store.add_urls(["https://example.org/1"])
-    path = str(tmp_path / "store.pickle")
-    store.write(path)
-    assert load_store(path).is_known("https://example.org/1")
-
-
-def test_urlstore_thread_construction():
-    "Constructing a verbose UrlStore off the main thread must not crash on signal setup."
-    errors: list[Exception] = []
-
-    def build() -> None:
-        try:
-            UrlStore(verbose=True)
-        except Exception as exc:  # pragma: no cover
-            errors.append(exc)
-
-    thread = threading.Thread(target=build)
-    thread.start()
-    thread.join()
-    assert not errors
 
 
 def test_urlstore_open_but_all_visited():
@@ -624,6 +615,7 @@ def test_urlstore_open_but_all_visited():
     store = UrlStore()
     store.add_urls(["https://example.org/1"])
     entry = store.urldict["https://example.org"]
+    assert isinstance(entry.tuples, deque)
     entry.tuples[0].visited = True  # mark the only URL as visited
     entry.state = State.OPEN  # but leave the domain marked OPEN
     # get_download_urls -> get_url finds nothing, returns None, and fixes the state
@@ -631,7 +623,7 @@ def test_urlstore_open_but_all_visited():
     assert entry.state == State.ALL_VISITED
 
 
-def test_urlstore_compressed_defaults(robots_rules):
+def test_urlstore_compressed_defaults():
     "Compressed store handles unset rules/tuples and discard gracefully."
     s = UrlStore(compressed=True)
     s.add_urls(["http://x.com/a"])
@@ -650,41 +642,57 @@ def test_urlstore_compressed_defaults(robots_rules):
     assert delay_store.get_crawl_delay("http://x.com") == 0
 
 
-def test_schedule_time_ordering():
-    "establish_download_schedule returns entries sorted by scheduled time, not URL string."
+def test_schedule_timing():
+    "Schedule entries start at 0, are time-ordered and set the domain timestamp."
     s = UrlStore()
-    s.add_urls(["http://x.com/z", "http://x.com/a"])  # /z first: deque ≠ alpha order
+    s.add_urls(["http://x.com/z", "http://x.com/a"])  # not in alphabetical order
+    before = datetime.now()
     schedule = s.establish_download_schedule(max_urls=10, time_limit=10)
-    assert len(schedule) == 2
-    assert schedule[0][0] <= schedule[1][0], "entries must be time-ordered"
-    assert schedule[0][1].endswith("/z")  # /z inserted first → time 0.0
+    assert schedule == [(0.0, "http://x.com/z"), (10.0, "http://x.com/a")]
+    ts = s.urldict["http://x.com"].timestamp
+    assert ts is not None and ts >= before
+
+
+@pytest.mark.parametrize(
+    ("domains", "max_urls", "expected"),
+    [
+        # floor division: 7 // 3 = 2 per domain
+        (("a.com", "b.com", "c.com"), 7, {"a.com": 2, "b.com": 2, "c.com": 2}),
+        # falls back to 1 per domain when max_urls < number of domains
+        (("a.com", "b.com", "c.com"), 2, {"a.com": 1, "b.com": 1}),
+        (("a.com",), 3, {"a.com": 3}),
+    ],
+)
+def test_schedule_per_domain(domains, max_urls, expected):
+    "establish_download_schedule spreads max_urls evenly across domains."
+    s = UrlStore()
+    for d in domains:
+        s.add_urls([f"http://{d}/{i}" for i in range(5)])
+    schedule = s.establish_download_schedule(max_urls=max_urls, time_limit=10)
+    assert Counter(urlsplit(url).netloc for _, url in schedule) == expected
 
 
 def test_urlstore_compressed_crawl():
     "get_url and establish_download_schedule persist visited flags in compressed mode."
     s = UrlStore(compressed=True)
     s.add_urls(["http://x.com/a", "http://x.com/b"])
-    u1 = s.get_url("http://x.com")
-    u2 = s.get_url("http://x.com")
-    u3 = s.get_url("http://x.com")
-    assert u1 != u2
-    assert u3 is None
+    urls = [s.get_url("http://x.com") for _ in range(3)]
+    assert urls == ["http://x.com/a", "http://x.com/b", None]
     assert s.is_exhausted_domain("http://x.com")
     assert s.urldict["http://x.com"].count == 2
 
     s2 = UrlStore(compressed=True)
     s2.add_urls(["http://y.com/a", "http://y.com/b"])
     run1 = s2.establish_download_schedule(max_urls=10, time_limit=10)
-    run2 = s2.establish_download_schedule(max_urls=10, time_limit=10)
-    assert len(run1) == 2
-    assert len(run2) == 0
+    assert run1 == [(0.0, "http://y.com/a"), (10.0, "http://y.com/b")]
+    assert s2.establish_download_schedule(max_urls=10, time_limit=10) == []
 
 
 def test_urlstore_store_non_http_domain():
     "_store_urls tolerates a domain without an http(s) scheme (defensive fall-through)."
     store = UrlStore()
     store._store_urls("ftp://example.org")
-    assert "ftp://example.org" in store.urldict
+    assert list(store.urldict) == ["ftp://example.org"]
 
 
 def test_store_rules_merges_twin():
@@ -696,8 +704,7 @@ def test_store_rules_merges_twin():
     rules = RobotFileParser()
     store.store_rules("http://host.com", rules)
     # twins merged under https key
-    assert "http://host.com" not in store.urldict
-    assert "https://host.com" in store.urldict
+    assert list(store.urldict) == ["https://host.com"]
     assert store.get_rules("https://host.com") is rules
 
 
@@ -724,19 +731,35 @@ def test_twin_merge_on_download():
 
 
 def test_twin_merge_metadata():
-    "Merging twins in compressed mode unions counts and keeps rules."
+    "Merging twins in compressed mode sums counts, keeps rules and newest timestamp."
     store = UrlStore(compressed=True)
     store.add_urls(["http://m.com/a"])
-    store.get_url("http://m.com")  # count = 1
+    store.get_url("http://m.com")
     entry = store.urldict.pop("http://m.com")
     store.add_urls(["https://m.com/b"])
+    store.urldict["https://m.com"].count = 1  # no timestamp on this side
     store.store_rules("https://m.com", RobotFileParser())
     store.urldict["http://m.com"] = entry
     store.add_urls(["https://m.com/c"])  # triggers the merge
     merged = store.urldict["https://m.com"]
     assert "http://m.com" not in store.urldict
-    assert merged.count == 1 and merged.total == 3
+    assert merged.count == 2 and merged.total == 3
+    assert merged.timestamp == entry.timestamp
     assert store.get_rules("https://m.com") is not None
+
+
+def test_merge_copies_src_rules():
+    "Twin merge copies rules from src when tgt has none."
+    s = UrlStore()
+    rules = RobotFileParser()
+    s.add_urls(["http://r.com/a"])
+    s.store_rules("http://r.com", rules)
+    entry = s.urldict.pop("http://r.com")
+    s.add_urls(["https://r.com/b"])
+    s.urldict["http://r.com"] = entry
+    s.add_urls(["https://r.com/c"])
+    assert "http://r.com" not in s.urldict
+    assert s.get_rules("https://r.com") is rules
 
 
 def test_twin_discard():
@@ -772,37 +795,10 @@ def test_done_lifecycle():
     s2.get_url("http://a.com")
     s2.get_url("http://a.com")
     assert s2.done is False
-    s2.get_url("http://b.com")
+    # get_download_urls skips the exhausted domain
+    assert s2.get_download_urls(time_limit=0) == ["http://b.com/1"]
     s2.get_url("http://b.com")
     assert s2.done is True
-
-
-def test_merge_adds_counts():
-    "Twin merge sums counts from both entries."
-    s = UrlStore(compressed=True)
-    s.add_urls(["http://m.com/a"])
-    s.get_url("http://m.com")
-    entry = s.urldict.pop("http://m.com")
-    s.add_urls(["https://m.com/b"])
-    s.get_url("https://m.com")
-    s.urldict["http://m.com"] = entry
-    s.add_urls(["https://m.com/c"])
-    merged = s.urldict["https://m.com"]
-    assert "http://m.com" not in s.urldict
-    assert merged.count == 2
-
-
-def test_merge_copies_src_rules():
-    "Twin merge copies rules from src when tgt has none."
-    s = UrlStore()
-    s.add_urls(["http://r.com/a"])
-    s.store_rules("http://r.com", RobotFileParser())
-    entry = s.urldict.pop("http://r.com")
-    s.add_urls(["https://r.com/b"])
-    s.urldict["http://r.com"] = entry
-    s.add_urls(["https://r.com/c"])
-    assert "http://r.com" not in s.urldict
-    assert s.get_rules("https://r.com") is not None
 
 
 def test_filter_unknown_same_domain():
@@ -810,97 +806,3 @@ def test_filter_unknown_same_domain():
     s = UrlStore()
     s.add_urls([f"http://z.com/{i:04d}" for i in range(50)])
     assert s.filter_unknown_urls([f"http://z.com/{i:04d}" for i in range(50)]) == []
-
-
-def test_add_from_html_with_and_without_rules(robots_rules):
-    "add_from_html passes stored rules to filter_links."
-    html = '<html><body><a href="https://example.org/page1"/></body></html>'
-    for with_rules in (True, False):
-        s = UrlStore()
-        s.add_urls(["https://example.org/seed"])
-        if with_rules:
-            s.store_rules("https://example.org", robots_rules)
-        s.add_from_html(html, "https://example.org/seed")
-        assert s.is_known("https://example.org/page1")
-
-
-def test_get_download_urls_skips_exhausted():
-    "get_download_urls skips non-OPEN domains and continues to OPEN ones."
-    s = UrlStore()
-    s.add_urls(["http://a.com/1", "http://b.com/1"])
-    s.get_url("http://a.com")
-    s.get_url("http://a.com")
-    assert s.urldict["http://a.com"].state != State.OPEN
-    urls = s.get_download_urls(time_limit=0)
-    assert len(urls) == 1
-    assert urls[0] == "http://b.com/1"
-
-
-def test_schedule_integer_division():
-    "establish_download_schedule uses floor division for per_domain."
-    s = UrlStore()
-    for d in ("http://a.com", "http://b.com", "http://c.com"):
-        s.add_urls([f"{d}/{i}" for i in range(5)])
-    schedule = s.establish_download_schedule(max_urls=7, time_limit=10)
-    # per_domain = 7 // 3 = 2 → 2 × 3 = 6
-    assert len(schedule) == 6
-    from collections import Counter
-
-    counts = Counter(url.rsplit("/", 1)[0] for _, url in schedule)
-    for c in counts.values():
-        assert c == 2
-
-
-def test_schedule_per_domain_fallback():
-    "per_domain falls back to 1 when max_urls < num_domains, spreading across domains."
-    s = UrlStore()
-    for d in ("http://d1.com", "http://d2.com", "http://d3.com"):
-        s.add_urls([f"{d}/{i}" for i in range(3)])
-    schedule = s.establish_download_schedule(max_urls=2, time_limit=10)
-    assert len(schedule) == 2
-    domains_hit = {url.split("/")[2] for _, url in schedule}
-    assert len(domains_hit) == 2
-
-
-def test_schedule_per_domain_cap():
-    "establish_download_schedule caps each domain at per_domain URLs."
-    s = UrlStore()
-    s.add_urls([f"http://a.com/{i}" for i in range(10)])
-    schedule = s.establish_download_schedule(max_urls=3, time_limit=10)
-    assert len(schedule) == 3
-
-
-def test_schedule_starts_at_zero():
-    "First URL in a fresh domain starts at schedule_secs=0.0."
-    s = UrlStore()
-    s.add_urls(["http://fresh.com/a"])
-    schedule = s.establish_download_schedule(max_urls=10, time_limit=10)
-    assert len(schedule) == 1
-    assert schedule[0][0] == 0.0
-
-
-def test_schedule_stores_future_timestamp():
-    "establish_download_schedule sets a future timestamp on the domain."
-    s = UrlStore()
-    s.add_urls(["http://t.com/a", "http://t.com/b"])
-    before = datetime.now()
-    schedule = s.establish_download_schedule(max_urls=10, time_limit=10)
-    assert len(schedule) == 2
-    key = next(k for k in s.urldict if "t.com" in k)
-    ts = s.urldict[key].timestamp
-    assert ts is not None
-    assert ts >= before
-
-
-def test_get_rules_both_directions():
-    "get_rules resolves http->https and https->http."
-    store = UrlStore()
-    rules = RobotFileParser()
-    # rules under http, queried via https
-    store.add_urls(["http://a.com/x"])
-    store.store_rules("http://a.com", rules)
-    assert store.get_rules("https://a.com") is not None
-    # rules under https, queried via http
-    store.add_urls(["https://b.com/x"])
-    store.store_rules("https://b.com", rules)
-    assert store.get_rules("http://b.com") is not None

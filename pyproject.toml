@@ -90,8 +90,6 @@ docs = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# the test files are named "*_tests.py"; docs/test_docs.py runs separately in CI
-python_files = ["*_tests.py"]
 
 [tool.ruff]
 target-version = "py310"
@@ -103,6 +101,12 @@ select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
 python_version = "3.10"
 strict = true
 ignore_missing_imports = true
+
+# tests keep the rest of strict, without annotating every test function
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
 
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]

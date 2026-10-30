@@ -242,7 +242,16 @@ sample = sample_urls(urls, samplesize=5, exclude_min=2, exclude_max=1000)
 ```
 
 `sample_urls` also accepts `strict` (stricter filtering on the input URLs)
-and `verbose` (log the domains that were skipped).
+and `verbose` (dump unvisited URLs on SIGINT or SIGTERM, as in `UrlStore`).
+The `courlan.sampling` logger reports skipped domains.
+With `verbose`, these messages are logged at WARNING level and show up without any setup.
+Otherwise they are logged at INFO level, configure logging to see them:
+
+```python
+import logging
+logging.basicConfig()
+logging.getLogger("courlan.sampling").setLevel(logging.INFO)
+```
 
 See also `courlan --sample` in the [CLI reference](cli.md).
 

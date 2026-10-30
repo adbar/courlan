@@ -2,4 +2,5 @@ include CONTRIBUTING.md HISTORY.md README.md LICENSE
 include courlan/py.typed
 
 include tests/*.py
+include scripts/__init__.py scripts/update_psl.py
 graft tests/data/

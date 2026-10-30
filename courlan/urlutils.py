@@ -110,16 +110,17 @@ def get_hostinfo(url: str) -> tuple[str | None, str]:
 
 
 def fix_relative_urls(baseurl: str, url: str) -> str:
-    "Prepend protocol and host information to relative links."
+    """Prepend protocol and host information to relative links.
+
+    Raises:
+        ValueError: if the base URL or the link is malformed.
+    """
     if url.startswith("{"):
         return url
 
-    # a malformed netloc passes through unchanged, like an absolute URL
-    try:
-        parsed_base = urlsplit(baseurl)
-        split_url = urlsplit(url)
-    except ValueError:
-        return url
+    # malformed URLs raise ValueError, callers rely on it to drop them
+    parsed_base = urlsplit(baseurl)
+    split_url = urlsplit(url)
 
     if split_url.netloc not in (parsed_base.netloc, ""):
         if split_url.scheme:
