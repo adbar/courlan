@@ -37,6 +37,25 @@ def _idna_label(label: str) -> str:
         return label
 
 
+def _unicode_label(label: str) -> str:
+    "Decode a punycode label, IDNA2008 deviations included; keep it if invalid."
+    if not label.startswith("xn--"):
+        return label
+    try:
+        decoded = label[4:].encode("ascii").decode("punycode")
+    except UnicodeError:
+        return label
+    # the raw codec does not validate: "xn--a" gives "\x80", "xn----" gives "-"
+    return decoded if decoded.isprintable() and not decoded.isascii() else label
+
+
+def _unicode_host(host: str) -> str:
+    "Decode the punycode labels of a lowercased host, for host comparisons."
+    if "xn--" not in host:
+        return host
+    return ".".join(_unicode_label(label) for label in host.split("."))
+
+
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
 

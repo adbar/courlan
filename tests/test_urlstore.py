@@ -2,13 +2,14 @@
 Unit tests for the UrlStore class of the courlan package.
 """
 
+import bz2
 import gc
 import os
 import pickle
 import signal
 import threading
 import uuid
-from collections import Counter, deque
+from collections import Counter, defaultdict, deque
 from datetime import datetime
 from time import sleep
 from urllib.parse import urlsplit
@@ -18,7 +19,14 @@ import pytest
 
 import courlan
 from courlan import UrlStore, load_store
-from courlan.urlstore import HAS_BZ2, HAS_ZLIB, Compressor, State
+from courlan.urlstore import (
+    HAS_BZ2,
+    HAS_ZLIB,
+    Compressor,
+    DomainEntry,
+    State,
+    UrlPathTuple,
+)
 
 
 def test_compressor():
@@ -31,10 +39,11 @@ def test_compressor():
         assert comp.decompress(comp.compress(data)) == data
 
 
-def test_compressor_zlib(monkeypatch):
-    "Test the zlib compression fallback when bz2 is unavailable."
-    monkeypatch.setattr("courlan.urlstore.HAS_BZ2", False)
+def test_compressor_bz2(monkeypatch):
+    "Test the bz2 compression fallback when zlib is unavailable."
+    monkeypatch.setattr("courlan.urlstore.HAS_ZLIB", False)
     comp = Compressor(compression=True)
+    assert comp.compress(1234)[:3] == b"BZh"
     assert comp.decompress(comp.compress(1234)) == 1234
 
 
@@ -699,8 +708,8 @@ def test_store_rules_merges_twin():
     "store_rules canonicalizes under the https key, merging twins."
     store = UrlStore()
     # force two independent entries (simulates legacy unpickled data)
-    store.urldict["http://host.com"]
-    store.urldict["https://host.com"]
+    store.urldict["http://host.com"] = DomainEntry()
+    store.urldict["https://host.com"] = DomainEntry()
     rules = RobotFileParser()
     store.store_rules("http://host.com", rules)
     # twins merged under https key
@@ -772,7 +781,7 @@ def test_twin_discard():
     assert store.dump_urls() == []
     assert "http://y.com" not in store.urldict
     # a resurrected twin next to the BUSTED entry is voided on merge
-    store.urldict["http://y.com"]
+    store.urldict["http://y.com"] = DomainEntry()
     store.add_urls(["http://y.com/c"])
     assert "http://y.com" not in store.urldict
     assert store.dump_urls() == []
@@ -806,3 +815,209 @@ def test_filter_unknown_same_domain():
     s = UrlStore()
     s.add_urls([f"http://z.com/{i:04d}" for i in range(50)])
     assert s.filter_unknown_urls([f"http://z.com/{i:04d}" for i in range(50)]) == []
+
+
+def test_store_key_forms():
+    "Readers and writers accept any form of a domain and use one normalized key."
+    store = UrlStore()
+    store.add_urls(["https://Example.org/a", "https://u:p@example.org:443/b"])
+    assert list(store.urldict) == ["https://example.org"]
+    for domain in ("https://Example.org", "https://example.org/", "http://example.org"):
+        assert store.find_known_urls(domain) == [
+            "https://example.org/a",
+            "https://example.org/b",
+        ]
+        assert not store.is_exhausted_domain(domain)
+    assert store.find_known_urls("example.org") == []
+    # punycode, unicode and IDNA2008 deviation forms
+    store.add_urls(["https://xn--mnchen-3ya.de/a", "https://MÜNCHEN.de/b"])
+    store.add_urls(["https://faß.de/a", "https://xn--fa-hia.de/b"])
+    assert list(store.urldict)[1:] == ["https://münchen.de", "https://faß.de"]
+    assert len(store.find_unvisited_urls("https://xn--fa-hia.de")) == 2
+    # IPv6 and port forms
+    store.add_urls(["https://[2001:db8:0:0::1]/a", "https://[2001:db8::1]:0443/b"])
+    store.add_urls(
+        ["https://ex.org:08080/a", "https://ex.org:8080/b", "https://ex.org:/c"]
+    )
+    assert list(store.urldict)[3:] == [
+        "https://[2001:db8::1]",
+        "https://ex.org:8080",
+        "https://ex.org",
+    ]
+    # twins: lookups find the merged entry under either scheme
+    twins = UrlStore()
+    twins.add_urls(["http://example.org/a"])
+    twins.add_urls(["https://example.org/b"])
+    assert twins.is_known("http://example.org/a")
+    assert twins.get_url("http://example.org") == "https://example.org/a"
+    assert twins.has_been_visited("http://example.org/a")
+    assert twins.find_unvisited_urls("http://example.org") == ["https://example.org/b"]
+
+
+def test_store_readers_normalize():
+    "Readers apply the normalization of add_urls, malformed URLs are unknown."
+    inputs = [
+        "https://a.org/x?utm_source=1",
+        "https://a.org//c",
+        "https://a.org/e#utm_source=x",
+        "https://a.org/f/",
+    ]
+    store = UrlStore()
+    store.add_urls(inputs)
+    assert [store.is_known(u) for u in inputs] == [True] * 4
+    assert store.is_known("https://a.org/f")
+    assert not store.has_been_visited("https://a.org/x?utm_source=2")
+    malformed = ["https://a.org/x", "http://[bad", "https://a.org/new"]
+    assert store.filter_unknown_urls(malformed) == malformed[1:]
+    assert store.filter_unvisited_urls(malformed) == malformed
+    assert not store.is_known("http://[bad")
+    # URLs whose query does not pass the language filter are not stored
+    lang_store = UrlStore(language="de", strict=True)
+    lang_store.add_urls(["https://a.org/x?lang=en"])
+    assert not lang_store.urldict
+
+
+def test_store_no_phantom_entries():
+    "Reads and empty draws create no entry and keep a discarded domain discarded."
+    store = UrlStore()
+    assert store.get_url("https://unknown.org") is None
+    assert not store.get_rules("https://unknown.org")
+    assert not store.urldict
+    # rules alone leave nothing to visit
+    store.store_rules("https://Rules.org/", RobotFileParser())
+    assert list(store.urldict) == ["https://rules.org"]
+    assert store.unvisited_websites_number() == 0
+    store.add_urls(["https://rules.org/a"])
+    assert store.get_rules("https://rules.org") is not None
+    assert store.get_url("https://rules.org") == "https://rules.org/a"
+    # a discarded domain is not reopened
+    store.add_urls(["https://a.org/x"])
+    store.discard(["https://a.org/"])
+    assert store.get_url("https://a.org") is None
+    assert store.urldict["https://a.org"].state is State.BUSTED
+    store.add_urls(["https://a.org/y"])
+    assert store.dump_urls() == ["https://rules.org/a"]
+
+
+def test_store_visited_upgrade():
+    "A visited input marks a stored URL as visited, never the reverse."
+    for compressed in (False, True):
+        store = UrlStore(compressed=compressed)
+        store.add_urls(["https://a.org/x", "https://a.org/y"])
+        store.add_urls(["https://a.org/x/"], visited=True)
+        assert store.has_been_visited("https://a.org/x")
+        assert store.get_url("https://a.org") == "https://a.org/y"
+        assert store.is_exhausted_domain("https://a.org")
+        store.add_urls(["https://a.org/x"])
+        assert store.has_been_visited("https://a.org/x")
+
+
+def test_store_appendleft_order():
+    "Priority URLs keep their input order at the front of the queue."
+    store = UrlStore()
+    store.add_urls(["https://a.org/p1"])
+    store.add_urls(
+        appendleft=["https://a.org/n1", "https://a.org/n2", "https://a.org/p1"]
+    )
+    assert store.find_unvisited_urls("https://a.org") == [
+        "https://a.org/n1",
+        "https://a.org/n2",
+        "https://a.org/p1",
+    ]
+    assert [store.get_url("https://a.org") for _ in range(3)] == [
+        "https://a.org/n1",
+        "https://a.org/n2",
+        "https://a.org/p1",
+    ]
+
+
+def test_store_merge_total():
+    "Merging legacy twins updates the URL total."
+    store = UrlStore()
+    store.add_urls(["http://example.org/a"])
+    store.urldict["https://example.org"] = DomainEntry()
+    store.store_rules("http://example.org", None)
+    assert list(store.urldict) == ["https://example.org"]
+    assert store.total_url_number() == 1
+
+
+class _CountingCompressor(Compressor):
+    "Count the compression calls."
+
+    __slots__ = ("calls",)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    def compress(self, data):
+        self.calls += 1
+        return super().compress(data)
+
+
+def test_compressed_store_writes(monkeypatch):
+    "A compressed domain is compressed again only when another domain is written."
+    counter = _CountingCompressor()
+    monkeypatch.setattr("courlan.urlstore.COMPRESSOR", counter)
+    store = UrlStore(compressed=True)
+    for i in range(50):
+        store.add_urls([f"https://a.org/{i}/{j}" for j in range(20)])
+    assert [store.get_url("https://a.org") for _ in range(2)] == [
+        "https://a.org/0/0",
+        "https://a.org/0/1",
+    ]
+    assert counter.calls == 0
+    store.add_urls(["https://b.org/x"])
+    assert counter.calls == 1
+    assert isinstance(store.urldict["https://a.org"].tuples, bytes)
+    assert len(store.find_unvisited_urls("https://a.org")) == 998
+    # the pickle holds compressed domains only
+    restored = pickle.loads(pickle.dumps(store))
+    assert all(isinstance(v.tuples, bytes) for v in restored.urldict.values())
+    assert restored.get_url("https://a.org") == "https://a.org/0/2"
+
+
+def test_store_legacy_data():
+    "Stores and entries pickled by earlier versions load and work."
+    store = UrlStore(compressed=True)
+    entry = DomainEntry()
+    entry.tuples = bz2.compress(
+        pickle.dumps(deque([UrlPathTuple("/a", False)]), protocol=5)
+    )
+    entry.total = 1
+    del entry.cursor
+    store.urldict["https://old.org"] = pickle.loads(pickle.dumps(entry))
+    assert store.get_url("https://old.org") == "https://old.org/a"
+    assert store.get_url("https://old.org") is None
+    state = store.__getstate__()
+    del state["_offset"]
+    state["urldict"] = defaultdict(DomainEntry, state["urldict"])
+    legacy = UrlStore.__new__(UrlStore)
+    legacy.__setstate__(state)
+    assert type(legacy.urldict) is dict
+    assert legacy.get_url("https://new.org") is None
+    assert list(legacy.urldict) == ["https://old.org"]
+
+
+def test_download_urls_rotation():
+    "get_download_urls starts after the last domain served."
+    store = UrlStore()
+    store.add_urls([f"https://d{i}.org/{j}" for i in range(4) for j in range(2)])
+    first = store.get_download_urls(time_limit=-1, max_urls=2)
+    second = store.get_download_urls(time_limit=-1, max_urls=2)
+    assert first == ["https://d0.org/0", "https://d1.org/0"]
+    assert second == ["https://d2.org/0", "https://d3.org/0"]
+
+
+def test_schedule_stops_at_quota():
+    "establish_download_schedule leaves the domains past the quota untouched."
+    store = UrlStore()
+    store.add_urls([f"https://d{i}.org/x" for i in range(5)])
+    assert len(store.establish_download_schedule(max_urls=2)) == 2
+    assert [v.timestamp is None for v in store.urldict.values()] == [
+        False,
+        False,
+        True,
+        True,
+        True,
+    ]

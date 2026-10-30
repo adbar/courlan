@@ -29,12 +29,23 @@ store.find_unvisited_urls('https://example.com')
 # ['https://example.com/page2']
 ```
 
+Domains are stored in one normalized form: lowercase, unicode instead of punycode, without credentials or default port, and under `https` once both twins are known.
+Every method accepts any form of a domain or URL and returns URLs in the stored form.
+
+```python
+store.add_urls(['https://Example.org/a', 'http://xn--mnchen-3ya.de/b'])
+store.find_known_urls('https://example.org/')
+# ['https://example.org/article', 'https://example.org/a']
+store.find_known_urls('http://münchen.de')
+# ['http://münchen.de/b']
+```
+
 
 ## UrlStore constructor options
 
 | Option | Effect |
 |--------|--------|
-| `compressed=True` | Compress stored URLs and rules to reduce memory |
+| `compressed=True` | Compress stored URLs and rules to reduce memory, except for the domain written last |
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
 | `strict=True` | Apply stricter URL filtering on add |
 | `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |

@@ -5,7 +5,7 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from .hosts import _canonical_ip, get_registrable_domain
+from .hosts import _canonical_ip, _unicode_host, get_registrable_domain
 
 _NUMERIC_AMP = re.compile(r"&#0*38;|&#x0*26;", re.I)
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
@@ -97,7 +97,7 @@ def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
     # correction for root/homepage
     if pathval == "":
         pathval = "/"
-    if not hostname or not pathval:
+    if not hostname:
         raise ValueError(f"incomplete URL: {url}")
     return hostname, pathval
 
@@ -149,10 +149,14 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     a URL as input, returns a boolean"""
     stripped_ref, ref = get_tldinfo(reference)
     stripped_domain, domain = get_tldinfo(url)
-    # comparison
+    # compare in unicode form, check_url decodes punycode hosts
     if ignore_suffix:
-        return stripped_domain != stripped_ref
-    return domain != ref
+        return _host_form(stripped_domain) != _host_form(stripped_ref)
+    return _host_form(domain) != _host_form(ref)
+
+
+def _host_form(host: str | None) -> str | None:
+    return _unicode_host(host) if host else host
 
 
 def _swap_scheme(url: str) -> str:

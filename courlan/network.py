@@ -7,7 +7,7 @@ import logging
 import urllib3
 
 LOGGER = logging.getLogger(__name__)
-# only silence the warning triggered by cert_reqs="CERT_NONE" triggers
+# only silence the warning triggered by cert_reqs="CERT_NONE"
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -55,9 +55,6 @@ def redirection_test(url: str) -> str:
     Raises:
         ValueError: if the URL cannot be reached or returns an unacceptable status.
     """
-    # headers.update({
-    #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
-    # })
     try:
         rhead = HTTP_POOL.request("HEAD", url)
     except Exception as err:

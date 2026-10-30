@@ -27,18 +27,29 @@ from collections import defaultdict, deque
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from enum import Enum
+from itertools import islice
 from operator import itemgetter
 from threading import Lock
 from typing import Any
 from urllib.robotparser import RobotFileParser
 
-from .clean import normalize_and_split
+from .clean import normalize_and_split, normalize_netloc_parts
 from .core import filter_links
 from .filters import lang_filter, validate_url
+from .hosts import _unicode_host
 from .meta import clear_caches
-from .urlutils import _swap_scheme, get_base_url, get_host_and_path, is_known_link
+from .urlutils import _parse, _slash_variant, _swap_scheme, get_base_url
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _decompress(data: bytes) -> bytes:
+    "Decompress by magic bytes, stores written with bz2 included."
+    if data[:3] == b"BZh" and HAS_BZ2:
+        return bz2.decompress(data)
+    if data[:1] == b"\x78" and HAS_ZLIB:
+        return zlib.decompress(data)
+    return data
 
 
 class Compressor:
@@ -48,13 +59,14 @@ class Compressor:
 
     def __init__(self, compression: bool = True) -> None:
         self.compressor: Callable[[bytes], bytes]
-        self.decompressor: Callable[[bytes], bytes]
-        if compression and HAS_BZ2:
-            self.compressor, self.decompressor = bz2.compress, bz2.decompress
-        elif compression and HAS_ZLIB:
-            self.compressor, self.decompressor = zlib.compress, zlib.decompress
+        # pickles start with b"\x80", never with a compression magic byte
+        self.decompressor: Callable[[bytes], bytes] = _decompress
+        if compression and HAS_ZLIB:
+            self.compressor = zlib.compress
+        elif compression and HAS_BZ2:
+            self.compressor = bz2.compress
         else:
-            self.compressor = self.decompressor = self._identical
+            self.compressor = self._identical
 
     @staticmethod
     def _identical(data: Any) -> Any:
@@ -84,15 +96,23 @@ class State(Enum):
 class DomainEntry:
     "Class to record host-related information and URL paths."
 
-    __slots__ = ("count", "rules", "state", "timestamp", "total", "tuples")
+    __slots__ = ("count", "cursor", "rules", "state", "timestamp", "total", "tuples")
 
     def __init__(self, state: State = State.OPEN) -> None:
         self.count: int = 0
+        # all URLs before the cursor are visited
+        self.cursor: int = 0
         self.rules: bytes | RobotFileParser | None = None
         self.state: State = state
         self.timestamp: datetime | None = None
         self.total: int = 0
         self.tuples: bytes | deque[UrlPathTuple] = deque()
+
+    def __setstate__(self, state: tuple[None, dict[str, Any]]) -> None:
+        "Fill in the slots missing from older pickles."
+        self.__init__()  # type: ignore[misc]
+        for slot, value in state[1].items():
+            setattr(self, slot, value)
 
 
 class UrlPathTuple:
@@ -109,23 +129,62 @@ class UrlPathTuple:
         return self.urlpath.decode("utf-8")
 
 
+PathIndex = dict[str, UrlPathTuple]
+
+
+def _host_key(domain: str) -> str:
+    "Return the store key of a domain or URL: normalized scheme and host, no userinfo or path."
+    parsed = _parse(domain)
+    if not parsed.netloc:
+        return domain
+    scheme, _, hostport = normalize_netloc_parts(parsed)
+    return f"{scheme}://{_unicode_host(hostport)}"
+
+
+def _lookup(path: str, index: PathIndex) -> UrlPathTuple | None:
+    "Find the stored tuple for a path or its trailing slash variant."
+    return index.get(path) or index.get(_slash_variant(path))
+
+
+def _first_unvisited(urls: deque[UrlPathTuple], start: int) -> int:
+    "Return the index of the first unvisited URL from start on, len(urls) if none."
+    if start < len(urls) and not urls[start].visited:
+        return start
+    return next(
+        (i for i, u in enumerate(islice(urls, start, None), start) if not u.visited),
+        len(urls),
+    )
+
+
 def _dedup_extend(
     urls: deque[UrlPathTuple],
-    known: set[str],
+    index: PathIndex,
     tuples: Iterable[UrlPathTuple],
     left: bool = False,
-) -> None:
-    "Add tuples whose paths are not yet known, updating the known set as it goes."
-    add = urls.appendleft if left else urls.append
+) -> int:
+    """Add tuples whose paths are not yet known, in input order, and return their number.
+    A visited input marks the stored URL as visited, never the reverse."""
+    new = []
     for utuple in tuples:
         path = utuple.path()
-        if not is_known_link(path, known):
-            add(utuple)
-            known.add(path)
+        known = _lookup(path, index)
+        if known is None:
+            new.append(utuple)
+            index[path] = utuple
+        elif utuple.visited:
+            known.visited = True
+    if left:
+        urls.extendleft(reversed(new))
+    else:
+        urls.extend(new)
+    return len(new)
 
 
 class UrlStore:
     """Defines a class to store domain-classified URLs and perform checks against it.
+
+    Domains are keyed in normalized form: lowercase, unicode host, no userinfo
+    or default port, under https if both twins are known. Readers accept any form.
 
     Thread-safety: readers are safe and writers are serialized, but a logical
     write is not globally atomic — drive mutations from a single writer thread."""
@@ -137,7 +196,10 @@ class UrlStore:
         "strict",
         "trailing_slash",
         "urldict",
+        "_hot",
+        "_index",
         "_lock",
+        "_offset",
     )
 
     def __init__(
@@ -153,8 +215,13 @@ class UrlStore:
         self.language: str | None = language
         self.strict: bool = strict
         self.trailing_slash: bool = trailing_slash
-        self.urldict: defaultdict[str, DomainEntry] = defaultdict(DomainEntry)
+        self.urldict: dict[str, DomainEntry] = {}
+        # last written domain with its uncompressed deque, and its path index
+        self._hot: tuple[DomainEntry, deque[UrlPathTuple]] | None = None
+        self._index: PathIndex | None = None
         self._lock: Lock = Lock()
+        # rotating start of get_download_urls
+        self._offset: int = 0
 
         def dump_unvisited_urls(num: Any, frame: Any) -> None:
             LOGGER.debug(
@@ -175,52 +242,125 @@ class UrlStore:
                 LOGGER.warning("Cannot set signal handlers outside the main thread")
 
     def __getstate__(self) -> dict[str, Any]:
-        "Return the picklable state, excluding the unpicklable lock."
-        return {slot: getattr(self, slot) for slot in self.__slots__ if slot != "_lock"}
+        "Return the picklable state, excluding the lock and the hot domain."
+        self._freeze()
+        return {
+            slot: getattr(self, slot)
+            for slot in self.__slots__
+            if slot not in ("_hot", "_index", "_lock")
+        }
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        "Restore state after unpickling and re-create the lock."
+        "Restore state after unpickling, older stores included."
+        self._hot = self._index = None
+        self._lock = Lock()
+        self._offset = 0
         for slot, value in state.items():
             setattr(self, slot, value)
-        self._lock = Lock()
+        # older stores use a defaultdict, whose reads create entries
+        self.urldict = dict(self.urldict)
+
+    def _split(self, url: str) -> tuple[str, str, str] | None:
+        "Return the normalized URL, the store key and the path, None if the URL is invalid."
+        _, parsed_url = validate_url(url)
+        if parsed_url is None:
+            return None
+        try:
+            normalized, base, urlpath = normalize_and_split(
+                parsed_url, self.strict, self.language, self.trailing_slash
+            )
+        except ValueError:
+            return None
+        # the base is already normalized apart from these two
+        if "@" in base or "xn--" in base:
+            base = _host_key(base)
+        return normalized, base, urlpath
 
     def _buffer_urls(
         self, data: list[str], visited: bool
     ) -> defaultdict[str, deque[UrlPathTuple]]:
         inputdict: defaultdict[str, deque[UrlPathTuple]] = defaultdict(deque)
         for url in dict.fromkeys(data):
-            # segment URL and add to domain dictionary
-            try:
-                # validate
-                validation_result, parsed_url = validate_url(url)
-                if validation_result is False or parsed_url is None:
-                    raise ValueError
-                # host and path come from the normalized parts, no second parse
-                normalized, hostinfo, urlpath = normalize_and_split(
-                    parsed_url, self.strict, self.language, self.trailing_slash
+            split = self._split(url)
+            # filter on the final form, as in check_url
+            if split is None or (
+                self.language is not None
+                and lang_filter(
+                    split[0], self.language, self.strict, self.trailing_slash
                 )
-                # filter on the final form, as in check_url
-                if (
-                    self.language is not None
-                    and lang_filter(
-                        normalized, self.language, self.strict, self.trailing_slash
-                    )
-                    is False
-                ):
-                    raise ValueError
-                inputdict[hostinfo].append(UrlPathTuple(urlpath, visited))
-            except (TypeError, ValueError):
+                is False
+            ):
                 LOGGER.warning("Discarding URL: %s", url)
+                continue
+            inputdict[split[1]].append(UrlPathTuple(split[2], visited))
         return inputdict
 
+    def _find(self, key: str) -> str | None:
+        "Return the stored key for a normalized key or its http/https twin."
+        if key in self.urldict:
+            return key
+        if (
+            key.startswith(("http://", "https://"))
+            and (twin := _swap_scheme(key)) in self.urldict
+        ):
+            return twin
+        return None
+
     def _load_urls(self, domain: str) -> deque[UrlPathTuple]:
-        if domain not in self.urldict:
-            return deque()
         raw = self.urldict[domain].tuples
         if isinstance(raw, bytes):  # compressed
             result: deque[UrlPathTuple] = COMPRESSOR.decompress(raw)
             return result
         return raw
+
+    def _is_hot(self, entry: DomainEntry) -> bool:
+        return (
+            self._hot is not None
+            and self._hot[0] is entry
+            and entry.tuples is self._hot[1]
+        )
+
+    def _paths(self, key: str) -> PathIndex:
+        "Return the path index of a stored domain, kept for the hot one."
+        if self._is_hot(self.urldict[key]) or not self.compressed:
+            self._live(key)
+            return self._hot_index()
+        return {u.path(): u for u in self._load_urls(key)}
+
+    def _hot_index(self) -> PathIndex:
+        "Return the path index of the hot domain, built on first use."
+        if self._index is None:
+            assert self._hot is not None
+            self._index = {u.path(): u for u in self._hot[1]}
+        return self._index
+
+    def _freeze(self) -> None:
+        "Compress the hot domain again and drop its index."
+        if self._hot is not None:
+            entry, urls = self._hot
+            if self.compressed and entry.tuples is urls:
+                entry.tuples = COMPRESSOR.compress(urls)
+            self._hot = self._index = None
+
+    def _live(self, key: str) -> deque[UrlPathTuple]:
+        """Return the deque of a stored domain for writing.
+        In compressed mode it stays uncompressed until another domain is written."""
+        entry = self.urldict[key]
+        if self._hot is None or not self._is_hot(entry):
+            self._freeze()
+            entry.tuples = urls = self._load_urls(key)
+            self._hot = (entry, urls)
+        return self._hot[1]
+
+    def _update(self, entry: DomainEntry, urls: deque[UrlPathTuple]) -> None:
+        "Refresh the counters and the state of an entry after a write."
+        entry.total = len(urls)
+        entry.cursor = _first_unvisited(urls, entry.cursor)
+        if entry.cursor < len(urls):
+            entry.state = State.OPEN
+            self.done = False
+        else:
+            entry.state = State.ALL_VISITED
 
     def _set_done(self) -> None:
         if not self.done and all(v.state != State.OPEN for v in self.urldict.values()):
@@ -233,16 +373,16 @@ class UrlStore:
         if State.BUSTED in (tgt.state, src.state):
             self.urldict[target] = DomainEntry(state=State.BUSTED)
             return
-        urls = self._load_urls(target)
-        known = {u.path() for u in urls}
-        _dedup_extend(urls, known, self._load_urls(source))
-        tgt.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
+        urls = self._live(target)
+        index = self._hot_index()
+        _dedup_extend(urls, index, self._load_urls(source))
         tgt.count += src.count
         if tgt.rules is None:
             tgt.rules = src.rules
-        tgt.state = State.ALL_VISITED if all(u.visited for u in urls) else State.OPEN
         if src.timestamp and (not tgt.timestamp or src.timestamp > tgt.timestamp):
             tgt.timestamp = src.timestamp
+        tgt.cursor = 0
+        self._update(tgt, urls)
 
     def _merge_twin(self, domain: str) -> str:
         """Canonicalize the domain under the https key if a twin exists,
@@ -268,64 +408,40 @@ class UrlStore:
         self,
         domain: str,
         to_right: deque[UrlPathTuple] | None = None,
-        timestamp: datetime | None = None,
         to_left: deque[UrlPathTuple] | None = None,
-        replace: bool = False,
     ) -> None:
         domain = self._merge_twin(domain)
-
-        # load URLs or create entry
-        if domain in self.urldict and self.urldict[domain].state is State.BUSTED:
+        if domain not in self.urldict:
+            with self._lock:
+                self.urldict[domain] = DomainEntry()
+        entry = self.urldict[domain]
+        if entry.state is State.BUSTED:
             return
-        if replace and to_right is not None:
-            urls = to_right  # skip dedup: store caller's already-mutated deque
-        else:
-            if domain in self.urldict:
-                urls = self._load_urls(domain)
-                known = {u.path() for u in urls}
-            else:
-                urls = deque()
-                known = set()
-
-            if to_right is not None:
-                _dedup_extend(urls, known, to_right)
-            if to_left is not None:
-                _dedup_extend(urls, known, to_left, left=True)
-
+        urls = self._live(domain)
+        index = self._hot_index()
+        if to_right is not None:
+            _dedup_extend(urls, index, to_right)
+        if to_left is not None and _dedup_extend(urls, index, to_left, left=True):
+            entry.cursor = 0
         with self._lock:
-            entry = self.urldict[domain]
-            entry.tuples = COMPRESSOR.compress(urls) if self.compressed else urls
-            entry.total = len(urls)
-
-            if timestamp is not None:
-                entry.timestamp = timestamp
-
-            if all(u.visited for u in urls):
-                entry.state = State.ALL_VISITED
-            else:
-                entry.state = State.OPEN
-                if self.done:
-                    self.done = False
+            self._update(entry, urls)
 
     def _search_urls(self, urls: list[str], switch: int | None = None) -> list[str]:
-        # init
-        last_domain: str | None = None
-        known_paths: dict[str, bool | None] = {}
-        remaining_urls = dict.fromkeys(urls)
-        # iterate
-        for url in sorted(remaining_urls):
-            hostinfo, urlpath = get_host_and_path(url)
-            # examine domain
-            if hostinfo != last_domain:
-                last_domain = hostinfo
-                known_paths = {u.path(): u.visited for u in self._load_urls(hostinfo)}
-            # run checks: case 1: the path matches, case 2: visited URL
-            if urlpath in known_paths and (
-                switch == 1 or (switch == 2 and known_paths[urlpath])
-            ):
-                del remaining_urls[url]
-        # preserve input order
-        return list(remaining_urls)
+        "Return the URLs not stored (switch 1) or not visited (switch 2), in input order."
+        remaining = []
+        indexes: dict[str, PathIndex] = {}
+        for url in dict.fromkeys(urls):
+            split = self._split(url)
+            key = self._find(split[1]) if split else None
+            if split and key:
+                if key not in indexes:
+                    indexes[key] = self._paths(key)
+                known = _lookup(split[2], indexes[key])
+                # case 1: the path matches, case 2: visited URL
+                if known and (switch == 1 or (switch == 2 and known.visited)):
+                    continue
+            remaining.append(url)
+        return remaining
 
     # ADDITIONS AND DELETIONS
 
@@ -370,7 +486,7 @@ class UrlStore:
     def discard(self, domains: list[str]) -> None:
         "Declare domains void and prune the store, http/https twins included."
         for domain in domains:
-            domain = self._merge_twin(domain)
+            domain = self._merge_twin(_host_key(domain))
             with self._lock:
                 self.urldict[domain] = DomainEntry(state=State.BUSTED)
         self._set_done()
@@ -380,7 +496,8 @@ class UrlStore:
     def reset(self) -> None:
         "Re-initialize the URL store."
         with self._lock:
-            self.urldict = defaultdict(DomainEntry)
+            self.urldict = {}
+            self._hot = self._index = None
         clear_caches()
         num = gc.collect()
         LOGGER.debug("UrlStore reset, %s objects in GC", num)
@@ -398,9 +515,8 @@ class UrlStore:
 
     def is_exhausted_domain(self, domain: str) -> bool:
         "Tell if all known URLs for the website have been visited."
-        if domain in self.urldict:
-            return self.urldict[domain].state != State.OPEN
-        return False
+        key = self._find(_host_key(domain))
+        return key is not None and self.urldict[key].state != State.OPEN
 
     def unvisited_websites_number(self) -> int:
         "Return the number of websites for which there are still URLs to visit."
@@ -410,13 +526,18 @@ class UrlStore:
 
     def find_known_urls(self, domain: str) -> list[str]:
         """Get all already known URLs for the given domain (ex. "https://example.org")."""
-        return [domain + u.path() for u in self._load_urls(domain)]
+        key = self._find(_host_key(domain))
+        return [key + u.path() for u in self._load_urls(key)] if key else []
 
     def find_unvisited_urls(self, domain: str) -> list[str]:
         "Get all unvisited URLs for the given domain."
-        if not self.is_exhausted_domain(domain):
-            return [domain + u.path() for u in self._load_urls(domain) if not u.visited]
-        return []
+        key = self._find(_host_key(domain))
+        return self._unvisited(key) if key else []
+
+    def _unvisited(self, key: str) -> list[str]:
+        if self.urldict[key].state is not State.OPEN:
+            return []
+        return [key + u.path() for u in self._load_urls(key) if not u.visited]
 
     def filter_unknown_urls(self, urls: list[str]) -> list[str]:
         "Take a list of URLs and return the currently unknown ones."
@@ -428,37 +549,36 @@ class UrlStore:
 
     def has_been_visited(self, url: str) -> bool:
         "Check if the given URL has already been visited."
-        return not bool(self.filter_unvisited_urls([url]))
+        return not self.filter_unvisited_urls([url])
 
     def is_known(self, url: str) -> bool:
         "Check if the given URL has already been stored."
-        hostinfo, urlpath = get_host_and_path(url)
-        # returns False if domain or URL is new
-        return urlpath in {u.path() for u in self._load_urls(hostinfo)}
+        return not self.filter_unknown_urls([url])
 
     # DOWNLOADS
 
     def get_url(self, domain: str, as_visited: bool = True) -> str | None:
         "Retrieve a single URL and consider it to be visited (with corresponding timestamp)."
-        # merge any twin first so the replace-store below stays on one key
-        domain = self._merge_twin(domain)
-        if not self.is_exhausted_domain(domain):
-            url_tuples = self._load_urls(domain)
-            # get first non-seen url
-            for url in url_tuples:
-                if not url.visited:
-                    # store information
-                    if as_visited:
-                        url.visited = True
-                        with self._lock:
-                            self.urldict[domain].count += 1
-                        self._store_urls(
-                            domain, url_tuples, timestamp=datetime.now(), replace=True
-                        )
-                    return domain + url.path()
-        # nothing to draw from
-        with self._lock:
-            self.urldict[domain].state = State.ALL_VISITED
+        # merge any twin first so the writes below stay on one key
+        domain = self._merge_twin(_host_key(domain))
+        entry = self.urldict.get(domain)
+        if entry is None:
+            return None
+        if entry.state is State.OPEN:
+            urls = self._live(domain)
+            i = _first_unvisited(urls, entry.cursor)
+            if i < len(urls):
+                url = urls[i]
+                if as_visited:
+                    url.visited = True
+                    with self._lock:
+                        entry.count += 1
+                        entry.timestamp = datetime.now()
+                        self._update(entry, urls)
+                return domain + url.path()
+            # nothing to draw from, a discarded domain stays so
+            with self._lock:
+                entry.state = State.ALL_VISITED
         self._set_done()
         return None
 
@@ -468,10 +588,12 @@ class UrlStore:
         max_urls: int = 10000,
     ) -> list[str]:
         """Get a list of immediately downloadable URLs according to the given
-        time limit per domain."""
-        urls = []
+        time limit per domain. Each call starts after the last domain served."""
+        urls: list[str] = []
         # snapshot the keys: get_url may merge twin entries and mutate the dict
-        for website in list(self.urldict):
+        websites = list(self.urldict)
+        start = self._offset % len(websites) if websites else 0
+        for position, website in enumerate(websites[start:] + websites[:start], start):
             entry = self.urldict.get(website)
             if entry is None or entry.state != State.OPEN:
                 continue
@@ -483,6 +605,7 @@ class UrlStore:
                 if url is not None:
                     urls.append(url)
                     if len(urls) >= max_urls:
+                        self._offset = position + 1
                         break
         self._set_done()
         return urls
@@ -501,26 +624,27 @@ class UrlStore:
         targets: list[tuple[float, str]] = []
         # iterate potential domains
         for domain in potential:
-            # merge any twin first so the replace-store below stays on one key
+            if len(targets) >= max_urls:
+                break
+            # merge any twin first so the writes below stay on one key
             domain = self._merge_twin(domain)
-            # load urls
-            url_tuples = self._load_urls(domain)
+            entry = self.urldict[domain]
+            urls = self._live(domain)
             urlpaths: list[str] = []
             # get first non-seen urls
-            for url in url_tuples:
-                if (
-                    len(urlpaths) >= per_domain
-                    or (len(targets) + len(urlpaths)) >= max_urls
-                ):
+            i = entry.cursor
+            while (
+                len(urlpaths) < per_domain and len(targets) + len(urlpaths) < max_urls
+            ):
+                i = _first_unvisited(urls, i)
+                if i == len(urls):
                     break
-                if not url.visited:
-                    urlpaths.append(url.path())
-                    url.visited = True
-                    with self._lock:
-                        self.urldict[domain].count += 1
+                urls[i].visited = True
+                urlpaths.append(urls[i].path())
+                i += 1
             # determine timestamps
             now = datetime.now()
-            original_timestamp = self.urldict[domain].timestamp
+            original_timestamp = entry.timestamp
             if (
                 not original_timestamp
                 or (now - original_timestamp).total_seconds() > time_limit
@@ -533,10 +657,11 @@ class UrlStore:
             for urlpath in urlpaths:
                 targets.append((schedule_secs, domain + urlpath))
                 schedule_secs += time_limit
-            # calculate difference and offset last addition
-            total_diff = now + timedelta(0, schedule_secs - time_limit)
-            # store new info
-            self._store_urls(domain, url_tuples, timestamp=total_diff, replace=True)
+            # store new info, offset of the last addition
+            with self._lock:
+                entry.count += len(urlpaths)
+                entry.timestamp = now + timedelta(0, schedule_secs - time_limit)
+                self._update(entry, urls)
         # sort by first tuple element (time in secs)
         self._set_done()
         return sorted(targets, key=itemgetter(0))
@@ -545,17 +670,21 @@ class UrlStore:
 
     def store_rules(self, website: str, rules: RobotFileParser | None) -> None:
         "Store crawling rules for a given website."
-        website = self._merge_twin(website)
+        website = self._merge_twin(_host_key(website))
         if self.compressed:
             rules = COMPRESSOR.compress(rules)
-        self.urldict[website].rules = rules
+        with self._lock:
+            if website not in self.urldict:
+                # rules alone leave nothing to visit
+                self.urldict[website] = DomainEntry(state=State.ALL_VISITED)
+            self.urldict[website].rules = rules
 
     def get_rules(self, website: str) -> RobotFileParser | None:
         "Return the stored crawling rules for the given website."
-        website = self._merge_twin(website)
-        if website not in self.urldict:
+        key = self._find(_host_key(website))
+        if key is None:
             return None
-        raw = self.urldict[website].rules
+        raw = self.urldict[key].rules
         if isinstance(raw, bytes):  # compressed
             result: RobotFileParser = COMPRESSOR.decompress(raw)
             return result
@@ -585,12 +714,12 @@ class UrlStore:
 
     def dump_urls(self) -> list[str]:
         "Return a list of all known URLs."
-        return [url for domain in self.urldict for url in self.find_known_urls(domain)]
+        return [d + u.path() for d in self.urldict for u in self._load_urls(d)]
 
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
         for domain in self.urldict:
-            if urls := self.find_unvisited_urls(domain):
+            if urls := self._unvisited(domain):
                 print("\n".join(urls), flush=True)
 
     def print_urls(self) -> None:
