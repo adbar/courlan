@@ -13,6 +13,8 @@ from courlan.filters import domain_filter
 from courlan.hosts import (
     _idna_encode,
     _idna_label,
+    _unicode_host,
+    _unicode_label,
     get_registrable_domain,
 )
 from courlan.urlutils import get_tldinfo
@@ -81,11 +83,20 @@ _DNS_254 = "a." * 125 + "abcd"  # 254 chars, over the limit
         ("abc.de", True),
         ("aced.de", True),
         ("dead.beef", True),
-        # file extensions / gravatar / numeric
+        # file extensions as top-level label
         ("example.jpg", False),
         ("example.html", False),
-        ("0.gravatar.com", False),
-        ("12345.org", False),
+        ("index.html", False),
+        ("site.json:8080", False),
+        # real hosts: numeric first label, file type in a label, .pl and .do
+        ("0.gravatar.com", True),
+        ("12345.org", True),
+        ("163.com", True),
+        ("www.css-tricks.com", True),
+        ("www.json.org", True),
+        ("electron.atom.io", True),
+        ("allegro.pl", True),
+        ("example.do", True),
     ],
 )
 def test_domain_filter(domain, expected):
@@ -316,3 +327,31 @@ def test_get_tldinfo_ipv6():
     assert get_tldinfo("https://[2001:db8::1]/path") == ("2001:db8::1", "2001:db8::1")
     # unbracketed IPv6 (2 colons minimum)
     assert get_tldinfo("http://2001:db8::1/path") == ("2001:db8::1", "2001:db8::1")
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("xn--mnchen-3ya", "münchen"),
+        # IDNA2008 deviation characters, which the stdlib idna codec rejects
+        ("xn--fa-hia", "faß"),
+        # invalid or non-printable decodings stay as they are
+        ("xn--a", "xn--a"),
+        ("xn----", "xn----"),
+        ("xn--zz", "xn--zz"),
+        ("example", "example"),
+    ],
+)
+def test_unicode_label(label, expected):
+    "Punycode labels decode for host comparisons."
+    assert _unicode_label(label) == expected
+
+
+def test_unicode_host():
+    "Only the punycode labels of a host are decoded."
+    assert _unicode_host("www.xn--fa-hia.de") == "www.faß.de"
+    assert _unicode_host("example.org") == "example.org"
+    assert not is_external("https://münchen.de/a", "https://xn--mnchen-3ya.de/")
+    assert not is_external(
+        "https://faß.de/a", "https://xn--fa-hia.de/", ignore_suffix=False
+    )

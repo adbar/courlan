@@ -507,9 +507,12 @@ def test_validate():
     assert not is_valid_url("http://1234")
     assert not is_valid_url("http://localhost/")
     assert not is_valid_url("http://a.b/")
-    # userinfo must not make check_url reject an otherwise-valid host
-    assert check_url("http://user@t.co/") is not None
-    assert check_url("https://user:pass@example.com/path") is not None
+    # userinfo must not make check_url reject an otherwise-valid host, it is dropped
+    assert check_url("http://user@t.co/") == ("http://t.co", "t.co")
+    assert check_url("https://user:pass@example.com/path") == (
+        "https://example.com/path",
+        "example.com",
+    )
 
 
 def test_normalization():
@@ -810,3 +813,14 @@ def test_strip_trailing_dot_edge_cases():
     assert _strip_trailing_dot("example.com.:8080") == "example.com:8080"
     # with userinfo, the host:port branch should not fire
     assert _strip_trailing_dot("user@example.com.:80") == "user@example.com.:80"
+
+
+def test_store_helpers():
+    "Helpers that the store no longer exercises."
+    assert is_known_link("/a/", {"/a"})
+    assert not is_known_link("/b", {"/a"})
+    assert extract_domain("https://www.facebook.com/x", blacklist={"facebook"}) is None
+    assert (
+        normalize_url("https://[2001:DB8:0:0::1]:0443/a") == "https://[2001:db8::1]/a"
+    )
+    assert normalize_url("https://u:p@ex.org:/a") == "https://u:p@ex.org/a"

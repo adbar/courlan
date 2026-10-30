@@ -16,7 +16,7 @@ from courlan import (
     normalize_url,
     validate_url,
 )
-from courlan.core import filter_links
+from courlan.core import _host_parts, filter_links
 from courlan.hosts import get_registrable_domain
 from courlan.langcodes import langcodes_score
 from courlan.meta import clear_caches
@@ -177,7 +177,7 @@ def test_urlcheck_domain():
     assert check_url("http://2001:0db8:85a3:0000:0000:8a2e:0370:7334") is not None
     # bracketed form is what urlsplit produces for a valid IPv6 URL
     assert check_url("http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") == (
-        "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+        "http://[2001:db8:85a3::8a2e:370:7334]",
         "2001:db8:85a3::8a2e:370:7334",
     )
     assert check_url("http://[2001:db8::1]/page") == (
@@ -586,6 +586,7 @@ def test_meta():
     has_urlsplit_cache = hasattr(urlsplit, "cache_info")
     assert langcodes_score.cache_info().currsize > 0
     assert get_registrable_domain.cache_info().currsize > 0
+    assert _host_parts.cache_info().currsize > 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize > 0  # type: ignore[attr-defined]
 
@@ -593,5 +594,72 @@ def test_meta():
 
     assert langcodes_score.cache_info().currsize == 0
     assert get_registrable_domain.cache_info().currsize == 0
+    assert _host_parts.cache_info().currsize == 0
     if has_urlsplit_cache:
         assert urlsplit.cache_info().currsize == 0  # type: ignore[attr-defined]
+
+
+def test_extract_links_host_forms():
+    "Internal links are found whatever the form of the page host."
+    html = '<a href="/artikel-1">a</a><a href="https://münchen.de/b">b</a>'
+    for page in (
+        "https://xn--mnchen-3ya.de/",
+        "https://münchen.de/",
+        "https://MÜNCHEN.de/",
+    ):
+        assert extract_links(html, page, strict=False) == {
+            "https://münchen.de/artikel-1",
+            "https://münchen.de/b",
+        }
+        assert extract_links(html, page, external_bool=True, strict=False) == set()
+    # IDNA2008 deviation characters
+    html = '<a href="https://faß.de/x">x</a><a href="https://xn--fa-hia.de/y">y</a>'
+    assert extract_links(html, "https://xn--fa-hia.de/", external_bool=False) == {
+        "https://faß.de/x",
+        "https://xn--fa-hia.de/y",
+    }
+    # userinfo of the page URL is not copied into the links
+    assert extract_links(
+        '<a href="/rel">x</a>', "https://u:p@ex.org/page", strict=False
+    ) == {"https://ex.org/rel"}
+    # external links only
+    html = '<a href="https://other.org/a">a</a><a href="/b">b</a>'
+    assert extract_links(html, "https://ex.org/", external_bool=True, strict=False) == {
+        "https://other.org/a"
+    }
+
+
+def test_extract_links_first_variant():
+    "The first variant of a link in the document wins."
+    html = (
+        '<a href="https://ex.org/a">1</a><a href="http://ex.org/a">2</a>'
+        '<a href="https://ex.org/b/">3</a><a href="https://ex.org/b">4</a>'
+    )
+    assert extract_links(html, "https://ex.org/", strict=False) == {
+        "https://ex.org/a",
+        "https://ex.org/b/",
+    }
+
+
+def test_check_url_host_forms():
+    "Ports and IPv6 addresses have one form, userinfo is dropped."
+    assert check_url("https://ex.org:08080/a") == ("https://ex.org:8080/a", "ex.org")
+    assert check_url("https://ex.org:/a") == ("https://ex.org/a", "ex.org")
+    assert check_url("https://ex.org:0443/a") == ("https://ex.org/a", "ex.org")
+    assert check_url("https://[2001:db8:0:0::1]/a") == (
+        "https://[2001:db8::1]/a",
+        "2001:db8::1",
+    )
+    assert check_url("https://user:secret@ex.org/a") == ("https://ex.org/a", "ex.org")
+    assert check_url("https://allegro.pl/oferta") == (
+        "https://allegro.pl/oferta",
+        "allegro.pl",
+    )
+    assert check_url("https://163.com/news/a.html") == (
+        "https://163.com/news/a.html",
+        "163.com",
+    )
+    assert check_url("http://index.html/x") is None
+    # the strict blacklist applies to the label and to the domain
+    assert check_url("https://www.facebook.com/x", strict=True) is None
+    assert check_url("https://www.facebook.com/x") is not None

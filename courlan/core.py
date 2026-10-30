@@ -4,6 +4,8 @@ Core functions needed to make the module work.
 
 import logging
 import re
+from functools import lru_cache
+from urllib.parse import SplitResult
 from urllib.robotparser import RobotFileParser
 
 from .clean import (
@@ -27,10 +29,10 @@ from .filters import (
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import (
-    extract_domain,
+    _host_form,
     fix_relative_urls,
     get_base_url,
-    is_external,
+    get_tldinfo,
     is_known_link,
 )
 
@@ -40,6 +42,20 @@ FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
 HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
 # *? so empty href="" / href='' do not capture the closing quote as the URL
 LINK_REGEX = re.compile(r'href=["\']?([^ ]*?)(["\' >])', re.I)
+
+
+@lru_cache(maxsize=4096)
+def _host_parts(
+    scheme: str, netloc: str
+) -> tuple[str, str, str | None, str | None] | None:
+    """Return the normalized scheme and host, without userinfo, and the domain
+    label and name of a netloc, or None if the host is unsuitable."""
+    scheme, _, host = normalize_netloc_parts(SplitResult(scheme, netloc, "", "", ""))
+    # domain_filter expects host[:port]
+    if not host or domain_filter(host) is False:
+        return None
+    label, domain = get_tldinfo(f"{scheme}://{host}")
+    return scheme, host, label, domain
 
 
 def check_url(
@@ -69,7 +85,21 @@ def check_url(
     Raises:
         Nothing: invalid URLs are caught internally and None is returned.
     """
+    return _check_url(url, strict, with_redirects, language, with_nav, trailing_slash)
 
+
+def _check_url(
+    url: str,
+    strict: bool,
+    with_redirects: bool,
+    language: str | None,
+    with_nav: bool,
+    trailing_slash: bool,
+    external: bool | None = None,
+    ref_label: str | None = None,
+) -> tuple[str, str] | None:
+    """check_url, plus an early host gate: with external set, keep only the links
+    on that side of the reference domain label, as is_external would."""
     # scrub, parse and normalize, then filter on the normalized parts
     # and the final form so the output is a fixed point
     try:
@@ -85,9 +115,19 @@ def check_url(
             url = redirection_test(url)
 
         # split and validate
-        validation_test, parsed_url = validate_url(url)
-        if validation_test is False or parsed_url is None:
+        _, parsed_url = validate_url(url)
+        if parsed_url is None:
             raise ValueError
+
+        # unsuitable domain/host name, userinfo is dropped from the output
+        hostinfo = _host_parts(parsed_url.scheme, parsed_url.netloc)
+        if hostinfo is None:
+            raise ValueError
+        scheme, host, label, domain = hostinfo
+
+        # links on the unwanted side are dropped before the path work
+        if external is not None and external != (_host_form(label) != ref_label):
+            return None
 
         # normalized parts, shared with the rebuild; the query comes last as
         # it is the expensive one and the filters below may reject first
@@ -95,12 +135,6 @@ def check_url(
 
         # content filter based on extensions
         if extension_filter(path) is False:
-            raise ValueError
-
-        scheme, netloc, host = normalize_netloc_parts(parsed_url)
-
-        # unsuitable domain/host name (without userinfo; domain_filter expects host[:port])
-        if not host or domain_filter(host) is False:
             raise ValueError
 
         # spam & structural elements, also hidden in the query or the fragment
@@ -119,7 +153,7 @@ def check_url(
         # rebuild
         url = rebuild_url(
             scheme,
-            netloc,
+            host,
             path,
             query,
             parsed_url.fragment,
@@ -143,8 +177,7 @@ def check_url(
             raise ValueError
 
         # domain info: use blacklist in strict mode only
-        domain = extract_domain(url, blacklist=BLACKLIST if strict else None)
-        if domain is None:
+        if not domain or (strict and (label in BLACKLIST or domain in BLACKLIST)):
             return None
 
     except (AttributeError, ValueError):
@@ -197,13 +230,15 @@ def extract_links(
 
     base_url = get_base_url(url or "")
     url = url or base_url
-    candidates: set[str] = set()
+    # document order, so that the first variant of a link wins
+    candidates: dict[str, None] = {}
     validlinks: set[str] = set()
     if not pagecontent:
         return validlinks
 
     # define host reference
     reference = reference or base_url
+    ref_label = _host_form(get_tldinfo(reference)[0]) if reference else None
 
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
@@ -218,12 +253,12 @@ def extract_links(
             ):
                 linkmatch = LINK_REGEX.search(link)
                 if linkmatch:
-                    candidates.add(linkmatch[1])
+                    candidates[linkmatch[1]] = None
         # default
         else:
             linkmatch = LINK_REGEX.search(link)
             if linkmatch:
-                candidates.add(linkmatch[1])
+                candidates[linkmatch[1]] = None
 
     # filter candidates
     for link in candidates:
@@ -236,22 +271,20 @@ def extract_links(
                 continue
         # check
         if no_filter is False:
-            checked = check_url(
+            # with the external/internal links filter
+            checked = _check_url(
                 link,
-                strict=strict,
-                trailing_slash=trailing_slash,
-                with_nav=with_nav,
-                with_redirects=redirects,
-                language=language,
+                strict,
+                redirects,
+                language,
+                with_nav,
+                trailing_slash,
+                external_bool if reference else None,
+                ref_label,
             )
             if checked is None:
                 continue
             link = checked[0]
-            # external/internal links
-            if reference and external_bool != is_external(
-                url=link, reference=reference, ignore_suffix=True
-            ):
-                continue
         if is_known_link(link, validlinks):
             continue
         validlinks.add(link)

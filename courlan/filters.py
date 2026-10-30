@@ -117,6 +117,8 @@ WHITELISTED_EXTENSIONS = {
     ".xhtml",
     ".xml",
 }
+# real top-level domains among them
+HOST_EXTENSIONS = WHITELISTED_EXTENSIONS - {".do", ".pl"}
 
 
 def basic_filter(url: str) -> bool:
@@ -172,13 +174,13 @@ def domain_filter(domain: str) -> bool:
         if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
-    # unsuitable content
-    if domain.split(".")[0].isdigit() or FILE_TYPE.search(domain):
+    # unsuitable content: a file type as top-level label
+    if FILE_TYPE.search(domain[domain.rfind(".") :]):
         return False
 
-    # extensions
+    # page extensions as top-level label, except real TLDs
     extension_match = EXTENSION_REGEX.search(domain.lower())
-    return not extension_match or extension_match[0] not in WHITELISTED_EXTENSIONS
+    return not extension_match or extension_match[0] not in HOST_EXTENSIONS
 
 
 def extension_filter(urlpath: str) -> bool:

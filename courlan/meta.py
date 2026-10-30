@@ -4,6 +4,7 @@ Meta-functions to be applied module-wide.
 
 import logging
 
+from .core import _host_parts
 from .hosts import get_registrable_domain
 from .langcodes import langcodes_score
 
@@ -24,3 +25,4 @@ def clear_caches() -> None:
     urllib_clear_cache()
     langcodes_score.cache_clear()
     get_registrable_domain.cache_clear()
+    _host_parts.cache_clear()
