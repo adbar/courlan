@@ -590,20 +590,16 @@ class UrlStore:
     def print_unvisited_urls(self) -> None:
         "Print all unvisited URLs in store."
         for domain in self.urldict:
-            print("\n".join(self.find_unvisited_urls(domain)), flush=True)
+            if urls := self.find_unvisited_urls(domain):
+                print("\n".join(urls), flush=True)
 
     def print_urls(self) -> None:
         "Print all URLs in store (URL + TAB + visited or not)."
         for domain in self.urldict:
-            print(
-                "\n".join(
-                    [
-                        f"{domain}{u.path()}\t{u.visited!s}"
-                        for u in self._load_urls(domain)
-                    ]
-                ),
-                flush=True,
-            )
+            if urls := [
+                f"{domain}{u.path()}\t{u.visited!s}" for u in self._load_urls(domain)
+            ]:
+                print("\n".join(urls), flush=True)
 
     # PERSISTENCE
 

@@ -16,7 +16,7 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 | `-v, --verbose` | Enable debug logging |
 | `-p, --parallel` | Worker processes for batch mode (default: number of CPUs) |
 | `--strict` | Enable more restrictive filtering |
-| `-l, --language` | Keep only URLs matching this ISO 639-1 code (e.g. `en`, `de`) — batch mode only |
+| `-l, --language` | Keep only URLs matching this ISO 639-1 code (e.g. `en`, `de`) |
 | `-r, --redirects` | Check HTTP redirects (slow — see below) |
 | `--sample N` | Sample N URLs per domain instead of full processing |
 | `--exclude-min N` | Skip domains with fewer than N URLs (sampling only) |
@@ -25,7 +25,8 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 ## Behavior
 
 - **Batch mode** (default): processes all URLs, writes accepted URLs to `--outputfile` and rejected ones to `--discardedfile` if specified. Parallelism controlled by `-p`.
-- **Sampling mode** (`--sample`): samples N URLs per domain. Only `-i`, `-o`, `--strict`, `-v` and the `--exclude-*` bounds apply; `-p`, `-l`, `-r` and `-d` are ignored. `--sample 0` falls back to batch mode.
+- **Sampling mode** (`--sample`): samples N URLs per domain. Only `-i`, `-o`, `--strict`, `-l`, `-v` and the `--exclude-*` bounds apply. `-p`, `-r` and `-d` are rejected. `--exclude-*` without `--sample` is rejected too, and `-p` and `--sample` take positive integers.
+- **Input**: UTF-8 with or without BOM. Blank lines are skipped. Lines with invalid UTF-8 go to `--discardedfile` in batch mode and are skipped in sampling mode, with a count logged by `-v`. The run is refused if an output file is the input file. Unreadable or unwritable files end the run with an error and exit code 2. If the output is piped to a reader that stops early, such as `-o /dev/stdout | head`, the run ends quietly with exit code 1.
 
 ## Examples
 
@@ -97,7 +98,7 @@ https://example.com/page3
 https://another.org/article
 ```
 
-**`sample.txt`** (2 per domain, domains with <2 URLs excluded):
+**`sample.txt`** (2 random URLs per domain, domains with <2 URLs excluded):
 ```
 https://github.com/adbar/courlan
 https://github.com/adbar/trafilatura

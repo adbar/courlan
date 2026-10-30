@@ -9,6 +9,7 @@ import signal
 import sys
 import threading
 import uuid
+from collections import deque
 from datetime import datetime
 from time import sleep
 from urllib.robotparser import RobotFileParser
@@ -68,8 +69,9 @@ def test_urlstore_basics():
     ]
     my_urls.add_urls(candidates)
     assert len(my_urls.urldict) == 1 and "http://example.org" not in my_urls.urldict
-    assert len(my_urls.urldict["https://example.org"].tuples) == 2
-    firstelem = my_urls.urldict["https://example.org"].tuples[0]
+    tuples = my_urls.urldict["https://example.org"].tuples
+    assert isinstance(tuples, deque) and len(tuples) == 2
+    firstelem = tuples[0]
     assert firstelem.urlpath == b"/" and firstelem.visited is False
     # host and path come from the normalized parts: query and fragment are kept,
     # and query keys that are HTML entity names are no longer mangled
@@ -258,14 +260,16 @@ def test_urlstore():
     if my_urls.compressed is False:
         assert sum(len(v.tuples) for _, v in my_urls.urldict.items()) == len(urls)
     my_urls.add_urls(["https://visited.com/visited"], visited=True)
-    assert my_urls.urldict["https://visited.com"].tuples[0].visited is True
+    tuples = my_urls.urldict["https://visited.com"].tuples
+    assert isinstance(tuples, deque) and tuples[0].visited is True
     assert my_urls.urldict["https://visited.com"].state is State.ALL_VISITED
     assert not my_urls.find_unvisited_urls("https://visited.com")
     assert my_urls.is_exhausted_domain("https://visited.com") is True
     # new unvisited URLs
     my_urls.add_urls(["https://visited.com/1"], visited=False)
-    assert my_urls.urldict["https://visited.com"].tuples[1].visited is False
-    assert my_urls.urldict["https://visited.com"].state is State.OPEN
+    assert tuples[1].visited is False
+    # mypy keeps the State.ALL_VISITED narrowing across the add_urls call
+    assert my_urls.urldict["https://visited.com"].state is State.OPEN  # type: ignore[comparison-overlap]
     assert my_urls.is_exhausted_domain("https://visited.com") is False
     # with pytest.raises(KeyError):
     #    assert my_urls.is_exhausted_domain("https://visited2.com") is True
@@ -470,6 +474,16 @@ def test_dbdump(capsys):
     lines = sorted(captured.out.strip().splitlines())
     assert lines == ["https://www.test.org/a", "https://www.test.org/b"]
 
+    # no blank line for exhausted or discarded hosts
+    mixed_store = UrlStore()
+    mixed_store.add_urls(["https://www.test.org/a", "https://other.org/x"])
+    mixed_store.get_url("https://other.org")
+    mixed_store.print_unvisited_urls()
+    assert capsys.readouterr().out == "https://www.test.org/a\n"
+    mixed_store.discard(["https://www.test.org"])
+    mixed_store.print_urls()
+    assert capsys.readouterr().out == "https://other.org/x\tTrue\n"
+
     # dump unvisited, don't test it on Windows
     if os.name != "nt":
         # standard
@@ -624,6 +638,7 @@ def test_urlstore_open_but_all_visited():
     store = UrlStore()
     store.add_urls(["https://example.org/1"])
     entry = store.urldict["https://example.org"]
+    assert isinstance(entry.tuples, deque)
     entry.tuples[0].visited = True  # mark the only URL as visited
     entry.state = State.OPEN  # but leave the domain marked OPEN
     # get_download_urls -> get_url finds nothing, returns None, and fixes the state
@@ -684,7 +699,7 @@ def test_urlstore_store_non_http_domain():
     "_store_urls tolerates a domain without an http(s) scheme (defensive fall-through)."
     store = UrlStore()
     store._store_urls("ftp://example.org")
-    assert "ftp://example.org" in store.urldict
+    assert list(store.urldict) == ["ftp://example.org"]
 
 
 def test_store_rules_merges_twin():

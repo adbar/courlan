@@ -54,6 +54,7 @@ ruff format courlan tests
 
 # static typing
 mypy -p courlan
+mypy tests
 ```
 
 4. Pre-commit and CI

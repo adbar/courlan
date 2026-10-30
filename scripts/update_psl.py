@@ -164,7 +164,12 @@ def main() -> int:
         raw = fetch_psl()
         version, commit = extract_version_commit(raw)
         suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
-    except (RuntimeError, IndexError, urllib3.exceptions.HTTPError) as err:
+    except (
+        RuntimeError,
+        IndexError,
+        UnicodeError,
+        urllib3.exceptions.HTTPError,
+    ) as err:
         print(f"error: {err}")
         return 2
 

@@ -229,7 +229,10 @@ def extract_links(
     for link in candidates:
         # repair using base
         if not link.startswith("http"):
-            link = fix_relative_urls(url, link)
+            try:
+                link = fix_relative_urls(url, link)
+            except ValueError:
+                continue
         # check
         if no_filter is False:
             checked = check_url(

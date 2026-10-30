@@ -104,6 +104,12 @@ python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 
+# tests keep the rest of strict, without annotating every test function
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.run]
 branch = true
