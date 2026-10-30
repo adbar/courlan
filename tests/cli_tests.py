@@ -104,13 +104,11 @@ def test_cli(tmp_path):
     assert samplefile.read_text(encoding="utf-8").splitlines() == input_urls
 
 
-def test_cli_main(tmp_path, capsys):
+def test_cli_main(tmp_path, capsys, restore_courlan_level):
     """test the main() entry point"""
     outputfile = tmp_path / "output.txt"
     testargs = ["", "-i", INPUTFILE, "-o", str(outputfile), "--sample", "1"]
     missing = ["", "-i", str(tmp_path / "missing.txt"), "-o", str(outputfile)]
-    logger = logging.getLogger("courlan")
-    level = logger.level
     with patch.object(sys, "argv", testargs):
         cli.main()
     with patch.object(sys, "argv", missing), pytest.raises(SystemExit) as err:
@@ -121,7 +119,6 @@ def test_cli_main(tmp_path, capsys):
         pytest.raises(SystemExit) as pipe_err,
     ):
         cli.main()
-    logger.setLevel(level)
     assert pipe_err.value.code == 1
     # one URL per host
     assert len(outputfile.read_text(encoding="utf-8").splitlines()) == 4
@@ -182,20 +179,23 @@ def test_cli_arguments_validation(tmp_path, capsys):
     hardlink = str(tmp_path / "hardlink.txt")
     os.link(infile, hardlink)
     for testargs, message in [
-        (["-i", infile, "-o", outfile, "--sample", "0"], "positive integer"),
-        (["-i", infile, "-o", outfile, "--sample", "-1"], "positive integer"),
-        (["-i", infile, "-o", outfile, "-p", "0"], "positive integer"),
-        (["-i", infile, "-o", outfile, "--sample", "x"], "x is not a positive"),
-        (["-i", infile, "-o", outfile, "-p", "x"], "x is not a positive"),
+        (
+            ["-i", infile, "-o", outfile, "--sample", "0"],
+            "0 is not an integer of at least 1",
+        ),
+        (["-i", infile, "-o", outfile, "--sample", "-1"], "at least 1"),
+        (["-i", infile, "-o", outfile, "-p", "0"], "at least 1"),
+        (["-i", infile, "-o", outfile, "--sample", "x"], "x is not an integer"),
+        (["-i", infile, "-o", outfile, "-p", "x"], "x is not an integer"),
         (["-i", infile, "-o", outfile, "--exclude-min", "2"], "require --sample"),
         (["-i", infile, "-o", outfile, "--exclude-max", "2"], "require --sample"),
         (
             ["-i", infile, "-o", outfile, "--sample", "1", "--exclude-max", "-1"],
-            "non-negative",
+            "at least 0",
         ),
         (
             ["-i", infile, "-o", outfile, "--sample", "1", "--exclude-min", "x"],
-            "x is not a non-negative",
+            "x is not an integer of at least 0",
         ),
         (
             [
@@ -233,6 +233,18 @@ def test_cli_arguments_validation(tmp_path, capsys):
         + ["--exclude-min", "0", "--exclude-max", "0"]
     )
     assert parsed.exclude_min == parsed.exclude_max == 0
+
+
+def test_cli_parallel_bound(monkeypatch, capsys):
+    """-p is capped at 61 on Windows only"""
+    testargs = ["-i", os.devnull, "-o", os.devnull, "-p", "62"]
+    assert cli.parse_args(testargs).parallel == 62
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert cli.parse_args(testargs[:-1] + ["61"]).parallel == 61
+    with pytest.raises(SystemExit) as err:
+        cli.parse_args(testargs)
+    assert err.value.code == 2
+    assert "62 is not an integer from 1 to 61" in capsys.readouterr().err
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="symlinks need privileges")

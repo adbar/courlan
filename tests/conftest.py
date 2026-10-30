@@ -15,3 +15,12 @@ def restore_signal_handlers() -> Iterator[None]:
     yield
     for sig, handler in handlers.items():
         signal.signal(sig, handler)
+
+
+@pytest.fixture
+def restore_courlan_level() -> Iterator[None]:
+    "Undo the logger level set by cli.main()."
+    logger = logging.getLogger("courlan")
+    level = logger.level
+    yield
+    logger.setLevel(level)

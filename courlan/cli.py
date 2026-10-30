@@ -9,6 +9,7 @@ import sys
 from collections.abc import Iterable, Iterator, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import ExitStack
+from functools import partial
 from itertools import islice
 from typing import IO
 
@@ -19,25 +20,19 @@ from .urlstore import UrlStore
 LOGGER = logging.getLogger(__name__)
 
 
-def _positive_int(value: str) -> int:
-    "Argparse type for strictly positive integers."
+def _bounded_int(value: str, minimum: int, maximum: int | None = None) -> int:
+    "Argparse type for integers within bounds."
     try:
         number = int(value)
     except ValueError:
-        number = 0
-    if number < 1:
-        raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
-    return number
-
-
-def _non_negative_int(value: str) -> int:
-    "Argparse type for non-negative integers."
-    try:
-        number = int(value)
-    except ValueError:
-        number = -1
-    if number < 0:
-        raise argparse.ArgumentTypeError(f"{value} is not a non-negative integer")
+        number = minimum - 1
+    if number < minimum or (maximum is not None and number > maximum):
+        bounds = (
+            f"of at least {minimum}"
+            if maximum is None
+            else f"from {minimum} to {maximum}"
+        )
+        raise argparse.ArgumentTypeError(f"{value} is not an integer {bounds}")
     return number
 
 
@@ -83,7 +78,10 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         "-p",
         "--parallel",
         help="number of parallel processes (batch mode only)",
-        type=_positive_int,
+        # ProcessPoolExecutor allows at most 61 workers on Windows
+        type=partial(
+            _bounded_int, minimum=1, maximum=61 if sys.platform == "win32" else None
+        ),
     )
     group2 = argsparser.add_argument_group("Filtering", "Configure URL filters")
     group2.add_argument(
@@ -99,17 +97,19 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         "Sampling", "Use sampling by host, configure sample size"
     )
     group3.add_argument(
-        "--sample", help="size of sample per domain", type=_positive_int
+        "--sample",
+        help="size of sample per domain",
+        type=partial(_bounded_int, minimum=1),
     )
     group3.add_argument(
         "--exclude-max",
         help="exclude domains with more than n URLs",
-        type=_non_negative_int,
+        type=partial(_bounded_int, minimum=0),
     )
     group3.add_argument(
         "--exclude-min",
         help="exclude domains with less than n URLs",
-        type=_non_negative_int,
+        type=partial(_bounded_int, minimum=0),
     )
     parsed = argsparser.parse_args(args)
     if parsed.sample is None and (
@@ -217,7 +217,8 @@ def _cli_sample(args: argparse.Namespace) -> None:
 def _cli_process(args: argparse.Namespace) -> None:
     "Read input file bit by bit and process URLs in batches."
     with ExitStack() as stack:
-        # input and executor first, so a failure does not truncate the outputs
+        # input and executor first, so bad arguments do not truncate the outputs.
+        # Workers only start on submit, so a failure there still truncates them.
         inputfh = stack.enter_context(_open(args.inputfile))
         executor = ProcessPoolExecutor(
             max_workers=args.parallel,
