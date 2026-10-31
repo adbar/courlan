@@ -97,7 +97,7 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
     if not querystring:
         return ""
 
-    qdict = parse_qs(querystring)
+    qdict = parse_qs(querystring, keep_blank_values=True)
     newqdict = {}
 
     for qelem in sorted(qdict):
