@@ -4,6 +4,7 @@ punycode encoding and decoding, public-suffix data and eTLD+1 extraction.
 """
 
 import ipaddress
+import re
 from functools import lru_cache
 
 from ._psl_data import EXCEPTIONS, MULTI_PART_SUFFIXES, WILDCARD_BASES
@@ -56,11 +57,8 @@ def _unicode_label(label: str) -> str:
         return label
     # the raw codec does not validate: "xn--a" gives "\x80", "xn----" gives "-",
     # "xn--wca" gives "Ü", whose lowercased host re-encodes to another label
-    if (
-        decoded.isprintable()
-        and not decoded.isascii()
-        and _ascii_label(decoded.lower()) == label
-    ):
+    # an ASCII result never re-encodes to an xn-- label
+    if decoded.isprintable() and _ascii_label(decoded.lower()) == label:
         return decoded
     return label
 
@@ -84,17 +82,8 @@ def _ascii_host(host: str) -> str:
     return ".".join(_ascii_label(label) for label in host.lower().split("."))
 
 
-_HEX_DIGITS = frozenset("0123456789abcdef")
-
-
-def _is_numeric_label(label: str) -> bool:
-    "IPv4 candidate per WHATWG: decimal/octal digits, or 0x/0X plus hex digits."
-    # ASCII-only (WHATWG): rejects fullwidth/other non-ASCII digits
-    if label.isascii() and label.isdigit():
-        return True
-    if label[:2].lower() != "0x":
-        return False
-    return all(c in _HEX_DIGITS for c in label[2:].lower())
+# IPv4 candidate per WHATWG: ASCII decimal/octal digits, or 0x/0X plus hex digits
+_NUMERIC_LABEL = re.compile(r"[0-9]+|0[xX][0-9a-fA-F]*")
 
 
 @lru_cache(maxsize=1024)
@@ -105,7 +94,9 @@ def get_registrable_domain(host: str | None) -> tuple[str | None, str | None]:
         return None, None
     labels = host.strip(".").split(".")
     n = len(labels)
-    if n < 2 or _is_numeric_label(labels[-1]):  # reject IPv4 (incl. hex) / numeric TLD
+    if n < 2 or _NUMERIC_LABEL.fullmatch(
+        labels[-1]
+    ):  # reject IPv4 (incl. hex) / numeric TLD
         return None, None
     # match lowercase punycode form, keep original form for the result
     lookup = (

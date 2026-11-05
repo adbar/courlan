@@ -52,15 +52,12 @@ def extract_domain(
 ) -> str | None:
     """Extract domain name information using top-level domain info.
     ``fast`` is accepted for backward compatibility but no longer has any effect."""
-    if blacklist is None:
-        blacklist = set()
     domain, full_domain = get_tldinfo(url)
-
-    return (
-        full_domain
-        if full_domain and domain not in blacklist and full_domain not in blacklist
-        else None
-    )
+    if not full_domain or (
+        blacklist and (domain in blacklist or full_domain in blacklist)
+    ):
+        return None
+    return full_domain
 
 
 def _parse(url: str | SplitResult) -> SplitResult:
@@ -86,10 +83,8 @@ def get_base_url(url: str | SplitResult) -> str:
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
     if parsed_url.scheme:
-        scheme = parsed_url.scheme + "://"
-    else:
-        scheme = ""
-    return scheme + parsed_url.netloc
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
+    return parsed_url.netloc
 
 
 def get_ascii_url(url: str) -> str:
@@ -109,22 +104,16 @@ def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
     hostname = get_base_url(parsed_url)
-    pathval = urlunsplit(
-        ["", "", parsed_url.path, parsed_url.query, parsed_url.fragment]
-    )
-    # correction for root/homepage
-    if pathval == "":
-        pathval = "/"
     if not hostname:
         raise ValueError(f"incomplete URL: {url}")
-    return hostname, pathval
+    # "/" for the root/homepage
+    path = urlunsplit(("", "", parsed_url.path, parsed_url.query, parsed_url.fragment))
+    return hostname, path or "/"
 
 
 def get_hostinfo(url: str) -> tuple[str | None, str]:
     "Convenience function returning domain and host info (protocol + host/domain) from a URL."
-    domainname = extract_domain(url)
-    base_url = get_base_url(url)
-    return domainname, base_url
+    return extract_domain(url), get_base_url(url)
 
 
 def fix_relative_urls(baseurl: str, url: str) -> str:
@@ -150,27 +139,22 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
 
 def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
     "Return a list of links corresponding to the given substring pattern."
-    if urlfilter is None:
-        return sorted(set(link_list))
-    # filter links
-    filtered_list = [link for link in link_list if urlfilter in link]
-    # feedburner option: filter and wildcards for feeds
-    if not filtered_list:
-        filtered_list = [
+    if urlfilter is not None:
+        # feedburner option: filter and wildcards for feeds
+        link_list = [link for link in link_list if urlfilter in link] or [
             link for link in link_list if FEED_WHITELIST_REGEX.search(link)
         ]
-    return sorted(set(filtered_list))
+    return sorted(set(link_list))
 
 
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     """Determine if a link leads to another host, takes a reference URL and
     a URL as input, returns a boolean"""
-    stripped_ref, ref = get_tldinfo(reference)
-    stripped_domain, domain = get_tldinfo(url)
-    # compare in unicode form, check_url decodes punycode hosts
-    if ignore_suffix:
-        return _compared_host(stripped_domain) != _compared_host(stripped_ref)
-    return _compared_host(domain) != _compared_host(ref)
+    # domain label or full domain, compared in unicode form as check_url decodes punycode
+    i = 0 if ignore_suffix else 1
+    return _compared_host(get_tldinfo(url)[i]) != _compared_host(
+        get_tldinfo(reference)[i]
+    )
 
 
 def _swap_scheme(url: str) -> str:
@@ -187,18 +171,11 @@ def is_known_link(link: str, known_links: set[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     if not link:
         return False
-    # check exact link
-    if link in known_links:
+    # exact link and trailing slash variant
+    if link in known_links or _slash_variant(link) in known_links:
         return True
-
-    # check link and variants with trailing slashes
-    if _slash_variant(link) in known_links:
-        return True
-
-    # check link and variants with modified protocol
-    if link.startswith("http"):
-        protocol_test = _swap_scheme(link)
-        if protocol_test in known_links or _slash_variant(protocol_test) in known_links:
-            return True
-
-    return False
+    if not link.startswith("http"):
+        return False
+    # the same with the other protocol
+    swapped = _swap_scheme(link)
+    return swapped in known_links or _slash_variant(swapped) in known_links
