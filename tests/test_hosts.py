@@ -11,8 +11,7 @@ from courlan import is_external
 from courlan._psl_data import EXCEPTIONS, MULTI_PART_SUFFIXES, WILDCARD_BASES
 from courlan.filters import domain_filter
 from courlan.hosts import (
-    _idna_encode,
-    _idna_label,
+    _ascii_label,
     _unicode_host,
     _unicode_label,
     get_registrable_domain,
@@ -63,6 +62,7 @@ _DNS_254 = "a." * 125 + "abcd"  # 254 chars, over the limit
         ("1.2.3.4:99999", False),
         ("1.2.3.4:0", False),
         ("1.2.3.4:0080", False),  # leading zero rejected
+        ("example.org:８０", False),  # fullwidth port, not folded by the IDNA codec
         # bracketed IPv6
         ("[::1]", True),
         ("[2001:db8::1]", True),
@@ -88,6 +88,9 @@ _DNS_254 = "a." * 125 + "abcd"  # 254 chars, over the limit
         ("example.html", False),
         ("index.html", False),
         ("site.json:8080", False),
+        # image markers anywhere in the host
+        ("cdn-img.example.org", False),
+        ("static-png.site.com", False),
         # real hosts: numeric first label, file type in a label, .pl and .do
         ("0.gravatar.com", True),
         ("12345.org", True),
@@ -173,10 +176,16 @@ def test_tld(host, expected):
     assert get_registrable_domain(host) == expected
 
 
-def test_tld_idna_fallback():
-    "Overlong non-ASCII label falls back instead of raising."
+def test_tld_punycode_lookup():
+    "Unicode hosts match the punycode PSL rules through the runtime encoder."
+    assert _ascii_label("faß") == "xn--fa-hia"
+    idn_rules = [rule for rule in MULTI_PART_SUFFIXES if "xn--" in rule]
+    assert idn_rules
+    for rule in idn_rules:
+        host = _unicode_host(rule)
+        assert get_registrable_domain(f"x.{host}") == ("x", f"x.{host}")
+    # overlong labels encode without raising and still match the suffix
     overlong_cjk = "".join(chr(0x4E00 + i) for i in range(50))
-    assert _idna_label(overlong_cjk) == overlong_cjk
     assert get_registrable_domain(f"{overlong_cjk}.example.com") == (
         "example",
         "example.com",
@@ -206,7 +215,7 @@ def test_psl_data_encoder_consistency():
             assert rule.isascii(), rule
             for label in rule.split("."):
                 if label.startswith("xn--"):
-                    assert _idna_encode(label.encode("ascii").decode("idna")) == label
+                    assert _ascii_label(_unicode_label(label)) == label
                     checked += 1
     assert checked  # the data does contain punycode entries
 
@@ -261,6 +270,17 @@ def test_psl_parsers():
     # missing markers hard-fail (intended for a generator script)
     with pytest.raises(IndexError):
         extract_icann_rules("no markers")
+
+
+def test_psl_rule_encoding():
+    "Unicode rules are punycoded, non-NFC rules and rules that do not round-trip hard-fail."
+    from scripts.update_psl import build_rule_sets
+
+    assert build_rule_sets(["ålgård.no"])[0] == ["xn--lgrd-poac.no"]
+    with pytest.raises(RuntimeError, match="round-trip"):
+        build_rule_sets(["Ålgård.no"])
+    with pytest.raises(RuntimeError, match="NFC"):
+        build_rule_sets(["a\u030alg\u00e5rd.no"])
 
 
 @pytest.mark.parametrize(
@@ -339,6 +359,10 @@ def test_get_tldinfo_ipv6():
         ("xn--a", "xn--a"),
         ("xn----", "xn----"),
         ("xn--zz", "xn--zz"),
+        # decodings that re-encode to another label stay as they are
+        ("xn--wca", "xn--wca"),
+        # valid IDNA2008 labels the stdlib codec cannot encode stay in punycode
+        ("xn--1-9hcuf1d", "xn--1-9hcuf1d"),
         ("example", "example"),
     ],
 )
@@ -352,6 +376,10 @@ def test_unicode_host():
     assert _unicode_host("www.xn--fa-hia.de") == "www.faß.de"
     assert _unicode_host("example.org") == "example.org"
     assert not is_external("https://münchen.de/a", "https://xn--mnchen-3ya.de/")
+    assert not is_external("https://xn--mnchen-3ya.de/a", "https://münchen.de/")
+    assert not is_external(
+        "https://xn--fa-hia.de/a", "https://faß.de/", ignore_suffix=False
+    )
     assert not is_external(
         "https://faß.de/a", "https://xn--fa-hia.de/", ignore_suffix=False
     )

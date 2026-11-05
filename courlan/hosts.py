@@ -1,6 +1,6 @@
 """
 Host utilities shared by urlutils and filters: IP-literal canonicalization,
-IDNA/punycode encoding, public-suffix data and eTLD+1 extraction.
+punycode encoding and decoding, public-suffix data and eTLD+1 extraction.
 """
 
 import ipaddress
@@ -24,29 +24,45 @@ def _canonical_ip(candidate: str) -> str | None:
         return None
 
 
-def _idna_encode(label: str) -> str:
-    "Encode a label or dotted name to ASCII/punycode; raise UnicodeError if it can't be."
-    return label if label.isascii() else label.encode("idna").decode("ascii")
+def _split_port(hostport: str) -> tuple[str, str, str]:
+    """Split a trailing decimal port off as (host, ":", port).
+    No port or a malformed netloc ("x:80:80") gives (hostport, "", "")."""
+    host, sep, port = hostport.rpartition(":")
+    if (
+        not sep
+        or (":" in host and not host.endswith("]"))
+        or (port and not (port.isascii() and port.isdecimal()))
+    ):
+        return hostport, "", ""
+    return host, sep, port
 
 
-def _idna_label(label: str) -> str:
-    "Punycode a non-ASCII label for suffix matching; pass ASCII through."
-    try:
-        return _idna_encode(label)
-    except UnicodeError:
+def _ascii_label(label: str) -> str:
+    "Punycode a non-ASCII label, IDNA2008 deviations included."
+    if label.isascii():
         return label
+    return "xn--" + label.encode("punycode").decode("ascii")
 
 
 def _unicode_label(label: str) -> str:
-    "Decode a punycode label, IDNA2008 deviations included; keep it if invalid."
+    """Decode a punycode label, IDNA2008 deviations included.
+    Keep it if invalid or if the stdlib codec cannot encode it again."""
     if not label.startswith("xn--"):
         return label
     try:
         decoded = label[4:].encode("ascii").decode("punycode")
+        decoded.encode("idna")  # domain_filter's validator, rejects e.g. RTL + digit
     except UnicodeError:
         return label
-    # the raw codec does not validate: "xn--a" gives "\x80", "xn----" gives "-"
-    return decoded if decoded.isprintable() and not decoded.isascii() else label
+    # the raw codec does not validate: "xn--a" gives "\x80", "xn----" gives "-",
+    # "xn--wca" gives "Ü", whose lowercased host re-encodes to another label
+    if (
+        decoded.isprintable()
+        and not decoded.isascii()
+        and _ascii_label(decoded.lower()) == label
+    ):
+        return decoded
+    return label
 
 
 def _unicode_host(host: str) -> str:
@@ -54,6 +70,18 @@ def _unicode_host(host: str) -> str:
     if "xn--" not in host:
         return host
     return ".".join(_unicode_label(label) for label in host.split("."))
+
+
+def _compared_host(host: str | None) -> str | None:
+    "Return the unicode form of a possibly missing host, for host comparisons."
+    return host and _unicode_host(host)
+
+
+def _ascii_host(host: str) -> str:
+    "Punycode the non-ASCII labels of a host."
+    if host.isascii():
+        return host
+    return ".".join(_ascii_label(label) for label in host.lower().split("."))
 
 
 _HEX_DIGITS = frozenset("0123456789abcdef")
@@ -83,7 +111,7 @@ def get_registrable_domain(host: str | None) -> tuple[str | None, str | None]:
     lookup = (
         labels
         if host.isascii() and host.islower()
-        else [_idna_label(label.lower()) for label in labels]
+        else [_ascii_label(label.lower()) for label in labels]
     )
     psl_len = 1
     # first match wins: exception (!) -1 label, wildcard (*.) +1, else implicit last

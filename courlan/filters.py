@@ -6,7 +6,7 @@ import logging
 import re
 from urllib.parse import SplitResult, urlsplit
 
-from .hosts import _canonical_ip, _idna_encode
+from .hosts import _canonical_ip
 from .langcodes import langcodes_score
 from .urlutils import _strip_trailing_dot
 
@@ -48,11 +48,14 @@ SITE_STRUCTURE = re.compile(
     r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$",
     re.IGNORECASE,
 )
-FILE_TYPE = re.compile(
+IMAGE_MARKER = re.compile(r"[/-](img|jpg|png)(\b|_)", re.IGNORECASE)
+FILE_EXTENSION = re.compile(
     r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|"
-    r"avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b|"
-    r"[/-](img|jpg|png)(\b|_)",
+    r"avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b",
     re.IGNORECASE,
+)
+FILE_TYPE = re.compile(
+    FILE_EXTENSION.pattern + "|" + IMAGE_MARKER.pattern, re.IGNORECASE
 )  # (?=[&?])
 ADULT_AND_VIDEOS = re.compile(
     r"[/_-](?:bild-?kontakte|fick|gangbang|incest|live-?cams?|live-?chat|"
@@ -132,7 +135,8 @@ def _valid_port(tail: str) -> bool:
 
 
 def _split_port(value: str) -> tuple[str, str]:
-    "Split a trailing valid port off a host, else return the host unchanged."
+    """Split a trailing valid port off a host, else return the host unchanged.
+    Not hosts._split_port: the IDNA codec would fold a fullwidth port (:８０)."""
     host, sep, port = value.rpartition(":")
     return (host, port) if sep and _valid_port(port) else (value, "")
 
@@ -165,8 +169,9 @@ def domain_filter(domain: str) -> bool:
     if not VALID_DOMAIN_PORT.match(domain):
         # the port is not part of the IDNA encoding
         host, port = _split_port(domain)
+        # stdlib codec as validator, the raw punycode one accepts anything
         try:
-            ascii_domain = _idna_encode(host)
+            ascii_domain = host if host.isascii() else host.encode("idna").decode()
         except UnicodeError:
             return False
         if port:
@@ -174,11 +179,14 @@ def domain_filter(domain: str) -> bool:
         if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
-    # unsuitable content: a file type as top-level label
-    if FILE_TYPE.search(domain[domain.rfind(".") :]):
+    # unsuitable content: a file type as top-level label, real TLDs included (.mov, .zip),
+    # or an image marker anywhere (cdn-img.example.org)
+    if FILE_EXTENSION.search(domain[domain.rfind(".") :]) or IMAGE_MARKER.search(
+        domain
+    ):
         return False
 
-    # page extensions as top-level label, except real TLDs
+    # page extensions as top-level label, except the real TLDs .do and .pl
     extension_match = EXTENSION_REGEX.search(domain.lower())
     return not extension_match or extension_match[0] not in HOST_EXTENSIONS
 

@@ -11,11 +11,12 @@ instructs against using any other source (e.g. VCS mirrors).
 
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 import urllib3
 
-from courlan.hosts import _idna_encode
+from courlan.hosts import _ascii_host, _unicode_host
 from courlan.network import RETRY_STRATEGY
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -101,14 +102,13 @@ def extract_icann_rules(raw: str) -> list[str]:
 
 
 def idna_normalize(rule: str) -> str:
-    "Punycode a rule via the shared runtime encoder; hard-fail on any problem."
-    try:
-        encoded = _idna_encode(rule)
-    except UnicodeError as err:
-        raise RuntimeError(f"cannot encode rule {rule!r}: {err}") from err
-    # reject lossy encodings (ß->ss, ς->σ, ZWJ/ZWNJ) that diverge from UTS-46
-    if not rule.isascii() and encoded.encode("ascii").decode("idna") != rule:
-        raise RuntimeError(f"lossy IDNA encoding in rule {rule!r}")
+    """Punycode a rule via the shared runtime encoder.
+    Hard-fail on non-NFC rules and on rules that do not round-trip."""
+    if not unicodedata.is_normalized("NFC", rule):
+        raise RuntimeError(f"rule {rule!r} is not NFC-normalized")
+    encoded = _ascii_host(rule)
+    if _unicode_host(encoded) != rule:
+        raise RuntimeError(f"rule {rule!r} does not round-trip through punycode")
     return encoded
 
 

@@ -5,7 +5,13 @@ Functions related to URL manipulation and extraction of URL parts.
 import re
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from .hosts import _canonical_ip, _unicode_host, get_registrable_domain
+from .hosts import (
+    _ascii_host,
+    _canonical_ip,
+    _compared_host,
+    _split_port,
+    get_registrable_domain,
+)
 
 _NUMERIC_AMP = re.compile(r"&#0*38;|&#x0*26;", re.I)
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
@@ -86,6 +92,18 @@ def get_base_url(url: str | SplitResult) -> str:
     return scheme + parsed_url.netloc
 
 
+def get_ascii_url(url: str) -> str:
+    """Return the URL with its host in punycode, the form HTTP clients can fetch.
+    Other URL parts are left as they are."""
+    try:
+        netloc = urlsplit(url).netloc
+    except ValueError:
+        return url
+    userinfo, sep, hostport = netloc.rpartition("@")
+    host, colon, port = _split_port(hostport)
+    return url.replace(netloc, f"{userinfo}{sep}{_ascii_host(host)}{colon}{port}", 1)
+
+
 def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
     """Decompose URL in two parts: protocol + host/domain and path.
     Accepts strings and urllib.parse ParseResult objects."""
@@ -151,12 +169,8 @@ def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     stripped_domain, domain = get_tldinfo(url)
     # compare in unicode form, check_url decodes punycode hosts
     if ignore_suffix:
-        return _host_form(stripped_domain) != _host_form(stripped_ref)
-    return _host_form(domain) != _host_form(ref)
-
-
-def _host_form(host: str | None) -> str | None:
-    return _unicode_host(host) if host else host
+        return _compared_host(stripped_domain) != _compared_host(stripped_ref)
+    return _compared_host(domain) != _compared_host(ref)
 
 
 def _swap_scheme(url: str) -> str:

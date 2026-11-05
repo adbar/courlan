@@ -3,11 +3,15 @@ Unit tests for the courlan package: check_url, link extraction and network.
 """
 
 import logging
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
 import pytest
+from urllib3.util.retry import RequestHistory, Retry
 
 from courlan import (
     check_url,
@@ -249,10 +253,11 @@ def test_urlcheck_port():
 def test_urlcheck_redirects():
     "Test redirection checks with a mocked HTTP pool."
 
-    def _fake_head(status, location):
+    def _fake_head(status, location=None):
         resp = MagicMock()
         resp.status = status
-        resp.geturl.return_value = location
+        hops = (RequestHistory("HEAD", "https://a.org/", None, 302, location),)
+        resp.retries = Retry(history=hops if location else ())
         return resp
 
     with patch("courlan.network.HTTP_POOL.request") as mock_request:
@@ -263,37 +268,86 @@ def test_urlcheck_redirects():
             with_redirects=True,
         ) == ("http://example.org", "example.org")
         # unacceptable status code: rejected
-        mock_request.return_value = _fake_head(404, "https://httpbun.org/status/404")
+        mock_request.return_value = _fake_head(404)
         assert check_url("https://httpbun.org/status/404", with_redirects=True) is None
         # transport failure: redirection_test raises ValueError, check_url returns None
         mock_request.side_effect = Exception("unreachable")
         assert check_url("https://www.ht.or", with_redirects=True) is None
-        # geturl() returns None in urllib3 2.x
+        # no redirect: the input URL is kept
         mock_request.side_effect = None
-        mock_request.return_value = _fake_head(200, None)
+        mock_request.return_value = _fake_head(200)
         assert check_url("http://example.org/page", with_redirects=True) == (
             "http://example.org/page",
             "example.org",
         )
+        # unicode hosts are requested in punycode
+        assert check_url("https://bücher.de/a", with_redirects=True) == (
+            "https://bücher.de/a",
+            "bücher.de",
+        )
+        assert mock_request.call_args.args == ("HEAD", "https://xn--bcher-kva.de/a")
 
 
-def test_redirection(httpserver):
-    "Test redirection_test against a real local HTTP server (no external network)."
-    httpserver.expect_request("/redirect", method="HEAD").respond_with_data(
-        "", status=302, headers={"Location": httpserver.url_for("/final")}
-    )
-    httpserver.expect_request("/final", method="HEAD").respond_with_data("", status=200)
-    httpserver.expect_request("/missing", method="HEAD").respond_with_data(
-        "", status=404
-    )
+@contextmanager
+def _serve(routes):
+    "Serve HEAD requests from {path: [(status, location), ...]}, the last pair repeats."
+    log = []
 
-    # the redirect is actually followed by urllib3 to the final URL
-    assert redirection_test(httpserver.url_for("/redirect")) == httpserver.url_for(
-        "/final"
-    )
-    # an unacceptable status code raises
-    with pytest.raises(ValueError):
-        redirection_test(httpserver.url_for("/missing"))
+    class Handler(BaseHTTPRequestHandler):
+        def do_HEAD(self):
+            log.append(self.path)
+            replies = routes.get(self.path, [(404, None)])
+            status, location = replies.pop(0) if len(replies) > 1 else replies[0]
+            self.send_response(status)
+            if location:
+                self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", log
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_redirection():
+    "Test redirection_test against local HTTP servers (no external network)."
+    with _serve({"/y": [(302, "/z")], "/z": [(200, None)]}) as (other, _):
+        routes = {
+            "/final": [(200, None)],
+            "/rel": [(301, "sub/page")],
+            "/sub/page": [(200, None)],
+            "/x": [(302, f"{other}/y")],
+            "/moved": [(302, "/flaky")],
+            "/flaky": [(503, None), (200, None)],
+            "/c1": [(302, "/c2")],
+            "/c2": [(302, "/c3")],
+            "/c3": [(302, "/c4")],
+            "/c4": [(200, None)],
+        }
+        with _serve(routes) as (base, log):
+            routes["/redirect"] = [(302, f"{base}/final")]
+            assert redirection_test(f"{base}/redirect") == f"{base}/final"
+            # no redirect: urllib3 reports the bare request path
+            assert redirection_test(f"{base}/final") == f"{base}/final"
+            assert redirection_test(f"{base}/rel") == f"{base}/sub/page"
+            # relative Location after a cross-host hop resolves against the second host
+            assert redirection_test(f"{base}/x") == f"{other}/z"
+            # a status retry after a redirect keeps the redirect target
+            assert redirection_test(f"{base}/moved") == f"{base}/flaky"
+            assert log.count("/flaky") == 2
+            # 2 redirects at most: the 3rd URL is returned, its redirect is not followed
+            assert redirection_test(f"{base}/c1") == f"{base}/c3"
+            assert "/c4" not in log
+            with pytest.raises(ValueError):
+                redirection_test(f"{base}/missing")
 
 
 def test_extraction():
@@ -612,11 +666,11 @@ def test_extract_links_host_forms():
             "https://münchen.de/b",
         }
         assert extract_links(html, page, external_bool=True, strict=False) == set()
-    # IDNA2008 deviation characters
+    # IDNA2008 deviation characters decode to one form
     html = '<a href="https://faß.de/x">x</a><a href="https://xn--fa-hia.de/y">y</a>'
     assert extract_links(html, "https://xn--fa-hia.de/", external_bool=False) == {
         "https://faß.de/x",
-        "https://xn--fa-hia.de/y",
+        "https://faß.de/y",
     }
     # userinfo of the page URL is not copied into the links
     assert extract_links(
@@ -651,6 +705,11 @@ def test_check_url_host_forms():
         "2001:db8::1",
     )
     assert check_url("https://user:secret@ex.org/a") == ("https://ex.org/a", "ex.org")
+    # userinfo stays out of the host cache
+    _host_parts.cache_clear()
+    check_url("https://user:secret@ex.org/a")
+    check_url("https://ex.org/b")
+    assert _host_parts.cache_info().currsize == 1
     assert check_url("https://allegro.pl/oferta") == (
         "https://allegro.pl/oferta",
         "allegro.pl",
@@ -660,6 +719,11 @@ def test_check_url_host_forms():
         "163.com",
     )
     assert check_url("http://index.html/x") is None
+    # RTL labels ending in a digit fail the IDNA2003 bidi rule, kept in punycode
+    assert check_url("https://xn--1-9hcuf1d.com/page") == (
+        "https://xn--1-9hcuf1d.com/page",
+        "xn--1-9hcuf1d.com",
+    )
     # the strict blacklist applies to the label and to the domain
     assert check_url("https://www.facebook.com/x", strict=True) is None
     assert check_url("https://www.facebook.com/x") is not None

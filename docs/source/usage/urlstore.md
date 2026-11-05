@@ -30,7 +30,7 @@ store.find_unvisited_urls('https://example.com')
 ```
 
 Domains are stored in one normalized form: lowercase, unicode instead of punycode, without credentials or default port, and under `https` once both twins are known.
-Every method accepts any form of a domain or URL and returns URLs in the stored form.
+Every method accepts any form of a URL, or of a domain with its scheme, and returns URLs in the stored form.
 
 ```python
 store.add_urls(['https://Example.org/a', 'http://xn--mnchen-3ya.de/b'])
@@ -101,6 +101,7 @@ store.get_known_domains()        # list of all domains
 store.get_unvisited_domains()    # domains with unvisited URLs
 store.unvisited_websites_number()  # count of such domains
 store.get_all_counts()           # download counts per host
+store.is_known_domain('https://example.com')      # domain in store, in any form?
 store.is_exhausted_domain('https://example.com')  # all URLs visited?
 
 # Per-domain inspection
@@ -194,7 +195,7 @@ or that you trust. Consider exporting via `dump_urls()` for sharing.
 
 ## Thread safety
 
-Readers are safe and writers are serialized, but a logical write is not globally atomic — drive mutations from a single writer thread.
+Each public method runs under one store lock, so single calls are atomic across threads. A sequence of calls is not, for example `is_known()` followed by `add_urls()`.
 
 
 ## Performance tips

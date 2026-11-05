@@ -26,10 +26,10 @@ from .filters import (
     type_filter,
     validate_url,
 )
+from .hosts import _compared_host
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import (
-    _host_form,
     fix_relative_urls,
     get_base_url,
     get_tldinfo,
@@ -48,8 +48,8 @@ LINK_REGEX = re.compile(r'href=["\']?([^ ]*?)(["\' >])', re.I)
 def _host_parts(
     scheme: str, netloc: str
 ) -> tuple[str, str, str | None, str | None] | None:
-    """Return the normalized scheme and host, without userinfo, and the domain
-    label and name of a netloc, or None if the host is unsuitable."""
+    """Return the normalized scheme and host, and the domain label and name
+    of a netloc without userinfo, or None if the host is unsuitable."""
     scheme, _, host = normalize_netloc_parts(SplitResult(scheme, netloc, "", "", ""))
     # domain_filter expects host[:port]
     if not host or domain_filter(host) is False:
@@ -119,14 +119,14 @@ def _check_url(
         if parsed_url is None:
             raise ValueError
 
-        # unsuitable domain/host name, userinfo is dropped from the output
-        hostinfo = _host_parts(parsed_url.scheme, parsed_url.netloc)
+        # unsuitable domain/host name, userinfo is dropped before the cache
+        hostinfo = _host_parts(parsed_url.scheme, parsed_url.netloc.rpartition("@")[2])
         if hostinfo is None:
             raise ValueError
         scheme, host, label, domain = hostinfo
 
         # links on the unwanted side are dropped before the path work
-        if external is not None and external != (_host_form(label) != ref_label):
+        if external is not None and external != (label != ref_label):
             return None
 
         # normalized parts, shared with the rebuild; the query comes last as
@@ -238,7 +238,7 @@ def extract_links(
 
     # define host reference
     reference = reference or base_url
-    ref_label = _host_form(get_tldinfo(reference)[0]) if reference else None
+    ref_label = _compared_host(get_tldinfo(reference)[0]) if reference else None
 
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):

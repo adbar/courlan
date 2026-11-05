@@ -7,7 +7,7 @@ import re
 from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
 
 from .filters import is_valid_url
-from .hosts import _canonical_ip
+from .hosts import _canonical_ip, _split_port, _unicode_host
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
 from .urlutils import _parse, _strip_trailing_dot
 
@@ -122,20 +122,7 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
 
 def decode_punycode(string: str) -> str:
     "Probe for punycode in lower-cased hostname and try to decode it."
-    if "xn--" not in string:
-        return string
-
-    parts = []
-
-    for part in string.split("."):
-        if part.lower().startswith("xn--"):
-            try:
-                part = part.encode("utf8").decode("idna")
-            except UnicodeError:
-                LOGGER.debug("invalid utf/idna string: %s", part)
-        parts.append(part)
-
-    return ".".join(parts)
+    return _unicode_host(string)
 
 
 def normalize_part(url_part: str) -> str:
@@ -158,17 +145,9 @@ def normalize_netloc_parts(parsed_url: SplitResult) -> tuple[str, str, str]:
     "Return the normalized (scheme, netloc, hostport), hostport without userinfo."
     userinfo, _, hostport = parsed_url.netloc.rpartition("@")
     hostport = hostport.lower()
-    # split port before punycode decoding (e.g. "xn--n3h:8080")
-    host, sep, port = hostport.rpartition(":")
-    # a colon left in an unbracketed host means a malformed netloc (e.g. "x:80:80")
-    # an empty port is dropped
-    if (
-        not sep
-        or (":" in host and not host.endswith("]"))
-        or (port and not (port.isascii() and port.isdecimal()))
-    ):
-        host, port = hostport, ""
-    elif port:
+    # split port before punycode decoding (e.g. "xn--n3h:8080"), an empty port is dropped
+    host, _, port = _split_port(hostport)
+    if port:
         port = str(int(port))  # ":0443" and ":443" are one port
     if host[:1] == "[" and host[-1:] == "]" and (ip := _canonical_ip(host[1:-1])):
         host = f"[{ip}]"  # one form per IPv6 address
@@ -245,8 +224,9 @@ def normalize_and_split(
     # into the path instead of past the host
     if not netloc:
         raise ValueError(f"no host to split off: {url}")
-    base = f"{scheme}://{netloc}"
-    return url, base, url[len(base) :] or "/"
+    # the store key leaves out the userinfo
+    path = url[len(f"{scheme}://{netloc}") :] or "/"
+    return url, f"{scheme}://{netloc.rpartition('@')[2]}", path
 
 
 def normalize_url(
