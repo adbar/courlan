@@ -3,11 +3,14 @@ Functions devoted to requests over the WWW.
 """
 
 import logging
+from urllib.parse import urljoin
 
 import urllib3
 
+from .urlutils import get_ascii_url
+
 LOGGER = logging.getLogger(__name__)
-# only silence the warning triggered by cert_reqs="CERT_NONE" triggers
+# only silence the warning triggered by cert_reqs="CERT_NONE"
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -55,18 +58,18 @@ def redirection_test(url: str) -> str:
     Raises:
         ValueError: if the URL cannot be reached or returns an unacceptable status.
     """
-    # headers.update({
-    #    "User-Agent" : str(sample(settings.USER_AGENTS, 1)), # select a random user agent
-    # })
     try:
-        rhead = HTTP_POOL.request("HEAD", url)
+        rhead = HTTP_POOL.request("HEAD", get_ascii_url(url))
     except Exception as err:
         LOGGER.warning("cannot reach URL: %s %s", url, err)
         raise ValueError(f"cannot reach URL: {url}") from err
     # response
     if rhead.status in ACCEPTABLE_CODES:
-        # geturl() works across urllib3 1.26+/2.x; in 2.x it is Optional[str]
-        final_url = rhead.geturl() or url
+        # geturl() can be a bare path, resolve the last Location against its hop
+        final_url = url
+        for hop in rhead.retries.history if rhead.retries else ():
+            if hop.redirect_location:
+                final_url = urljoin(hop.url or url, hop.redirect_location)
         LOGGER.debug("result found: %s %s", final_url, rhead.status)
         return final_url
     raise ValueError(f"cannot reach URL: {url}")

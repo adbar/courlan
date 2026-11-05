@@ -3,8 +3,6 @@ Utilities dedicated to URL sampling
 """
 
 import logging
-
-# from functools import cmp_to_key
 from random import sample
 
 from .urlstore import UrlStore

@@ -29,12 +29,23 @@ store.find_unvisited_urls('https://example.com')
 # ['https://example.com/page2']
 ```
 
+Domains are stored in one normalized form: lowercase, unicode instead of punycode, without credentials or default port, and under `https` once both twins are known.
+Every method accepts any form of a URL, or of a domain with its scheme, and returns URLs in the stored form.
+
+```python
+store.add_urls(['https://Example.org/a', 'http://xn--mnchen-3ya.de/b'])
+store.find_known_urls('https://example.org/')
+# ['https://example.org/article', 'https://example.org/a']
+store.find_known_urls('http://münchen.de')
+# ['http://münchen.de/b']
+```
+
 
 ## UrlStore constructor options
 
 | Option | Effect |
 |--------|--------|
-| `compressed=True` | Compress stored URLs and rules to reduce memory |
+| `compressed=True` | Compress stored URLs and rules to reduce memory, except for the domain written last |
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
 | `strict=True` | Apply stricter URL filtering on add |
 | `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |
@@ -90,6 +101,7 @@ store.get_known_domains()        # list of all domains
 store.get_unvisited_domains()    # domains with unvisited URLs
 store.unvisited_websites_number()  # count of such domains
 store.get_all_counts()           # download counts per host
+store.is_known_domain('https://example.com')      # domain in store, in any form?
 store.is_exhausted_domain('https://example.com')  # all URLs visited?
 
 # Per-domain inspection
@@ -183,7 +195,7 @@ or that you trust. Consider exporting via `dump_urls()` for sharing.
 
 ## Thread safety
 
-Readers are safe and writers are serialized, but a logical write is not globally atomic — drive mutations from a single writer thread.
+Each public method runs under one store lock, so single calls are atomic across threads. A sequence of calls is not, for example `is_known()` followed by `add_urls()`.
 
 
 ## Performance tips

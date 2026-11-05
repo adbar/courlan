@@ -76,7 +76,6 @@ dev = [
     "mypy==2.3.0",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "pytest-httpserver==1.1.5",
 ]
 docs = [
     "sphinx>=6.2",

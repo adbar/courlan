@@ -60,7 +60,8 @@ url = store.get_url(domain)
 
 ## Scheduled downloads
 
-For large crawls, `establish_download_schedule()` batches URLs with appropriate per-domain delays:
+For large crawls, `establish_download_schedule()` batches URLs with appropriate per-domain delays.
+Both download methods start each call after the last domain served, so every domain gets its turn:
 
 ```python
 from courlan import UrlStore

@@ -2,9 +2,11 @@
 Unit tests for the courlan package: URL cleaning, filtering and utilities.
 """
 
+import sys
 from urllib.parse import SplitResult, urlsplit
 
 import pytest
+import urllib3
 
 from courlan import (
     check_url,
@@ -13,6 +15,7 @@ from courlan import (
     extract_links,
     filter_urls,
     fix_relative_urls,
+    get_ascii_url,
     get_base_url,
     get_host_and_path,
     get_hostinfo,
@@ -24,7 +27,12 @@ from courlan import (
     scrub_url,
     validate_url,
 )
-from courlan.clean import clean_query, normalize_and_split, normalize_path
+from courlan.clean import (
+    clean_query,
+    decode_punycode,
+    normalize_and_split,
+    normalize_path,
+)
 from courlan.filters import (
     basic_filter,
     extension_filter,
@@ -42,6 +50,43 @@ def test_baseurls():
         == "https://example.org"
     )
     assert get_base_url("example.org") == ""
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://bücher.de/a", "https://xn--bcher-kva.de/a"),
+        # IDNA2008 deviation characters keep their own host
+        ("https://faß.de/", "https://xn--fa-hia.de/"),
+        ("https://i❤.ws/a", "https://xn--i-7iq.ws/a"),
+        # only the host changes
+        (
+            "https://u:p@BÜCHER.de:8080/ü?q=ä",
+            "https://u:p@xn--bcher-kva.de:8080/ü?q=ä",
+        ),
+        # the port stays out of a non-ASCII last label
+        ("http://пример.рф:8080/", "http://xn--e1afmkfd.xn--p1ai:8080/"),
+        # ASCII hosts stay as they are
+        ("https://Example.org/ü", "https://Example.org/ü"),
+        ("http://[::1]:8080/a", "http://[::1]:8080/a"),
+        ("http://[ü", "http://[ü"),
+        # malformed netlocs stay whole, as in normalize_netloc_parts
+        ("http://ü:8:1/", "http://xn--:8:1-zra/"),
+    ],
+)
+def test_ascii_url(url, expected):
+    "Hosts are punycoded for fetching."
+    assert get_ascii_url(url) == expected
+
+
+def test_ascii_url_fetchable(monkeypatch):
+    "urllib3 without idna parses the ASCII form, which check_url maps back."
+    monkeypatch.setitem(sys.modules, "idna", None)
+    for url in ("https://bücher.de/a", "https://faß.de/", "https://i❤.ws/a"):
+        with pytest.raises(urllib3.exceptions.LocationParseError):
+            urllib3.util.parse_url(url)
+        assert str(urllib3.util.parse_url(get_ascii_url(url)).host).startswith("xn--")
+        assert check_url(get_ascii_url(url)) == check_url(url)
 
 
 def test_malformed_url_degrades():
@@ -507,9 +552,20 @@ def test_validate():
     assert not is_valid_url("http://1234")
     assert not is_valid_url("http://localhost/")
     assert not is_valid_url("http://a.b/")
-    # userinfo must not make check_url reject an otherwise-valid host
-    assert check_url("http://user@t.co/") is not None
-    assert check_url("https://user:pass@example.com/path") is not None
+    # userinfo must not make check_url reject an otherwise-valid host, it is dropped
+    assert check_url("http://user@t.co/") == ("http://t.co", "t.co")
+    assert check_url("https://user:pass@example.com/path") == (
+        "https://example.com/path",
+        "example.com",
+    )
+
+
+def test_decode_punycode():
+    "Punycode labels decode, IDNA2008 deviations included, invalid ones stay."
+    assert decode_punycode("xn--mnchen-3ya.de") == "münchen.de"
+    assert decode_punycode("www.xn--fa-hia.de") == "www.faß.de"
+    assert decode_punycode("xn--a.example.org") == "xn--a.example.org"
+    assert decode_punycode("example.org") == "example.org"
 
 
 def test_normalization():
@@ -810,3 +866,14 @@ def test_strip_trailing_dot_edge_cases():
     assert _strip_trailing_dot("example.com.:8080") == "example.com:8080"
     # with userinfo, the host:port branch should not fire
     assert _strip_trailing_dot("user@example.com.:80") == "user@example.com.:80"
+
+
+def test_store_helpers():
+    "Helpers that the store no longer exercises."
+    assert is_known_link("/a/", {"/a"})
+    assert not is_known_link("/b", {"/a"})
+    assert extract_domain("https://www.facebook.com/x", blacklist={"facebook"}) is None
+    assert (
+        normalize_url("https://[2001:DB8:0:0::1]:0443/a") == "https://[2001:db8::1]/a"
+    )
+    assert normalize_url("https://u:p@ex.org:/a") == "https://u:p@ex.org/a"
