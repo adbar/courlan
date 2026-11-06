@@ -4,7 +4,7 @@ Functions performing URL trimming and cleaning
 
 import logging
 import re
-from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
+from urllib.parse import SplitResult, parse_qsl, quote, quote_plus, urlunsplit
 
 from .filters import is_valid_url
 from .hosts import _canonical_ip, _split_port, _unicode_host
@@ -90,13 +90,26 @@ def scrub_url(url: str) -> str:
     return url
 
 
+def _encode_param(string: str) -> str:
+    "Percent-encode a query element, undecodable bytes stay as they were."
+    return quote_plus(string, errors="surrogateescape")
+
+
 def clean_query(querystring: str, strict: bool, language: str | None = None) -> str:
     "Strip unwanted query elements"
     if not querystring:
         return ""
 
-    qdict = parse_qs(querystring)
-    newqdict = {}
+    qdict: dict[str, list[str]] = {}
+    for segment in querystring.split("&"):
+        for key, value in parse_qsl(
+            segment, keep_blank_values=True, errors="surrogateescape"
+        ):
+            # "a" and "a=" both yield ("a", ""): keep bare keys, drop empty values
+            if value or "=" not in segment:
+                qdict.setdefault(key, []).append(value)
+
+    params: list[str] = []
 
     for qelem in sorted(qdict):
         teststr = qelem.lower()
@@ -107,17 +120,21 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
         # get rid of trackers
         elif TRACKERS_RE.search(teststr):
             continue
-        # control language
+        # control language, a param without value doesn't state any
         if (
             language in TARGET_LANGS
             and teststr in LANG_PARAMS
-            and qdict[qelem][0] not in TARGET_LANGS[language]
+            and (lang := next(filter(None, qdict[qelem]), None))
+            and lang not in TARGET_LANGS[language]
         ):
             raise ValueError
         # insert
-        newqdict[qelem] = qdict[qelem]
+        key = _encode_param(qelem)
+        params.extend(
+            f"{key}={_encode_param(value)}" if value else key for value in qdict[qelem]
+        )
 
-    return urlencode(newqdict, doseq=True)
+    return "&".join(params)
 
 
 def decode_punycode(string: str) -> str:

@@ -93,6 +93,18 @@ def test_urlcheck_language():
     assert check_url("http://example.com/test.html?lang=en", language="de") is None
     assert check_url("http://example.com/test.html?lang=en", language=None) is not None
     assert check_url("http://example.com/test.html?lang=en", language="en") is not None
+    # a language param without value doesn't reject the URL, and doesn't hide one
+    assert check_url("http://example.com/test.html?lang=&id=3", language="en") == (
+        "http://example.com/test.html?id=3",
+        "example.com",
+    )
+    assert check_url("http://example.com/test.html?lang&id=3", language="en") == (
+        "http://example.com/test.html?id=3&lang",
+        "example.com",
+    )
+    assert (
+        check_url("http://example.com/test.html?lang=&lang=de", language="en") is None
+    )
     assert check_url("http://example.com/de/test.html", language="de") is not None
     assert check_url("http://example.com/en/test.html", language="de") is None
     assert check_url("http://example.com/en/test.html", language=None) is not None
@@ -217,6 +229,18 @@ def test_urlcheck_fixed_point():
         "https://example.org/datenschutzerklärung",
         "http://de.example.org/en/page/",
         "http://xn--nxasmq6b.com:8080/feed",
+        "http://test.org/page?article8532",
+        "http://test.org/page?download&x=1",
+        "http://test.org/page?a=&b=2",
+        "http://test.org/page?a=",
+        "http://test.org/page?page&other",
+        "http://test.org/page?page=&id=3",
+        "http://test.org/page?lang=&id=3",
+        "http://test.org/page?lang&id=3",
+        "http://test.org/page?q=M%FCnchen",
+        "http://test.org/page?M%FCnchen",
+        "http://test.org/page#a=&view=grid",
+        "http://test.org/page#b&a=M%FC",
     ]
     configs = (
         {"strict": False},

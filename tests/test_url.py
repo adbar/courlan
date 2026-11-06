@@ -842,6 +842,96 @@ def test_clean_query_param_ordering():
     assert clean_query("utm_source=twitter&title=hello", strict=False) == "title=hello"
 
 
+@pytest.mark.parametrize(
+    "query,expected",
+    [
+        # bare keys stay bare, and are still decoded and re-encoded
+        ("article8532", "article8532"),
+        ("download&x=1", "download&x=1"),
+        ("b&a=1", "a=1&b"),
+        ("a&a", "a&a"),
+        ("a=1&a", "a=1&a"),
+        ("a%3Db", "a%3Db"),
+        ("a+b", "a+b"),
+        ("café", "caf%C3%A9"),
+        # empty values are dropped
+        ("a=", ""),
+        ("=", ""),
+        ("a=&b=", ""),
+        ("a=&b=2", "b=2"),
+        ("a=&a", "a"),
+        ("a=&a=1", "a=1"),
+        ("a=&b&c=3", "b&c=3"),
+        # a value which only looks empty is kept
+        ("a=+", "a=+"),
+        ("a=%3D", "a=%3D"),
+        # empty segments
+        ("&&", ""),
+        ("a&&b", "a&b"),
+        # non-UTF-8 sequences stay intact, UTF-8 ones are unaffected
+        ("q=M%FCnchen", "q=M%FCnchen"),
+        ("M%FCnchen", "M%FCnchen"),
+        ("M%FCnchen=1", "M%FCnchen=1"),
+        ("q=M%C3%BCnchen", "q=M%C3%BCnchen"),
+    ],
+)
+def test_clean_query_blank_params(query, expected):
+    assert clean_query(query, strict=False) == expected
+    # idempotent
+    assert clean_query(expected, strict=False) == expected
+
+
+def test_clean_query_blank_params_by_name():
+    "Trackers and the strict allowlist work on names, with or without a value."
+    assert clean_query("utm_source&id=3", strict=False) == "id=3"
+    assert clean_query("utm_source=&id=3", strict=False) == "id=3"
+    assert clean_query("page&other", strict=True) == "page"
+    assert clean_query("page=&other=1", strict=True) == ""
+
+
+@pytest.mark.parametrize(
+    "query,language,expected",
+    [
+        # no value, nothing to check
+        ("lang=&id=3", "en", "id=3"),
+        ("lang&id=3", "en", "id=3&lang"),
+        # the first actual value decides
+        ("lang=en", "en", "lang=en"),
+        ("lang&lang=en", "en", "lang&lang=en"),
+        ("lang=&lang=en", "en", "lang=en"),
+        ("lang=de&lang", "en", None),
+        ("lang&lang=de", "en", None),
+        ("lang=&lang=de", "en", None),
+        # non-UTF-8 value
+        ("lang=%FC", "en", None),
+    ],
+)
+def test_clean_query_blank_params_language(query, language, expected):
+    if expected is None:
+        with pytest.raises(ValueError):
+            clean_query(query, strict=False, language=language)
+    else:
+        assert clean_query(query, strict=False, language=language) == expected
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("http://test.net/page?article8532", "http://test.net/page?article8532"),
+        ("http://test.net/page?a=&b=2", "http://test.net/page?b=2"),
+        ("http://test.net/page?a=", "http://test.net/page"),
+        ("http://test.net/page?q=M%FCnchen", "http://test.net/page?q=M%FCnchen"),
+        ("http://test.net/page#a=&view=grid", "http://test.net/page#view=grid"),
+        ("http://test.net/page#b&a=M%FC", "http://test.net/page#a=M%FC%26b"),
+    ],
+)
+def test_normalize_url_blank_params(url, expected):
+    assert normalize_url(url) == expected
+    # idempotent
+    assert normalize_url(expected) == expected
+    assert clean_url(url) == expected
+
+
 def test_basic_filter_boundaries():
     "basic_filter boundary: 10-char URL passes, 9-char fails; non-http rejected."
     assert basic_filter("http://x.y") is True  # exactly 10
