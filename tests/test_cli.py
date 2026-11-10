@@ -193,6 +193,10 @@ def test_cli_arguments_validation(tmp_path, capsys):
         ([*base, "--exclude-min", "2"], "require --sample"),
         ([*base, "--exclude-max", "2"], "require --sample"),
         ([*base, "--sample", "1", "--exclude-max", "-1"], "at least 0"),
+        (
+            [*base, "--sample", "1", "--exclude-min", "10", "--exclude-max", "2"],
+            "greater than",
+        ),
         ([*base, "--sample", "1", "-p", "2"], "--sample"),
         ([*base, "--sample", "1", "-r"], "--sample"),
         ([*base, "--sample", "1", "-d", ""], "--sample"),

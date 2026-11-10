@@ -109,6 +109,12 @@ def parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         parsed.exclude_max is not None or parsed.exclude_min is not None
     ):
         argsparser.error("--exclude-max and --exclude-min require --sample")
+    if (
+        parsed.exclude_min is not None
+        and parsed.exclude_max is not None
+        and parsed.exclude_min > parsed.exclude_max
+    ):
+        argsparser.error("--exclude-min cannot be greater than --exclude-max")
     if parsed.sample is not None and (
         parsed.parallel is not None
         or parsed.redirects
