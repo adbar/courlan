@@ -50,7 +50,7 @@ courlan -i urls.txt -o cleaned.txt
 
 ## Troubleshooting
 - If the command fails, run `courlan --help` to inspect flags and check your input file encoding (UTF-8 expected).
-- For development, prefer `pip install -e .` so local changes take effect immediately.
+- For development, use `pip install -e '.[dev]'` so local changes take effect immediately and the test tools are installed. See the [Contributing page](https://github.com/adbar/courlan/blob/master/CONTRIBUTING.md).
 
 
 ## Where to go next

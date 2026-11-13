@@ -3,6 +3,7 @@ Functions related to URL manipulation and extraction of URL parts.
 """
 
 import re
+from collections.abc import Collection
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 from .hosts import (
@@ -167,7 +168,7 @@ def _slash_variant(url: str) -> str:
     return url.rstrip("/") if url[-1] == "/" else url + "/"
 
 
-def is_known_link(link: str, known_links: set[str]) -> bool:
+def is_known_link(link: str, known_links: Collection[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     if not link:
         return False

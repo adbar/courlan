@@ -9,6 +9,7 @@ myst:
 Most filters revolve around the `strict` and `language` arguments. This page covers URL checking, cleaning, normalization, link extraction, and sampling.
 
 
+(check-url)=
 ## Checking URLs with check_url
 
 `check_url` is the main entry point — it validates, normalizes, and filters a URL in one call. Returns `(url, domain)` on success or `None` if rejected.
@@ -28,7 +29,8 @@ if result:
 
 ### Language filtering
 
-Pass a two-letter ISO 639-1 code to keep only URLs that match the target language (detected from path segments, subdomains, and query parameters):
+Pass a two-letter ISO 639-1 code to keep only URLs that match the target language.
+Path segments and the `lang`/`language` query parameter are checked, subdomains only with `strict=True`:
 
 ```python
 # accepted: English path segment
@@ -40,7 +42,9 @@ check_url('https://www.un.org/en/about-us', language='de')
 # None
 ```
 
-For standalone language detection without the full check_url pipeline, use `lang_filter`:
+For the path and subdomain checks alone, use `lang_filter`.
+It does not look at query parameters.
+That check runs in `clean_url` and `normalize_url`:
 
 ```python
 from courlan import lang_filter
@@ -64,7 +68,7 @@ if lang_filter('https://example.com/en/article', language='en'):
 | **Adult/video content** | Not checked | URLs with adult or video path patterns rejected |
 | **Domain blacklist** | Not applied | URLs from the platforms listed in `BLACKLIST` rejected (social media, CDNs, e-commerce, etc.) |
 | **Path filtering** | Not applied | Index/landing pages without a query string (`index`, `home`, `default`), plus contact/login/imprint paths, are rejected |
-| **Language detection** | Path-based only | Subdomain-based language signals also considered |
+| **Language detection** | Path segments and query parameter | Subdomain-based language signals also considered |
 :::
 
 ```python
@@ -103,6 +107,7 @@ Options add overhead in this order, from cheapest to most expensive:
 All options compose freely, e.g. `check_url(url, language='en', strict=True)`.
 
 
+(cleaning)=
 ## Cleaning and normalizing URLs
 
 ```{warning}
@@ -186,6 +191,7 @@ fix_relative_urls('https://www.un.org', 'en/about-us')
 
 Filter and deduplicate URL lists:
 
+% skip-example
 ```python
 from courlan import filter_urls
 
@@ -197,6 +203,7 @@ matches nothing, `filter_urls` returns the feed-like URLs
 (`feedburner`/`feedproxy`) instead of an empty list.
 
 
+(link-extraction)=
 ## Extracting links from HTML with extract_links
 
 Use `extract_links` for general-purpose link extraction from HTML:
@@ -206,7 +213,7 @@ from courlan import extract_links
 
 html = '<html><body><a href="test/link.html">Link</a></body></html>'
 links = extract_links(html, 'https://example.org')
-# {'https://example.org/test/link.html'}
+# ['https://example.org/test/link.html']
 ```
 
 For crawl-aware extraction with robots.txt rules and link prioritization, use `filter_links` — it returns two lists separating regular links from navigation/listing links:
@@ -215,14 +222,19 @@ For crawl-aware extraction with robots.txt rules and link prioritization, use `f
 from courlan import filter_links
 
 html = '<a href="page1.html">Article</a><a href="/tag/listing">Tag</a>'
-links, priority_links = filter_links(html, 'https://example.org', lang='en')
-# links = ['https://example.org/page1.html']
-# priority_links = ['https://example.org/tag/listing']
+filter_links(html, 'https://example.org', lang='en')
+# (['https://example.org/page1.html'],
+#  ['https://example.org/tag/listing'])
 ```
 
 `extract_links` accepts `external_bool`, `no_filter`, `language`, `strict`, `trailing_slash`, `with_nav`, `redirects`, and `reference` (the former `base_url` was deprecated in 1.3.2 — passing it raises `ValueError`); `filter_links` accepts `external`, `lang`, `rules`, `strict`, and `with_nav`. See the [API reference](../api/core.md) for full signatures.
 
+```{note}
+`extract_links` defaults to `strict=True`, unlike `check_url`, `filter_links`, `lang_filter`, `sample_urls` and `UrlStore`.
+```
 
+
+(sampling)=
 ## Sampling URLs by domain with sample_urls
 
 Sample a fixed number of URLs per domain from a larger collection:

@@ -200,7 +200,7 @@ def extract_links(
     redirects: bool = False,
     reference: str | None = None,
     base_url: str | None = None,
-) -> set[str]:
+) -> list[str]:
     """Filter links in a HTML document using a series of heuristics
 
     Args:
@@ -220,7 +220,8 @@ def extract_links(
         reference: provide a host reference for external/internal evaluation
 
     Returns:
-        A set containing filtered HTTP links checked for sanity and consistency.
+        A list of filtered HTTP links checked for sanity and consistency,
+        in document order.
 
     Raises:
         ValueError: if the deprecated 'base_url' argument is provided.
@@ -230,11 +231,11 @@ def extract_links(
 
     base_url = get_base_url(url or "")
     url = url or base_url
+    if not pagecontent:
+        return []
     # document order, so that the first variant of a link wins
     candidates: dict[str, None] = {}
-    validlinks: set[str] = set()
-    if not pagecontent:
-        return validlinks
+    validlinks: dict[str, None] = {}
 
     # define host reference
     reference = reference or base_url
@@ -247,18 +248,14 @@ def extract_links(
         # https://en.wikipedia.org/wiki/Hreflang
         if no_filter is False and language is not None and "hreflang" in link:
             langmatch = HREFLANG_REGEX.search(link)
-            if langmatch and (
+            if not langmatch or not (
                 (lang := langmatch[1].lower()).startswith(language)
                 or lang == "x-default"
             ):
-                linkmatch = LINK_REGEX.search(link)
-                if linkmatch:
-                    candidates[linkmatch[1]] = None
-        # default
-        else:
-            linkmatch = LINK_REGEX.search(link)
-            if linkmatch:
-                candidates[linkmatch[1]] = None
+                continue
+        linkmatch = LINK_REGEX.search(link)
+        if linkmatch:
+            candidates[linkmatch[1]] = None
 
     # filter candidates
     for link in candidates:
@@ -287,10 +284,10 @@ def extract_links(
             link = checked[0]
         if is_known_link(link, validlinks):
             continue
-        validlinks.add(link)
+        validlinks[link] = None
 
     LOGGER.info("%s links found – %s valid links", len(candidates), len(validlinks))
-    return validlinks
+    return list(validlinks)
 
 
 def filter_links(

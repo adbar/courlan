@@ -173,7 +173,7 @@ def test_fix_relative_malformed():
             '<a href="//[zz]/x">a</a><a href="/ok">b</a>',
             "https://example.org",
             no_filter=no_filter,
-        ) == {"https://example.org/ok"}
+        ) == ["https://example.org/ok"]
 
 
 def test_scrub():
@@ -205,8 +205,9 @@ def test_scrub():
         assert clean_url(cleaned) == cleaned
     # a surviving (non-tracker) query still keeps the root slash
     assert clean_url("http://test.org/?p=1") == "http://test.org/?p=1"
-    # trailing slashes are stripped
-    assert clean_url("https://example.org/path/") == "https://example.org/path"
+    # the root slash is stripped, other trailing slashes are kept
+    assert clean_url("https://example.org/") == "https://example.org"
+    assert clean_url("https://example.org/feed/") == "https://example.org/feed/"
     assert clean_url("https://example.org/path") == "https://example.org/path"
     # scrub
     assert scrub_url("  https://www.dwds.de") == "https://www.dwds.de"
@@ -303,6 +304,12 @@ def test_type_filter():
     assert type_filter("http://www.example.org/feed/x") is True
     assert type_filter("http://www.example.org/myfeed") is True
     assert type_filter("http://www.example.org/page?url=/feed") is True
+    # 1900 to 2099 are year archives, other 4-digit segments are IDs
+    assert type_filter("https://example.org/2024/") is False
+    assert type_filter("https://example.org/1999/") is False
+    assert type_filter("https://example.org/1850/") is True
+    assert type_filter("https://xkcd.com/3000/") is True
+    assert type_filter("https://www.python.org/jobs/7650/") is True
     # wp
     assert type_filter("http://www.example.org/wp-admin/") is False
     assert type_filter("http://www.example.org/wp-includes/this") is False
@@ -348,6 +355,8 @@ def test_type_filter():
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
     assert type_filter("http://www.example.org/page/10/", with_nav=False) is False
     assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
+    assert type_filter("https://example.org/topics/2011/", with_nav=False) is False
+    assert type_filter("https://example.org/topics/2011/", with_nav=True) is True
     # img
     assert type_filter("http://www.example.org/logo_800_web-jpg/", strict=True) is False
     assert (
@@ -477,11 +486,18 @@ _MUSCLEFOOD = "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html"
         (_TU_BERLIN, "de", {"strict": True}, True),
         (_TU_BERLIN, "de", {"strict": False}, True),
         ("http://bz.berlin1.de/kino/050513/fans.html", "de", {"strict": False}, True),
-        ("http://bz.berlin1.de/kino/050513/fans.html", "de", {"strict": True}, False),
+        # a subdomain that is not a language code is no cue
+        ("http://bz.berlin1.de/kino/050513/fans.html", "de", {"strict": True}, True),
+        ("https://ux.stackexchange.com/", "de", {"strict": True}, True),
         # both path segments differ from target
         ("https://x.com/fr/x/de/", "en", {}, False),
-        # invalid territory: de segment wins
-        ("https://x.com/en_XY/x/de/", "en", {}, False),
+        # the territory is not checked, the language part counts
+        ("https://example.com/en-ww/page", "de", {}, False),
+        ("https://wetter.sueddeutsche.de/de-hh/", "en", {}, False),
+        ("https://wetter.sueddeutsche.de/de-hh/", "de", {}, True),
+        ("https://example.org/en-gb", "de", {"trailing_slash": False}, False),
+        # cues are case-insensitive
+        ("https://example.org/EN/page", "de", {}, False),
         # >2 candidates: unreliable, score stays 0
         ("https://x.com/en/x/de/x/fr/", "en", {}, True),
         # adjacent segments (regression: consuming regex)
@@ -501,20 +517,26 @@ def test_lang_filter(url, lang, kwargs, expected):
     assert lang_filter(url, lang, **kwargs) is expected
 
 
-def test_langcodes_score():
-    assert langcodes_score("en", "en_HK") == 1
-    assert langcodes_score("en", "en-HK") == 1
-    assert langcodes_score("en", "de_DE") == -1
-    assert langcodes_score("en", "de-DE") == -1
-    assert langcodes_score("en", "en_XY") == 0  # invalid territory
-    assert langcodes_score("en", "en-XY") == 0
-    assert langcodes_score("en", "xx") == 0  # invalid language
-    assert langcodes_score("en", "xx_US") == 0
-    # major territories must be recognized (regression: the biased en_XX-generated
-    # ISO_TERRS was missing CN/JP/BR/… so these scored 0 instead of ±1)
-    assert langcodes_score("pt", "pt-BR") == 1
-    assert langcodes_score("zh", "zh-CN") == 1
-    assert langcodes_score("en", "zh-CN") == -1
+@pytest.mark.parametrize(
+    "language, code, expected",
+    [
+        ("en", "en_HK", 1),
+        ("en", "en-HK", 1),
+        ("en", "de_DE", -1),
+        ("en", "de-DE", -1),
+        # the territory is not checked
+        ("en", "en_XY", 1),
+        ("de", "en-WW", -1),
+        # invalid language
+        ("en", "xx", 0),
+        ("en", "xx_US", 0),
+        ("pt", "pt-BR", 1),
+        ("zh", "zh-CN", 1),
+        ("en", "zh-CN", -1),
+    ],
+)
+def test_langcodes_score(language, code, expected):
+    assert langcodes_score(language, code) == expected
 
 
 def test_navigation():

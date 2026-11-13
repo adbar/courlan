@@ -20,9 +20,9 @@ settings
 
 ### courlan.meta
 
-`clear_caches()` resets the LRU caches behind `langcodes_score` and
-`get_registrable_domain`, as well as `urllib.parse`'s own cache. Call it in
-long-running processes to release memory.
+`clear_caches()` resets the LRU cache behind `get_registrable_domain`, as well
+as `urllib.parse`'s own cache. Call it in long-running processes to release
+memory.
 
 ```{eval-rst}
 .. automodule:: courlan.meta
@@ -35,7 +35,7 @@ long-running processes to release memory.
 
 ### courlan.langcodes
 
-CLDR-derived language and territory code sets plus the `langcodes_score`
+CLDR-derived language code set plus the `langcodes_score`
 helper, which drives path- and subdomain-based language detection.
 
 ```{eval-rst}

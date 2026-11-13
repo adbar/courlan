@@ -119,7 +119,8 @@ def get_registrable_domain(host: str | None) -> tuple[str | None, str | None]:
         if i and cand in WILDCARD_BASES:
             psl_len = n - i + 1
             break
-    if psl_len >= n:  # host is itself a public suffix
-        return None, None
+    if psl_len >= n:  # a host that is itself a public suffix is its own domain
+        domain = ".".join(labels)
+        return domain, domain
     start = -(psl_len + 1)
     return labels[start], ".".join(labels[start:])

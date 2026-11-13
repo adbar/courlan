@@ -137,19 +137,19 @@ def test_domain_filter(domain, expected):
         ("localhost", (None, None)),
         ("a..b.com", (None, None)),
         (".uk", (None, None)),
-        (".foo.ck", (None, None)),  # leading dot + bare wildcard suffix
+        (".foo.ck", ("foo.ck", "foo.ck")),  # leading dot + bare wildcard suffix
         # suffix-set boundary
         ("sub.unknown.xyz", ("unknown", "unknown.xyz")),
         ("blog.ax", ("blog", "blog.ax")),
-        # bare public suffix
-        ("co.uk", (None, None)),
+        # a bare public suffix is its own domain
+        ("gov.uk", ("gov.uk", "gov.uk")),
         # www IS the registrable label
         ("www.co.uk", ("www", "www.co.uk")),
         ("www.gov.uk", ("www", "www.gov.uk")),
         # case-insensitive matching, original case kept
         ("BBC.CO.UK", ("BBC", "BBC.CO.UK")),
         ("Example.COM", ("Example", "Example.COM")),
-        ("FOO.CK", (None, None)),
+        ("FOO.CK", ("FOO.CK", "FOO.CK")),
         ("X.CITY.KOBE.JP", ("CITY", "CITY.KOBE.JP")),
         ("FOO.LØDINGEN.NO", ("FOO", "FOO.LØDINGEN.NO")),
         # full-PSL coverage
@@ -163,11 +163,10 @@ def test_domain_filter(domain, expected):
         ("user.github.io", ("github", "github.io")),
         # wildcard (*.) and exception (!) PSL rules
         ("www.foo.ck", ("www", "www.foo.ck")),
-        ("foo.ck", (None, None)),
         ("www.ck", ("www", "www.ck")),  # !www.ck exception
         ("a.b.kobe.jp", ("a", "a.b.kobe.jp")),
+        ("kobe.jp", ("kobe", "kobe.jp")),  # the wildcard base itself is no suffix
         ("x.city.kobe.jp", ("city", "city.kobe.jp")),  # !city.kobe.jp exception
-        ("foo.sch.uk", (None, None)),
         ("bar.foo.sch.uk", ("bar", "bar.foo.sch.uk")),
     ],
 )
@@ -195,7 +194,7 @@ def test_tld_punycode_lookup():
 @pytest.mark.parametrize("base", sorted(WILDCARD_BASES))
 def test_tld_wildcard_bases(base):
     "Round-trip every hardcoded PSL wildcard base to catch a stale/typo'd entry."
-    assert get_registrable_domain(f"x.{base}") == (None, None)
+    assert get_registrable_domain(f"x.{base}") == (f"x.{base}", f"x.{base}")
     assert get_registrable_domain(f"a.b.{base}") == ("a", f"a.b.{base}")
 
 
@@ -327,6 +326,11 @@ def test_psl_main_undecodable():
         ("https://a.example.co.uk/", "https://b.example.co.uk/", False, False),
         # compound suffixes: different registrable domains under same ccSLD
         ("https://x.co.uk/", "https://y.co.uk/", False, True),
+        # bare public suffixes are distinct domains
+        ("https://gov.au/x", "https://gov.uk", True, True),
+        ("https://gov.uk/a", "https://gov.uk/b", True, False),
+        # www.gov.uk is its own domain
+        ("https://www.gov.uk/x", "https://gov.uk", True, True),
         # same IP in different textual forms is the same host
         ("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/", True, False),
         ("http://192.168.0.1/", "http://192.168.0.1./", True, False),

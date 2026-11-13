@@ -43,11 +43,11 @@ SITE_STRUCTURE = re.compile(
     r"paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|"
     r"archives|uploads|modules|attachment|oembed)/|"
     # wordpress + short URL
-    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$|"
-    # mixed/blogspot
-    r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$",
+    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$",
     re.IGNORECASE,
 )
+# mixed/blogspot dates
+SITE_DATES = re.compile(r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/(?:19|20)[0-9]{2}/$")
 IMAGE_MARKER = re.compile(r"[/-](img|jpg|png)(\b|_)", re.IGNORECASE)
 FILE_EXTENSION = re.compile(
     r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|"
@@ -65,12 +65,12 @@ ADULT_AND_VIDEOS = re.compile(
 
 # language filter
 PATH_LANG_FILTER = re.compile(
-    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+    r"https?://[^/]+/[a-z]{2}(?:[_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
 # lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
-ALL_PATH_LANGS = re.compile(r"/([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
+ALL_PATH_LANGS = re.compile(r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
+    r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?(?:/|$)", re.IGNORECASE
@@ -213,11 +213,11 @@ def lang_filter(
         occurrences = regex.findall(url)
         # skip if there are too many candidates: > 2
         if 0 < len(occurrences) <= 2:
-            for occurrence in occurrences:
-                score += langcodes_score(language, occurrence[0] + occurrence[1])
+            for code in occurrences:
+                score += langcodes_score(language, code)
     # second test: prepended language cue in the host subdomain
     if strict and (match := HOST_LANG_FILTER.match(url)):
-        score += 1 if match[1].lower() == language else -1
+        score += langcodes_score(language, match[1])
     return score >= 0
 
 
@@ -239,7 +239,10 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
         )
         or
         # website structure
-        (SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)))
+        (
+            (SITE_STRUCTURE.search(url) or (url[-1:] == "/" and SITE_DATES.search(url)))
+            and (not with_nav or not is_navigation_page(url))
+        )
         or
         # type (also hidden in parameters), videos, adult content
         (strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)))

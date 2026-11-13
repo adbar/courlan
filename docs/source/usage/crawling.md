@@ -37,7 +37,9 @@ while store.unvisited_websites_number() > 0:
 ## Crawl delays and robots.txt
 
 Use `store_rules()` / `get_rules()` to persist robots.txt rules, and `get_crawl_delay()` to read the delay.
+`get_rules()` returns `None` for a domain without stored rules.
 
+% skip-example
 ```python
 from courlan import UrlStore
 from urllib.robotparser import RobotFileParser
@@ -61,7 +63,7 @@ url = store.get_url(domain)
 ## Scheduled downloads
 
 For large crawls, `establish_download_schedule()` batches URLs with appropriate per-domain delays.
-Both download methods start each call after the last domain served, so every domain gets its turn:
+Each delay is counted in seconds from the call, not from the previous request:
 
 ```python
 from courlan import UrlStore
@@ -74,23 +76,36 @@ store.add_urls([
 ])
 
 schedule = store.establish_download_schedule(max_urls=100, time_limit=10)
+# [(0.0, 'https://a.com/1'), (0.0, 'https://b.org/x'),
+#  (10.0, 'https://a.com/2'), (10.0, 'https://b.org/y')]
 
-# or get a flat list of immediately-downloadable URLs (no delays)
-ready = store.get_download_urls(max_urls=50, time_limit=10)
-
+start = time.monotonic()
 for delay, url in schedule:
-    time.sleep(delay)
+    time.sleep(max(0.0, start + delay - time.monotonic()))
     print(f"Fetching: {url}")
     # response = requests.get(url)
     if store.download_threshold_reached(threshold=60):
         break
 ```
 
+`get_download_urls()` returns a flat list instead, with at most one URL per domain not accessed in the last `time_limit` seconds:
+
+```python
+store = UrlStore()
+store.add_urls(['https://a.com/1', 'https://a.com/2', 'https://b.org/x'])
+store.get_download_urls(time_limit=10, max_urls=50)
+# ['https://a.com/1', 'https://b.org/x']
+```
+
+Both methods mark the returned URLs as visited, so use one or the other.
+Each call starts after the last domain served, so every domain gets its turn.
+
 
 ## Frontier management
 
 ### Scope detection
 
+% skip-example
 ```python
 from courlan import is_external
 
@@ -100,6 +115,7 @@ if not is_external(found_url, 'https://example.com', ignore_suffix=False):
 
 ### Crawlability detection
 
+% skip-example
 ```python
 from courlan import is_not_crawlable, is_navigation_page
 
@@ -107,19 +123,21 @@ for url in candidate_urls:
     if is_not_crawlable(url):
         continue  # skip login pages, deep web, etc.
     if is_navigation_page(url):
-        continue  # skip listing/index pages
-    store.add_urls([url])
+        store.add_urls(appendleft=[url])  # crawl first, for link discovery
+    else:
+        store.add_urls([url])
 ```
 
 ```{note}
 `filter_links` already separates navigation pages into a priority list
-(via `with_nav=True` by default). The manual check above is useful when
-you process URLs outside of `filter_links`.
+(via `with_nav=True` by default), and `UrlStore.add_from_html` queues them first.
+The manual check above is useful when you process URLs outside of these functions.
 ```
 
 
 ## Extracting links from HTML
 
+% skip-example
 ```python
 from courlan import extract_links
 
@@ -130,7 +148,7 @@ links = extract_links(
     language='en',
     # strict=True is the default for extract_links
 )
-store.add_urls(list(links))
+store.add_urls(links)
 ```
 
 `extract_links` also accepts `no_filter`, `trailing_slash`, `with_nav`, `redirects`, and `reference` — see the [API reference](../api/core.md) for details.

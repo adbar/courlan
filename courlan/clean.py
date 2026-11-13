@@ -47,7 +47,7 @@ TRACKERS_RE = re.compile(
 def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
-        return normalize_url(scrub_url(url), False, language, False)
+        return normalize_url(scrub_url(url), False, language)
     except (AttributeError, ValueError):
         return None
 
