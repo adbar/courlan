@@ -63,9 +63,9 @@ filtered_store = UrlStore(language='en', strict=True, compressed=True)
 store.is_known('https://example.com/page1')
 # True
 
-# Check if it has been visited
+# Check if it has been visited (get_url was called above)
 store.has_been_visited('https://example.com/page1')
-# True (we called get_url above)
+# True
 
 # Filter a list to only unknown or unvisited URLs
 new_urls = ['https://example.com/page1', 'https://example.com/new']
@@ -73,6 +73,21 @@ store.filter_unknown_urls(new_urls)
 # ['https://example.com/new']
 store.filter_unvisited_urls(new_urls)
 # ['https://example.com/new']
+```
+
+
+## Queue order and visited state
+
+```python
+# put priority URLs, such as navigation pages, at the front of their domain queue
+store.add_urls(appendleft=['https://example.com/archive'])
+
+# record URLs as already visited, such as a downloaded start page or a redirect target
+store.add_urls(['https://example.com/'], visited=True)
+
+# peek at the next URL without marking it as visited
+store.get_url('https://example.com', as_visited=False)
+# 'https://example.com/archive'
 ```
 
 
@@ -92,6 +107,9 @@ store.add_from_html(html, 'https://example.com', external=True)
 store.add_from_html(html, 'https://example.com', lang='en')
 ```
 
+Navigation pages found in the HTML go to the front of their domain queue.
+Pass `with_nav=False` to drop them instead.
+
 
 ## UrlStore statistics and inspection
 
@@ -100,7 +118,7 @@ store.total_url_number()         # total URLs across all domains
 store.get_known_domains()        # list of all domains
 store.get_unvisited_domains()    # domains with unvisited URLs
 store.unvisited_websites_number()  # count of such domains
-store.get_all_counts()           # download counts per host
+store.get_all_counts()           # download counts, one per domain in store order
 store.is_known_domain('https://example.com')      # domain in store, in any form?
 store.is_exhausted_domain('https://example.com')  # all URLs visited?
 
@@ -166,6 +184,7 @@ print(store.get_unvisited_domains())
 
 A typical crawl loop using UrlStore:
 
+% skip-example
 ```python
 store = UrlStore(language='en', strict=True, compressed=True)
 seed_urls = ['https://example.com']

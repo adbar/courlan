@@ -152,7 +152,7 @@ priority (navigation) links.
 >>> from courlan import extract_links
 >>> doc = '<html><body><a href="test/link.html">Link</a></body></html>'
 >>> extract_links(doc, "https://example.org")
-{'https://example.org/test/link.html'}
+['https://example.org/test/link.html']
 ```
 
 For frontier management utilities (`is_external`, `is_navigation_page`,

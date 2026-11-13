@@ -636,7 +636,7 @@ class UrlStore:
         self, max_urls: int = 100, time_limit: int = 10
     ) -> list[tuple[float, str]]:
         """Get up to the specified number of URLs along with a suitable
-        backoff schedule (in seconds). Each call starts after the last domain served."""
+        backoff schedule, in seconds from the call. Each call starts after the last domain served."""
         with self._lock:
             # see which domains are free
             potential = [

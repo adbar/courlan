@@ -14,29 +14,29 @@ courlan provides an additional "brain" for web crawling, scraping, and document 
 :gutter: 3
 
 :::{grid-item-card} Validate & filter URLs
-:link: usage/python
-:link-type: doc
+:link: check-url
+:link-type: ref
 
 `check_url` — validate, normalize, and filter in one call.
 :::
 
 :::{grid-item-card} Clean & normalize
-:link: usage/python
-:link-type: doc
+:link: cleaning
+:link-type: ref
 
 `clean_url`, `normalize_url` — fix up messy URLs without full filtering.
 :::
 
 :::{grid-item-card} Extract links from HTML
-:link: usage/python
-:link-type: doc
+:link: link-extraction
+:link-type: ref
 
 `extract_links`, `filter_links` — general-purpose and crawl-aware extraction.
 :::
 
 :::{grid-item-card} Sample by domain
-:link: usage/python
-:link-type: doc
+:link: sampling
+:link-type: ref
 
 `sample_urls` — pick N URLs per domain from a larger collection.
 :::
