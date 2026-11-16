@@ -52,6 +52,7 @@ def extract_domain(
     url: str, blacklist: set[str] | None = None, fast: bool = False
 ) -> str | None:
     """Extract domain name information using top-level domain info.
+    Follows the ICANN section of the Public Suffix List only, so ``foo.blogspot.com`` gives ``blogspot.com``.
     ``fast`` is accepted for backward compatibility but no longer has any effect."""
     domain, full_domain = get_tldinfo(url)
     if not full_domain or (

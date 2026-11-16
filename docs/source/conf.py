@@ -49,7 +49,11 @@ html_theme_options = {
     "source_repository": "https://github.com/adbar/courlan",
     "source_branch": "master",
     "source_directory": "docs/source/",
+    "light_logo": "courlan-lockup.svg",
+    "dark_logo": "courlan-lockup-dark.svg",
+    "sidebar_hide_name": True,
 }
+html_favicon = "_static/favicon.svg"
 # per-version URL on Read the Docs, needed by sitemap and OpenGraph
 html_baseurl = (
     os.environ.get(
@@ -65,7 +69,7 @@ sitemap_excludes = ["search.html", "genindex.html"]
 ogp_site_url = html_baseurl
 ogp_site_name = "courlan"
 ogp_description_length = 200
-ogp_image = urljoin(html_baseurl, "_static/courlan_harns-march.jpg")
+ogp_image = urljoin(html_baseurl, "_static/courlan-avatar-512.png")
 ogp_image_alt = "coURLan — URL filtering and normalization for Python"
 
 # -- Intersphinx -----------------------------------------------------------

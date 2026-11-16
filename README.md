@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/adbar/courlan/master/docs/source/_static/courlan-lockup-dark.svg">
+  <img alt="courlan" src="https://raw.githubusercontent.com/adbar/courlan/master/docs/source/_static/courlan-lockup.svg" width="300">
+</picture>
+
 # coURLan: Clean, filter, normalize, and sample URLs
 
 
@@ -30,6 +35,8 @@ filters, enhancing the quality of resulting document collections:
 On top of the filters, courlan provides the utilities a crawler needs around
 them: URL storage, deduplication, and download scheduling.
 
+[![Crawl or Skip? Filter and Sample URLs with courlan (video)](https://img.youtube.com/vi/vN0UyARvPs8/maxresdefault.jpg)](https://youtu.be/vN0UyARvPs8)
+
 ## Features
 
 Separate the wheat from the chaff and optimize document discovery and
@@ -48,14 +55,8 @@ retrieval:
 - Usable with Python or on the command-line
 
 
-**Let the coURLan fish up juicy bits for you!**
-
-<img src="https://raw.githubusercontent.com/adbar/courlan/master/docs/source/_static/courlan_harns-march.jpg" alt="" role="presentation" style="max-width: 65%;"/>
-
-Here is a [courlan](https://en.wiktionary.org/wiki/courlan) (source:
-[Limpkin at Harn's Marsh by
-Russ](https://commons.wikimedia.org/wiki/File:Limpkin,_harns_marsh_(33723700146).jpg),
-CC BY 2.0).
+**Wade through the Web and keep the good links.** The logo shows a
+[courlan](https://en.wiktionary.org/wiki/courlan), also called limpkin.
 
 
 ## Installation

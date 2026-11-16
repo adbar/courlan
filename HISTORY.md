@@ -1,19 +1,35 @@
 # History / Changelog
 
 
+## 1.5.0
+
+- Breaking: `extract_links()` returns a list in document order instead of a set, wrap it in `set()` for set operations (#153)
+- Breaking: `extract_domain()` follows the ICANN Public Suffix List only, `https://foo.blogspot.com` gives `blogspot.com` (#137)
+- Breaking: `normalize_url()` drops the root slash, `https://example.org/` gives `https://example.org` (#147)
+- Breaking: CLI `-p`, `-r` and `-d` cannot be used with `--sample`, `-l` now applies to sampling (#149)
+- Breaking: `urllib3` 2.8.0 or later required (#147)
+- `babel` and `tld` dependencies removed (#137, #139)
+- Support for Python 3.15
+- New `get_ascii_url()` and `UrlStore.is_known_domain()` (#150)
+- More robust URL handling by @binggao1230, @santhreal and @scks1 (#134, #135, #140, #141, #143 to #146, #151)
+- Faster and more robust `UrlStore` and CLI, code hardening (#136, #147, #149, #150, #153)
+- Documentation on Read the Docs (#138, #148)
+- Known issue: fully entity-encoded URLs are no longer decoded (#147)
+
+
 ## 1.4.0
 
 - More robust `FIND_LINKS_REGEX` expression by @danishashko (#130)
 - Maintenance: code hardening and modernization, more tests (#124, #125, #127, #131, #132)
 - Breaking: `UrlStore()` parameter `trailing` renamed to `trailing_slash`
-- Drop support for Python 3.8 and 3.9
+- Drop support for Python 3.8 and 3.9, 1.3.2 is the last version for them
 - `filter_links()` and `load_store()` are now exported at the top level
 
 
 ## 1.3.2
 
 - `UrlStore.get_download_urls()`: `timelimit` removed, fix type hints (#119, 19c580e)
-- `extract_links()`: deprecate `base_url` parameter (#121)
+- `extract_links()`: deprecate `base_url` parameter, passing it raises `ValueError`, use `url` instead (#121)
 - setup: simplify workflow (#118)
 
 
@@ -28,7 +44,7 @@
 
 - parsing: validate netloc with port number by @naz-theori in #104
 - cleaning: fix handling of apostrophes (#107)
-- maintenance: deprecate Python 3.6 & 3.7, add `pyproject.toml` setup file (#59, #105)
+- maintenance: deprecate Python 3.6 & 3.7 (1.2.0 is the last version for them), add `pyproject.toml` setup file (#59, #105)
 
 
 ## 1.2.0

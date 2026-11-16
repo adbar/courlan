@@ -16,7 +16,7 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 | `-v, --verbose` | Enable debug logging |
 | `-p, --parallel` | Worker processes for batch mode (default: number of CPUs) |
 | `--strict` | Enable more restrictive filtering |
-| `-l, --language` | Keep only URLs matching this ISO 639-1 code (e.g. `en`, `de`) |
+| `-l, --language` | Drop URLs that signal another language than this ISO 639-1 code (e.g. `en`, `de`), URLs without a signal are kept |
 | `-r, --redirects` | Check HTTP redirects (slow — see below) |
 | `--sample N` | Sample N URLs per domain instead of full processing |
 | `--exclude-min N` | Skip domains with fewer than N URLs (sampling only) |
@@ -24,8 +24,8 @@ courlan -i INPUTFILE -o OUTPUTFILE [options]
 
 ## Behavior
 
-- **Batch mode** (default): processes all URLs, writes accepted URLs to `--outputfile` and rejected ones to `--discardedfile` if specified. Parallelism controlled by `-p`.
-- **Sampling mode** (`--sample`): samples N URLs per domain. Only `-i`, `-o`, `--strict`, `-l`, `-v` and the `--exclude-*` bounds apply. `-p`, `-r` and `-d` are rejected. `--exclude-*` without `--sample` is rejected too, and `-p` and `--sample` take positive integers.
+- **Batch mode** (default): processes all URLs, writes accepted URLs to `--outputfile` and rejected ones to `--discardedfile` if specified. Accepted URLs are written in normalized form and input order, duplicates included. Rejected URLs are written as read. Parallelism controlled by `-p`.
+- **Sampling mode** (`--sample`): samples N URLs per domain. Duplicates are merged and the output is grouped by domain. URLs are validated, normalized and filtered by language, but the content filters of batch mode do not apply, so `--strict` only trims queries and, with `-l`, checks subdomains. Only `-i`, `-o`, `--strict`, `-l`, `-v` and the `--exclude-*` bounds apply. `-p`, `-r` and `-d` are rejected. `--exclude-*` without `--sample` is rejected too, and `-p` and `--sample` take positive integers.
 - **Input**: UTF-8 with or without BOM. Blank lines are skipped. Lines with invalid UTF-8 go to `--discardedfile` in batch mode. In sampling mode they are skipped, and `-v` logs their count. The run is refused if an output file is the input file, or if `--outputfile` and `--discardedfile` are the same file. Unreadable or unwritable files end the run with an error and exit code 2. If the output is piped to a reader that stops early, such as `-o /dev/stdout | head`, the run ends quietly with exit code 141.
 
 ## Examples
@@ -68,7 +68,7 @@ https://cdn.example.com/image.jpg
 courlan -i urls.txt -o cleaned.txt -d discarded.txt --strict -l en
 ```
 
-More restrictive filtering applied; only English URLs kept.
+More restrictive filtering applied, URLs marked as another language are dropped.
 
 ### Parallel processing with verbose output
 

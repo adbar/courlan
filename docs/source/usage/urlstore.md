@@ -47,7 +47,7 @@ store.find_known_urls('http://münchen.de')
 |--------|--------|
 | `compressed=True` | Compress stored URLs and rules to reduce memory, except for the domain written last |
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
-| `strict=True` | Apply stricter URL filtering on add |
+| `strict=True` | Trim queries more aggressively on add, and check subdomains with `language` |
 | `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |
 | `verbose=True` | Dump unvisited URLs on SIGINT/SIGTERM (POSIX only, main thread only; replaces existing handlers) |
 

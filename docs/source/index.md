@@ -8,6 +8,10 @@ myst:
 
 courlan provides an additional "brain" for web crawling, scraping, and document management. It facilitates web navigation through a set of filters to enhance the quality of resulting document collections: save bandwidth by steering clear of low-value pages, identify content by language, and deduplicate URL collections at scale.
 
+<iframe src="https://www.youtube-nocookie.com/embed/vN0UyARvPs8" title="Crawl or Skip? Filter and Sample URLs with courlan" style="width: 100%; aspect-ratio: 16 / 9; min-height: 200px; border: 0;" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[Watch the video on YouTube](https://youtu.be/vN0UyARvPs8)
+
 ## Common tasks
 
 ::::{grid} 2

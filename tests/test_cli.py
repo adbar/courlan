@@ -379,6 +379,22 @@ def test_cli_input_handling(tmp_path, caplog):
     assert outputfile.read_text(encoding="utf-8").splitlines() == urls
 
 
+def test_cli_output_form(tmp_path):
+    """batch output is normalized with duplicates kept, sampling merges them"""
+    inputfile = tmp_path / "input.txt"
+    inputfile.write_text(
+        "https://Example.org/b?utm_source=x\nhttps://example.org/a\n"
+        "https://example.org/b\nhttps://example.org/a\n"
+    )
+    outputfile = tmp_path / "output.txt"
+    testargs = ["-i", str(inputfile), "-o", str(outputfile)]
+    cli.process_args(cli.parse_args([*testargs, "-p", "1"]))
+    expected = ["https://example.org/b", "https://example.org/a"]
+    assert outputfile.read_text().splitlines() == expected * 2
+    cli.process_args(cli.parse_args([*testargs, "--sample", "10"]))
+    assert sorted(outputfile.read_text().splitlines()) == sorted(expected)
+
+
 def test_cli_no_discardfile(tmp_path):
     """invalid URLs are dropped silently when no discard file is given"""
     inputfile = tmp_path / "input.txt"
