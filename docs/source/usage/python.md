@@ -29,7 +29,7 @@ if result:
 
 ### Language filtering
 
-Pass a two-letter ISO 639-1 code to keep only URLs that match the target language.
+Pass a two-letter ISO 639-1 code to drop URLs that signal another language. URLs without a language signal are kept.
 Path segments and the `lang`/`language` query parameter are checked, subdomains only with `strict=True`:
 
 ```python
@@ -253,7 +253,8 @@ Exclude domains that are too small or too large:
 sample = sample_urls(urls, samplesize=5, exclude_min=2, exclude_max=1000)
 ```
 
-`sample_urls` also accepts `strict` (stricter filtering on the input URLs)
+`sample_urls` validates and normalizes the input URLs and merges duplicates, but it does not apply the content filters of `check_url`.
+`sample_urls` also accepts `strict` (stricter query trimming on the input URLs)
 and `verbose` (dump unvisited URLs on SIGINT or SIGTERM, as in `UrlStore`).
 The `courlan.sampling` logger reports skipped domains.
 With `verbose`, these messages are logged at WARNING level and show up without any setup.

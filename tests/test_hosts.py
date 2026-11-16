@@ -298,7 +298,7 @@ def test_psl_main_exit_codes(kwargs):
     import scripts.update_psl as update_psl
 
     with patch.object(update_psl, "fetch_psl", **kwargs):
-        assert update_psl.main() == 2
+        assert update_psl.main([]) == 2
 
 
 def test_psl_main_undecodable():
@@ -310,7 +310,18 @@ def test_psl_main_undecodable():
         "request",
         return_value=MagicMock(status=200, data=b"\xff"),
     ):
-        assert update_psl.main() == 2
+        assert update_psl.main([]) == 2
+
+
+def test_psl_main_unknown_argument():
+    "An unknown argument exits 2 before any fetch or write."
+    import scripts.update_psl as update_psl
+
+    with patch.object(update_psl, "fetch_psl") as fetch:
+        with pytest.raises(SystemExit) as exc:
+            update_psl.main(["--help-me"])
+    assert exc.value.code == 2
+    fetch.assert_not_called()
 
 
 @pytest.mark.parametrize(

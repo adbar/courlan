@@ -3,12 +3,13 @@ Regenerate courlan/_psl_data.py from the Mozilla Public Suffix List (PSL).
 
 Usage:
     python scripts/update_psl.py          # fetch, regenerate, and write the file
-    python scripts/update_psl.py --check  # exit 1 if stale, 2 on a bad fetch, 0 if current
+    python scripts/update_psl.py --check  # exit 1 if stale, 2 on a bad fetch or usage error, 0 if current
 
 Only pull the list from the canonical URL below -- the list's own header
 instructs against using any other source (e.g. VCS mirrors).
 """
 
+import argparse
 import re
 import sys
 import unicodedata
@@ -157,7 +158,17 @@ def strip_header_metadata(content: str) -> str:
     )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Regenerate courlan/_psl_data.py from the PSL."
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit 1 if the bundled data is stale, write nothing",
+    )
+    args = parser.parse_args(argv)
+
     # any data problem (bad fetch, malformed markers, bad IDNA) is exit 2,
     # never --check's exit-1 "stale"
     try:
@@ -182,7 +193,7 @@ def main() -> int:
         return 2
     content = render(suffixes, wildcards, exceptions, version, commit)
 
-    if "--check" in sys.argv[1:]:
+    if args.check:
         current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
         if strip_header_metadata(content) != strip_header_metadata(current):
             print(f"{OUTPUT_PATH} is stale ({counts} available).")

@@ -82,6 +82,17 @@ def test_docs_examples(
         _run(source, namespace)
 
 
+def test_static_files_exist() -> None:
+    "Images linked from the README and the Sphinx config are in _static."
+    readme = (ROOT / "README.md").read_text("utf-8")
+    conf = (ROOT / "docs/source/conf.py").read_text("utf-8")
+    names = set(re.findall(r"/docs/source/_static/([\w.-]+)", readme))
+    names |= set(re.findall(r"\"(?:_static/)?([\w.-]+\.(?:svg|png|jpg|ico))\"", conf))
+    assert len(names) >= 4
+    missing = {n for n in names if not (ROOT / "docs/source/_static" / n).is_file()}
+    assert not missing
+
+
 def test_skip_marker() -> None:
     page = "% skip-example\n```python\nfetch()\n```\n```python\nx = 1\n```\n"
     assert _blocks(page) == ["x = 1\n"]

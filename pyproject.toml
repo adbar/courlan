@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "courlan"
-description = "Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters."
+description = "Filter, clean, and sample URLs for web crawling, with spam, content type, and language filters."
 readme = "README.md"
 license = "Apache-2.0"
 dynamic = ["version"]
@@ -50,7 +50,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "urllib3 >= 2, < 3",
+    "urllib3 >= 2.8.0, < 3",
 ]
 
 [tool.setuptools]
@@ -72,9 +72,9 @@ courlan = "courlan.cli:main"
 # Development extras
 [project.optional-dependencies]
 dev = [
-    "ruff==0.16.2",
-    "mypy==2.3.0",
-    "pytest==9.1.1",
+    "ruff==0.17.5",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
     "pytest-cov==7.1.0",
 ]
 docs = [

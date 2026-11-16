@@ -10,8 +10,8 @@ scripts/update_psl.py to regenerate.
 #
 # Source: https://publicsuffix.org/list/public_suffix_list.dat (pull only from this URL,
 # per the list's own header instructions).
-# PSL VERSION: 2026-07-15_18-13-59_UTC
-# PSL COMMIT: 9b5c814414374aa19a93dc6dd7e47c01909524cc
+# PSL VERSION: 2026-11-12_19-44-12_UTC
+# PSL COMMIT: aa004f90b4cbe1c54ea96375622eca83d76059f0
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -105,6 +105,7 @@ achi.nagano.jp
 act.au
 act.edu.au
 ad.jp
+ad.vn
 adachi.tokyo.jp
 adm.br
 adm.ec
@@ -239,11 +240,11 @@ aoste.it
 ap.gov.br
 ap.gov.pl
 ap.it
+ap.vn
 aparecida.br
 api.br
 app.br
 aq.it
-aquila.it
 ar.it
 ar.us
 arai.shizuoka.jp
@@ -1845,6 +1846,7 @@ i.bg
 i.ng
 i.ph
 i.se
+ia.bo
 ia.br
 ia.us
 ia.ve
@@ -3543,6 +3545,7 @@ omotego.fukushima.jp
 omura.nagasaki.jp
 omuta.fukuoka.jp
 on.ca
+on.vn
 onagawa.miyagi.jp
 ong.br
 onga.fukuoka.jp
@@ -4449,6 +4452,9 @@ strand.no
 stranda.no
 stryn.no
 student.aero
+su.it
+sud-sardegna.it
+sudsardegna.it
 sue.fukuoka.jp
 suedtirol.it
 suginami.tokyo.jp
@@ -4771,7 +4777,6 @@ trentinoaltoadige.it
 trentinos-tirol.it
 trentinostirol.it
 trentinosud-tirol.it
-trentinosudtirol.it
 trentinosued-tirol.it
 trentinosuedtirol.it
 trentinsud-tirol.it
@@ -4942,7 +4947,6 @@ vaksdal.no
 val-d-aosta.it
 val-daosta.it
 vald-aosta.it
-valdaosta.it
 valer.hedmark.no
 valer.ostfold.no
 valle-aosta.it
@@ -4976,6 +4980,7 @@ venezia.it
 venice.it
 vennesla.no
 verbania.it
+verbano-cusio-ossola.it
 vercelli.it
 verdal.no
 verona.it
