@@ -3,7 +3,7 @@
   <img alt="courlan" src="https://raw.githubusercontent.com/adbar/courlan/master/docs/source/_static/courlan-lockup.svg" width="300">
 </picture>
 
-# coURLan: Clean, filter, normalize, and sample URLs
+# coURLan: Filter, clean, and sample URLs for web crawling
 
 
 [![Python package](https://img.shields.io/pypi/v/courlan.svg)](https://pypi.python.org/pypi/courlan)
@@ -27,32 +27,17 @@ This library provides an additional "brain" for web crawling, scraping
 and document management. It facilitates web navigation through a set of
 filters, enhancing the quality of resulting document collections:
 
-- Save bandwidth and processing time by steering clear of pages deemed
-  low-value
-- Identify specific pages based on language or text content
-- Pinpoint pages relevant for efficient link gathering
+- Validate, clean, and normalize URLs, including tracker removal
+- Save bandwidth by steering clear of spam, unwanted content types, and
+  low-value pages
+- Identify pages by language with locale-aware heuristics
+- Sample URLs by domain and pinpoint pages relevant for link gathering
+- Store, deduplicate, and schedule URLs with a crawl-ready data store
+- Use it from Python or on the command line
 
-On top of the filters, courlan provides the utilities a crawler needs around
-them: URL storage, deduplication, and download scheduling.
-
-[![Crawl or Skip? Filter and Sample URLs with courlan (video)](https://img.youtube.com/vi/vN0UyARvPs8/maxresdefault.jpg)](https://youtu.be/vN0UyARvPs8)
-
-## Features
-
-Separate the wheat from the chaff and optimize document discovery and
-retrieval:
-
-
-- URL handling
-   - Validation
-   - Normalization
-   - Sampling
-- Heuristics for link filtering
-   - Spam, trackers, and content-types
-   - Locales and internationalization
-   - Web crawling (frontier, scheduling)
-- Data store specifically designed for URLs
-- Usable with Python or on the command-line
+<p align="center">
+  <a href="https://youtu.be/vN0UyARvPs8"><img alt="Crawl or Skip? Filter and Sample URLs with courlan (video)" src="https://img.youtube.com/vi/vN0UyARvPs8/maxresdefault.jpg" width="75%"></a>
+</p>
 
 
 **Wade through the Web and keep the good links.** The logo shows a
@@ -66,56 +51,25 @@ and Windows systems.
 
 courlan is available on [PyPI](https://pypi.org/) and installs with `pip`:
 
-``` bash
-$ pip install courlan
-$ pip install --upgrade courlan # to make sure you have the latest version
-$ pip install git+https://github.com/adbar/courlan.git # latest available code
+```bash
+pip install courlan
+pip install git+https://github.com/adbar/courlan.git  # latest available code
 ```
 
-The last version to support Python 3.6 and 3.7 is `courlan==1.2.0`.
-The last version to support Python 3.8 and 3.9 is `courlan==1.3.2`.
+For older Python versions, see the
+[installation guide](https://courlan.readthedocs.io/en/latest/getting-started.html#prerequisites).
 
 
 ## Quickstart
 
-In Python — validate and clean a URL:
+In Python — validate, clean, and filter URLs with `check_url`:
 
 ```python
-from courlan import check_url
-result = check_url('https://example.org/page?utm_source=twitter')
-if result:
-    cleaned, domain = result
-    print(cleaned)  # 'https://example.org/page'
-    print(domain)   # 'example.org'
-```
-
-On the command line — filter a file of URLs:
-
-```bash
-# one URL per line in urls.txt
-courlan -i urls.txt -o cleaned.txt -d discarded.txt
-# cleaned.txt contains accepted URLs, discarded.txt contains rejected ones
-```
-
-These examples are minimal. For language filtering, strict mode, sampling and
-`UrlStore` persistence, see the
-[documentation](https://courlan.readthedocs.io/en/latest/).
-
-
-## Python
-
-Most filters revolve around the `strict` and `language` arguments.
-
-### check_url()
-
-All useful operations chained in `check_url(url)`:
-
-``` python
 >>> from courlan import check_url
 
-# return url and domain name (None if rejected)
->>> check_url('https://github.com/adbar/courlan')
-('https://github.com/adbar/courlan', 'github.com')
+# cleaned URL and domain name
+>>> check_url('https://example.org/page?utm_source=twitter')
+('https://example.org/page', 'example.org')
 
 # rejected URLs return None
 >>> check_url('http://666.0.0.1/')  # bogus domain
@@ -126,21 +80,34 @@ All useful operations chained in `check_url(url)`:
 >>> check_url('https://www.un.org/en/about-us', language='de')  # returns None
 ```
 
-For the full set of options (`strict`, `with_redirects`, `with_nav`,
-`trailing_slash`, …) see the
-[documentation](https://courlan.readthedocs.io/en/latest/api/core.html).
+Most filters revolve around the `strict` and `language` arguments. See the
+[check_url guide](https://courlan.readthedocs.io/en/latest/usage/python.html#check-url)
+for all options.
+
+On the command line — filter a file of URLs:
+
+```bash
+# one URL per line in urls.txt
+courlan -i urls.txt -o cleaned.txt -d discarded.txt
+# cleaned.txt contains accepted URLs, discarded.txt contains rejected ones
+```
+
+Run `courlan --help` or see the
+[CLI documentation](https://courlan.readthedocs.io/en/latest/usage/cli.html)
+for all command-line options.
+
+
+## Python
 
 ### Sampling by domain name
 
-``` python
+```python
 >>> from courlan import sample_urls
 >>> my_urls = ['https://example.org/' + str(x) for x in range(100)]
 >>> my_sample = sample_urls(my_urls, 10)
 ```
 
-Optional arguments: `exclude_min`, `exclude_max`, `strict` and `verbose`. See
-the [API reference](https://courlan.readthedocs.io/en/latest/api/index.html)
-for details.
+See the [sampling guide](https://courlan.readthedocs.io/en/latest/usage/python.html#sampling) for all options.
 
 ### Web crawling and URL handling
 
@@ -149,7 +116,7 @@ crawl-aware extraction with robots.txt rules and link prioritization,
 use `filter_links()` instead — it returns two lists: regular links and
 priority (navigation) links.
 
-``` python
+```python
 >>> from courlan import extract_links
 >>> doc = '<html><body><a href="test/link.html">Link</a></body></html>'
 >>> extract_links(doc, "https://example.org")
@@ -162,7 +129,7 @@ For frontier management utilities (`is_external`, `is_navigation_page`,
 
 ### Python helpers
 
-``` python
+```python
 >>> from courlan import clean_url
 >>> clean_url('HTTPS://WWW.DWDS.DE:443/')
 'https://www.dwds.de'
@@ -170,10 +137,7 @@ For frontier management utilities (`is_external`, `is_navigation_page`,
 
 For `normalize_url`, `validate_url`, `get_base_url`, `get_hostinfo`,
 and other utilities see the
-[API reference](https://courlan.readthedocs.io/en/latest/api/index.html).
-
-Courlan uses an internal cache to speed up URL parsing. It can be
-reset with `courlan.meta.clear_caches()`.
+[cleaning guide](https://courlan.readthedocs.io/en/latest/usage/python.html#cleaning).
 
 
 ## UrlStore class
@@ -182,7 +146,7 @@ The `UrlStore` class allows for storing and retrieving domain-classified
 URLs, where a URL like `https://example.org/path/testpage` is stored as
 the path `/path/testpage` within the domain `https://example.org`:
 
-``` python
+```python
 >>> from courlan import UrlStore
 >>> store = UrlStore()
 >>> store.add_urls(['https://example.org/page1', 'https://example.org/page2'])
@@ -192,25 +156,15 @@ the path `/path/testpage` within the domain `https://example.org`:
 ['https://example.org/page2']
 ```
 
-For the full method reference, optional settings (`compressed`, `language`,
-`strict`, `trailing_slash`, `verbose`), and crawl scheduling see the
-[UrlStore documentation](https://courlan.readthedocs.io/en/latest/api/urlstore.html).
-
-
-## Command-line
-
-``` bash
-$ courlan --inputfile url-list.txt --outputfile cleaned-urls.txt
-$ courlan --help
-```
-
-See the [CLI documentation](https://courlan.readthedocs.io/en/latest/usage/cli.html) for all options.
+See the [UrlStore guide](https://courlan.readthedocs.io/en/latest/usage/urlstore.html) for all methods,
+options, persistence, and crawl scheduling.
 
 
 ## Settings
 
-`courlan` is optimized for English and German but its generic approach
-is also usable in other contexts. See the
+Language filtering reads language codes in URL paths for any language,
+and in subdomains with `strict=True`. Language names in `lang=` query
+values are mapped for English and German by default. See the
 [settings reference](https://courlan.readthedocs.io/en/latest/api/settings.html)
 for how to review and override filtering rules.
 

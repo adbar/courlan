@@ -3,6 +3,13 @@
 ## Prerequisites
 - Python 3.10+
 
+Earlier releases support older Python versions:
+
+| Python | Last supported version |
+|---|---|
+| 3.8 and 3.9 | `pip install courlan==1.3.2` |
+| 3.6 and 3.7 | `pip install courlan==1.2.0` |
+
 
 ## Install
 

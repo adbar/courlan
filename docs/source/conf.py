@@ -43,7 +43,7 @@ myst_enable_extensions = [
 
 html_theme = "furo"
 html_static_path = ["_static"]
-html_title = "courlan — URL Filtering and Normalization for Python"
+html_title = "courlan — Filter, Clean, and Sample URLs for Web Crawling in Python"
 
 html_theme_options = {
     "source_repository": "https://github.com/adbar/courlan",
