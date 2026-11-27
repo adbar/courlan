@@ -6,7 +6,8 @@ import logging
 import re
 from urllib.parse import SplitResult, urlsplit
 
-from .hosts import _canonical_ip, _idna_encode
+from .hosts import _canonical_ip, _unicode_host
+from .hosts import _split_port as _split_hostport
 from .langcodes import langcodes_score
 from .urlutils import _strip_trailing_dot
 
@@ -42,17 +43,20 @@ SITE_STRUCTURE = re.compile(
     r"/(?:wp-(?:admin|content|includes|json|themes)|"
     r"paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|"
     r"archives|uploads|modules|attachment|oembed)/|"
-    # wordpress + short URL
-    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$|"
-    # mixed/blogspot
-    r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/[0-9]{4}/$",
+    # wordpress + short URL, a query or a fragment is not a tag name
+    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/?#]+(?:[?#]|/?$)",
+    re.IGNORECASE,
+)
+# mixed/blogspot dates
+SITE_DATES = re.compile(r"[^0-9]/[0-9]+/[0-9]+/$|[^0-9]/(?:19|20)[0-9]{2}/$")
+IMAGE_MARKER = re.compile(r"[/-](img|jpg|png)(\b|_)", re.IGNORECASE)
+FILE_EXTENSION = re.compile(
+    r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|"
+    r"avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b",
     re.IGNORECASE,
 )
 FILE_TYPE = re.compile(
-    r"\.(atom|json|css|xml|js|jpg|jpeg|png|svg|gif|tiff|pdf|ogg|mp3|m4a|aac|"
-    r"avi|mp4|mov|web[mp]|flv|ico|pls|zip|tar|gz|iso|swf|woff|eot|ttf)\b|"
-    r"[/-](img|jpg|png)(\b|_)",
-    re.IGNORECASE,
+    FILE_EXTENSION.pattern + "|" + IMAGE_MARKER.pattern, re.IGNORECASE
 )  # (?=[&?])
 ADULT_AND_VIDEOS = re.compile(
     r"[/_-](?:bild-?kontakte|fick|gangbang|incest|live-?cams?|live-?chat|"
@@ -62,12 +66,12 @@ ADULT_AND_VIDEOS = re.compile(
 
 # language filter
 PATH_LANG_FILTER = re.compile(
-    r"(?:https?://[^/]+/)([a-z]{2})([_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+    r"https?://[^/]+/[a-z]{2}(?:[_-][a-z]{2})?(?:/|$)", re.IGNORECASE
 )
 # lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
-ALL_PATH_LANGS = re.compile(r"/([a-z]{2})([_-][a-z]{2})?(?=/)", re.IGNORECASE)
+ALL_PATH_LANGS = re.compile(r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/)", re.IGNORECASE)
 ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"/([a-z]{2})([_-][a-z]{2})?(?=/|$)", re.IGNORECASE
+    r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/|$)", re.IGNORECASE
 )
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?(?:/|$)", re.IGNORECASE
@@ -117,11 +121,13 @@ WHITELISTED_EXTENSIONS = {
     ".xhtml",
     ".xml",
 }
+# real top-level domains among them
+HOST_EXTENSIONS = WHITELISTED_EXTENSIONS - {".do", ".pl"}
 
 
 def basic_filter(url: str) -> bool:
     "Filter URLs based on basic formal characteristics."
-    return bool(url.startswith("http") and 10 <= len(url) < 500)
+    return bool(url[:4].lower() == "http" and 10 <= len(url) < 500)
 
 
 def _valid_port(tail: str) -> bool:
@@ -130,7 +136,8 @@ def _valid_port(tail: str) -> bool:
 
 
 def _split_port(value: str) -> tuple[str, str]:
-    "Split a trailing valid port off a host, else return the host unchanged."
+    """Split a trailing valid port off a host, else return the host unchanged.
+    Not hosts._split_port: the IDNA codec would fold a fullwidth port (:８０)."""
     host, sep, port = value.rpartition(":")
     return (host, port) if sep and _valid_port(port) else (value, "")
 
@@ -163,8 +170,9 @@ def domain_filter(domain: str) -> bool:
     if not VALID_DOMAIN_PORT.match(domain):
         # the port is not part of the IDNA encoding
         host, port = _split_port(domain)
+        # stdlib codec as validator, the raw punycode one accepts anything
         try:
-            ascii_domain = _idna_encode(host)
+            ascii_domain = host if host.isascii() else host.encode("idna").decode()
         except UnicodeError:
             return False
         if port:
@@ -172,13 +180,16 @@ def domain_filter(domain: str) -> bool:
         if not VALID_DOMAIN_PORT.match(ascii_domain):
             return False
 
-    # unsuitable content
-    if domain.split(".")[0].isdigit() or FILE_TYPE.search(domain):
+    # unsuitable content: a file type as top-level label, real TLDs included (.mov, .zip),
+    # or an image marker anywhere (cdn-img.example.org)
+    if FILE_EXTENSION.search(domain[domain.rfind(".") :]) or IMAGE_MARKER.search(
+        domain
+    ):
         return False
 
-    # extensions
+    # page extensions as top-level label, except the real TLDs .do and .pl
     extension_match = EXTENSION_REGEX.search(domain.lower())
-    return not extension_match or extension_match[0] not in WHITELISTED_EXTENSIONS
+    return not extension_match or extension_match[0] not in HOST_EXTENSIONS
 
 
 def extension_filter(urlpath: str) -> bool:
@@ -203,11 +214,11 @@ def lang_filter(
         occurrences = regex.findall(url)
         # skip if there are too many candidates: > 2
         if 0 < len(occurrences) <= 2:
-            for occurrence in occurrences:
-                score += langcodes_score(language, occurrence[0] + occurrence[1])
+            for code in occurrences:
+                score += langcodes_score(language, code)
     # second test: prepended language cue in the host subdomain
     if strict and (match := HOST_LANG_FILTER.match(url)):
-        score += 1 if match[1].lower() == language else -1
+        score += langcodes_score(language, match[1])
     return score >= 0
 
 
@@ -229,7 +240,10 @@ def type_filter(url: str, strict: bool = False, with_nav: bool = False) -> bool:
         )
         or
         # website structure
-        (SITE_STRUCTURE.search(url) and (not with_nav or not is_navigation_page(url)))
+        (
+            (SITE_STRUCTURE.search(url) or (url[-1:] == "/" and SITE_DATES.search(url)))
+            and (not with_nav or not is_navigation_page(url))
+        )
         or
         # type (also hidden in parameters), videos, adult content
         (strict and (FILE_TYPE.search(url) or ADULT_AND_VIDEOS.search(url)))
@@ -241,20 +255,25 @@ def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     if not isinstance(url, str):
         return False, None
     try:
-        parsed_url = urlsplit(url)
+        parsed_url = urlsplit(url.strip())
     except ValueError:
         return False, None
 
     if parsed_url.scheme not in PROTOCOLS:
         return False, None
 
-    # plausibility checks on the network location (case-insensitive for "www.")
+    # plausibility checks, on the host as check_url outputs it
     netloc = parsed_url.netloc
+    hostport = _strip_trailing_dot(netloc.rpartition("@")[2]).lower()
+    host = _unicode_host(_split_hostport(hostport)[0])
     if (
-        len(netloc) < 4
-        or (netloc.lower().startswith("www.") and len(netloc) < 8)
+        len(host) < 4
+        or (host.startswith("www.") and len(host) < 8)
+        # "exa mple.org" is not "example.org", "%" leaves templates and garbage
+        or " " in netloc
+        or "%" in hostport
         # reject dotless/colonless hosts (e.g. "1234", "localhost")
-        or ("." not in netloc and ":" not in netloc)
+        or ("." not in hostport and ":" not in hostport)
     ):
         return False, None
 

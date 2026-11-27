@@ -6,7 +6,7 @@ This page lists common issues and quick fixes when using courlan.
 
 - Ensure input file is UTF-8 encoded and contains one URL per line.
 - Confirm flags: `-i INPUTFILE -o OUTPUTFILE` are provided.
-- Run with `-v` for verbose logging to see why URLs were rejected.
+- Run with `-v` for debug logging, and use `-d` to see which URLs were rejected.
 
 ## Slow performance / high memory
 

@@ -2,6 +2,7 @@
 Run in CI for the Python version used on Read the Docs."""
 
 import posixpath
+import re
 import subprocess
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import pytest
 from sphinx.util.inventory import InventoryFile
 
 DOCS_SOURCE = Path(__file__).parent / "source"
+README = Path(__file__).parent.parent / "README.md"
 
 
 @pytest.fixture(scope="module")
@@ -41,3 +43,17 @@ def test_api_reference_is_generated(build):
     assert "courlan.core.check_url" in inventory.get("py:function", {}), sorted(
         inventory
     )
+
+
+def test_readme_links_resolve(build: Path) -> None:
+    """Read the Docs links in the README point to built pages and anchors."""
+    links = re.findall(
+        r"https://courlan\.readthedocs\.io/en/latest/([^)\s#]*)(?:#([\w-]+))?",
+        README.read_text("utf-8"),
+    )
+    assert links
+    for path, anchor in links:
+        page = build / (path or "index.html")
+        assert page.is_file(), path
+        if anchor:
+            assert f'id="{anchor}"' in page.read_text("utf-8"), (path, anchor)

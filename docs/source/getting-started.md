@@ -3,6 +3,13 @@
 ## Prerequisites
 - Python 3.10+
 
+Earlier releases support older Python versions:
+
+| Python | Last supported version |
+|---|---|
+| 3.8 and 3.9 | `pip install courlan==1.3.2` |
+| 3.6 and 3.7 | `pip install courlan==1.2.0` |
+
 
 ## Install
 
@@ -50,7 +57,7 @@ courlan -i urls.txt -o cleaned.txt
 
 ## Troubleshooting
 - If the command fails, run `courlan --help` to inspect flags and check your input file encoding (UTF-8 expected).
-- For development, prefer `pip install -e .` so local changes take effect immediately.
+- For development, use `pip install -e '.[dev]'` so local changes take effect immediately and the test tools are installed. See the [Contributing page](https://github.com/adbar/courlan/blob/master/CONTRIBUTING.md).
 
 
 ## Where to go next

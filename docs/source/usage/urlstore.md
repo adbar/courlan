@@ -29,19 +29,30 @@ store.find_unvisited_urls('https://example.com')
 # ['https://example.com/page2']
 ```
 
+Domains are stored in one normalized form: lowercase, unicode instead of punycode, without credentials or default port, and under `https` once both twins are known.
+Every method accepts any form of a URL, or of a domain with its scheme, and returns URLs in the stored form.
+
+```python
+store.add_urls(['https://Example.org/a', 'http://xn--mnchen-3ya.de/b'])
+store.find_known_urls('https://example.org/')
+# ['https://example.org/article', 'https://example.org/a']
+store.find_known_urls('http://münchen.de')
+# ['http://münchen.de/b']
+```
+
 
 ## UrlStore constructor options
 
 | Option | Effect |
 |--------|--------|
-| `compressed=True` | Compress stored URLs and rules to reduce memory |
+| `compressed=True` | Compress stored URLs and rules to reduce memory, except for the domain written last |
 | `language='en'` | Filter added URLs by target language (ISO 639-1 code) |
-| `strict=True` | Apply stricter URL filtering on add |
+| `strict=True` | Trim queries more aggressively on add, and check subdomains with `language` |
 | `trailing_slash=True` | Preserve trailing slashes (set to `False` to strip them) |
 | `verbose=True` | Dump unvisited URLs on SIGINT/SIGTERM (POSIX only, main thread only; replaces existing handlers) |
 
 ```python
-store = UrlStore(language='en', strict=True, compressed=True)
+filtered_store = UrlStore(language='en', strict=True, compressed=True)
 ```
 
 
@@ -52,9 +63,9 @@ store = UrlStore(language='en', strict=True, compressed=True)
 store.is_known('https://example.com/page1')
 # True
 
-# Check if it has been visited
+# Check if it has been visited (get_url was called above)
 store.has_been_visited('https://example.com/page1')
-# True (we called get_url above)
+# True
 
 # Filter a list to only unknown or unvisited URLs
 new_urls = ['https://example.com/page1', 'https://example.com/new']
@@ -62,6 +73,21 @@ store.filter_unknown_urls(new_urls)
 # ['https://example.com/new']
 store.filter_unvisited_urls(new_urls)
 # ['https://example.com/new']
+```
+
+
+## Queue order and visited state
+
+```python
+# put priority URLs, such as navigation pages, at the front of their domain queue
+store.add_urls(appendleft=['https://example.com/archive'])
+
+# record URLs as already visited, such as a downloaded start page or a redirect target
+store.add_urls(['https://example.com/'], visited=True)
+
+# peek at the next URL without marking it as visited
+store.get_url('https://example.com', as_visited=False)
+# 'https://example.com/archive'
 ```
 
 
@@ -81,6 +107,9 @@ store.add_from_html(html, 'https://example.com', external=True)
 store.add_from_html(html, 'https://example.com', lang='en')
 ```
 
+Navigation pages found in the HTML go to the front of their domain queue.
+Pass `with_nav=False` to drop them instead.
+
 
 ## UrlStore statistics and inspection
 
@@ -89,7 +118,8 @@ store.total_url_number()         # total URLs across all domains
 store.get_known_domains()        # list of all domains
 store.get_unvisited_domains()    # domains with unvisited URLs
 store.unvisited_websites_number()  # count of such domains
-store.get_all_counts()           # download counts per host
+store.get_all_counts()           # download counts, one per domain in store order
+store.is_known_domain('https://example.com')      # domain in store, in any form?
 store.is_exhausted_domain('https://example.com')  # all URLs visited?
 
 # Per-domain inspection
@@ -154,6 +184,7 @@ print(store.get_unvisited_domains())
 
 A typical crawl loop using UrlStore:
 
+% skip-example
 ```python
 store = UrlStore(language='en', strict=True, compressed=True)
 seed_urls = ['https://example.com']
@@ -183,7 +214,7 @@ or that you trust. Consider exporting via `dump_urls()` for sharing.
 
 ## Thread safety
 
-Readers are safe and writers are serialized, but a logical write is not globally atomic — drive mutations from a single writer thread.
+Each public method runs under one store lock, so single calls are atomic across threads. A sequence of calls is not, for example `is_known()` followed by `add_urls()`.
 
 
 ## Performance tips

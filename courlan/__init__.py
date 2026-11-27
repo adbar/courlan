@@ -7,7 +7,7 @@ __title__ = "courlan"
 __author__ = "Adrien Barbaresi"
 __license__ = "Apache-2.0"
 __copyright__ = "Copyright 2020-present, Adrien Barbaresi"
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 
 # imports
@@ -26,6 +26,7 @@ from .urlutils import (
     extract_domain,
     filter_urls,
     fix_relative_urls,
+    get_ascii_url,
     get_base_url,
     get_host_and_path,
     get_hostinfo,
@@ -50,6 +51,7 @@ __all__ = [
     "extract_domain",
     "filter_urls",
     "fix_relative_urls",
+    "get_ascii_url",
     "get_base_url",
     "get_host_and_path",
     "get_hostinfo",

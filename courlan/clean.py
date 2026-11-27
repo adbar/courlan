@@ -4,11 +4,19 @@ Functions performing URL trimming and cleaning
 
 import logging
 import re
-from urllib.parse import SplitResult, parse_qs, quote, urlencode, urlunsplit
+from urllib.parse import (
+    SplitResult,
+    parse_qsl,
+    quote,
+    quote_plus,
+    unquote,
+    urlunsplit,
+)
 
 from .filters import is_valid_url
+from .hosts import _canonical_ip, _split_port, _unicode_host
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
-from .urlutils import _parse, _strip_trailing_dot
+from .urlutils import _parse, _strip_trailing_dot, decode_entities
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,13 +25,18 @@ PROTOCOLS = re.compile(r"https?://")
 SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)')
 
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
+EMBEDDED_HOST = re.compile(r"https?://([^/?#]*)")
 
 # netloc
 DEFAULT_PORTS = {"http": 80, "https": 443}
 
 # path
-PATH1 = re.compile(r"/+")
+# repeated slashes, except the "//" of an embedded URL (Wayback Machine)
+PATH1 = re.compile(r"(?<!:)//+")
 PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
+PERCENT_ESCAPE = re.compile(r"%[0-9a-fA-F]{2}")
+# written literally, so that both forms give one key
+LITERAL_ESCAPES = {"%40": "@", "%2B": "+", "%3B": ";"}
 
 # scrub
 CONTROL_CHARS = "".join(map(chr, range(0x20)))
@@ -46,7 +59,7 @@ TRACKERS_RE = re.compile(
 def clean_url(url: str, language: str | None = None) -> str | None:
     "Helper function: chained scrubbing and normalization"
     try:
-        return normalize_url(scrub_url(url), False, language, False)
+        return normalize_url(scrub_url(url), False, language)
     except (AttributeError, ValueError):
         return None
 
@@ -57,6 +70,9 @@ def scrub_url(url: str) -> str:
     # strip space in input string
     url = "".join(url.split()).strip(CONTROL_CHARS)
 
+    # before the markup and double URL steps
+    url = decode_entities(url)
+
     # <![CDATA[http://...]]>
     if url.startswith("<![CDATA["):
         url = url.replace("<![CDATA[", "").replace("]]>", "")
@@ -64,11 +80,7 @@ def scrub_url(url: str) -> str:
     # markup rests
     url = REMAINING_MARKUP.sub("", url)
 
-    # & and &amp;
-    url = TRAILING_AMP.sub("", url.replace("&amp;", "&"))
-
-    # if '"' in link:
-    #    link = link.split('"')[0]
+    url = TRAILING_AMP.sub("", url)
 
     # double/faulty URLs
     protocols = PROTOCOLS.findall(url)
@@ -79,17 +91,33 @@ def scrub_url(url: str) -> str:
             url = match[1]
         else:
             match = MIDDLE_URL.match(url)
-            if match and is_valid_url(match[1]):
-                url = match[1]
+            if match and is_valid_url(embedded := _embedded_url(match[1])):
+                url = embedded
 
     match = TRAILING_PARTS.match(url)
     if match:
         url = match[1]
-    # trailing slashes in URLs without path or in embedded URLs
-    if url.count("/") == 3 or url.count("://") > 1:
+    # trailing slashes in URLs without path, embedded URLs keep theirs
+    if url.count("/") == 3 and "?" not in url and "#" not in url:
         url = url.rstrip("/")
 
     return url
+
+
+def _embedded_url(url: str) -> str:
+    """Cut the outer params off an embedded URL, unless its own query
+    started before them, and decode a percent-encoded host."""
+    head, amp, _ = url.partition("&")
+    if amp and "?" not in head:
+        url = head
+    if "%" in EMBEDDED_HOST.match(url)[1]:  # type: ignore[index]
+        url = unquote(url)
+    return url
+
+
+def _encode_param(string: str) -> str:
+    "Percent-encode a query element, undecodable bytes stay as they were."
+    return quote_plus(string, errors="surrogateescape")
 
 
 def clean_query(querystring: str, strict: bool, language: str | None = None) -> str:
@@ -97,8 +125,16 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
     if not querystring:
         return ""
 
-    qdict = parse_qs(querystring)
-    newqdict = {}
+    qdict: dict[str, list[str]] = {}
+    for segment in querystring.split("&"):
+        for key, value in parse_qsl(
+            segment, keep_blank_values=True, errors="surrogateescape"
+        ):
+            # "a" and "a=" both yield ("a", ""): keep bare keys, drop empty values
+            if value or "=" not in segment:
+                qdict.setdefault(key, []).append(value)
+
+    params: list[str] = []
 
     for qelem in sorted(qdict):
         teststr = qelem.lower()
@@ -109,35 +145,26 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
         # get rid of trackers
         elif TRACKERS_RE.search(teststr):
             continue
-        # control language
+        # control language, a param without value doesn't state any
         if (
             language in TARGET_LANGS
             and teststr in LANG_PARAMS
-            and str(qdict[qelem][0]) not in TARGET_LANGS[language]
+            and (lang := next(filter(None, qdict[qelem]), None))
+            and lang not in TARGET_LANGS[language]
         ):
-            raise ValueError
+            raise ValueError("lang param")
         # insert
-        newqdict[qelem] = qdict[qelem]
+        key = _encode_param(qelem)
+        params.extend(
+            f"{key}={_encode_param(value)}" if value else key for value in qdict[qelem]
+        )
 
-    return urlencode(newqdict, doseq=True)
+    return "&".join(params)
 
 
 def decode_punycode(string: str) -> str:
     "Probe for punycode in lower-cased hostname and try to decode it."
-    if "xn--" not in string:
-        return string
-
-    parts = []
-
-    for part in string.split("."):
-        if part.lower().startswith("xn--"):
-            try:
-                part = part.encode("utf8").decode("idna")
-            except UnicodeError:
-                LOGGER.debug("invalid utf/idna string: %s", part)
-        parts.append(part)
-
-    return ".".join(parts)
+    return _unicode_host(string)
 
 
 def normalize_part(url_part: str) -> str:
@@ -151,7 +178,11 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
     if "=" in fragment:
         if "&" in fragment:
             fragment = clean_query(fragment, False, language)
-        elif TRACKERS_RE.search(fragment):
+            # params keep their separators, as on a second pass
+            if "=" in fragment:
+                return quote(fragment, safe="/%!=:,-&")
+        # keys only, as in clean_query
+        elif TRACKERS_RE.search(fragment.partition("=")[0].lower()):
             fragment = ""
     return normalize_part(fragment)
 
@@ -160,14 +191,14 @@ def normalize_netloc_parts(parsed_url: SplitResult) -> tuple[str, str, str]:
     "Return the normalized (scheme, netloc, hostport), hostport without userinfo."
     userinfo, _, hostport = parsed_url.netloc.rpartition("@")
     hostport = hostport.lower()
-    # split port before punycode decoding (e.g. "xn--n3h:8080")
-    host, sep, port = hostport.rpartition(":")
-    # a colon left in an unbracketed host means a malformed netloc (e.g. "x:80:80")
-    if not (sep and port.isascii() and port.isdecimal()) or (
-        ":" in host and not host.endswith("]")
-    ):
-        host, port = hostport, ""
-    host = decode_punycode(_strip_trailing_dot(host))
+    # split port before punycode decoding (e.g. "xn--n3h:8080"), an empty port is dropped
+    host, _, port = _split_port(hostport)
+    if port:
+        port = str(int(port))  # ":0443" and ":443" are one port
+    if host[:1] == "[" and host[-1:] == "]" and (ip := _canonical_ip(host[1:-1])):
+        host = f"[{ip}]"  # one form per IPv6 address
+    else:
+        host = decode_punycode(_strip_trailing_dot(host))
     scheme = parsed_url.scheme.lower()
     # strip only the scheme's default port
     if port and DEFAULT_PORTS.get(scheme) == int(port):
@@ -181,7 +212,13 @@ def normalize_path(path: str) -> str:
     "Collapse repeated slashes, drop leading /../ segments, then percent-normalize."
     # https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
-    return normalize_part(PATH2.sub("", PATH1.sub("/", path)))
+    path = quote(PATH2.sub("", PATH1.sub("/", path)), safe="/%!=:,-@+;")
+    return PERCENT_ESCAPE.sub(_path_escape, path) if "%" in path else path
+
+
+def _path_escape(match: re.Match[str]) -> str:
+    escape = match[0].upper()
+    return LITERAL_ESCAPES.get(escape, escape)
 
 
 def rebuild_url(
@@ -206,13 +243,13 @@ def rebuild_url(
     return urlunsplit((scheme, netloc, path, query, newfragment))
 
 
-def normalize_and_split(
+def _normalized(
     parsed_url: SplitResult,
     strict: bool,
     language: str | None,
     trailing_slash: bool,
 ) -> tuple[str, str, str]:
-    "Return the normalized (url, base, path) triple from a single set of parts."
+    "Return the normalized URL along with its normalized scheme and netloc."
     scheme, netloc, _ = normalize_netloc_parts(parsed_url)
     url = rebuild_url(
         scheme,
@@ -224,12 +261,24 @@ def normalize_and_split(
         language,
         trailing_slash,
     )
+    return url, scheme, netloc
+
+
+def normalize_and_split(
+    parsed_url: SplitResult,
+    strict: bool,
+    language: str | None,
+    trailing_slash: bool,
+) -> tuple[str, str, str]:
+    "Return the normalized (url, base, path) triple from a single set of parts."
+    url, scheme, netloc = _normalized(parsed_url, strict, language, trailing_slash)
     # without a netloc urlunsplit drops the "//" and the slice below would cut
     # into the path instead of past the host
     if not netloc:
         raise ValueError(f"no host to split off: {url}")
-    base = f"{scheme}://{netloc}"
-    return url, base, url[len(base) :] or "/"
+    # the store key leaves out the userinfo
+    path = url[len(f"{scheme}://{netloc}") :] or "/"
+    return url, f"{scheme}://{netloc.rpartition('@')[2]}", path
 
 
 def normalize_url(
@@ -239,15 +288,4 @@ def normalize_url(
     trailing_slash: bool = True,
 ) -> str:
     "Takes a URL string or a parsed URL and returns a normalized URL string."
-    parsed_url = _parse(parsed_url)
-    scheme, netloc, _ = normalize_netloc_parts(parsed_url)
-    return rebuild_url(
-        scheme,
-        netloc,
-        normalize_path(parsed_url.path),
-        clean_query(parsed_url.query, strict, language),
-        parsed_url.fragment,
-        strict,
-        language,
-        trailing_slash,
-    )
+    return _normalized(_parse(parsed_url), strict, language, trailing_slash)[0]

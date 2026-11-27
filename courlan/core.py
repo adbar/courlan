@@ -4,6 +4,8 @@ Core functions needed to make the module work.
 
 import logging
 import re
+from functools import lru_cache
+from urllib.parse import SplitResult
 from urllib.robotparser import RobotFileParser
 
 from .clean import (
@@ -14,6 +16,7 @@ from .clean import (
     scrub_url,
 )
 from .filters import (
+    SITE_DATES,
     basic_filter,
     domain_filter,
     extension_filter,
@@ -24,22 +27,53 @@ from .filters import (
     type_filter,
     validate_url,
 )
+from .hosts import _compared_host
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import (
-    extract_domain,
+    decode_entities,
     fix_relative_urls,
     get_base_url,
-    is_external,
+    get_tldinfo,
     is_known_link,
 )
 
 LOGGER = logging.getLogger(__name__)
 
+MAX_RAW_LENGTH = 2000
+
 FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
-HREFLANG_REGEX = re.compile(r'hreflang=["\']?([a-z-]+)', re.I)
-# *? so empty href="" / href='' do not capture the closing quote as the URL
-LINK_REGEX = re.compile(r'href=["\']?([^ ]*?)(["\' >])', re.I)
+# attributes, also glued after a quote, not data-href, :href or inside a value
+HREFLANG_REGEX = re.compile(r"""(?<=[\s"'])hreflang\s*=\s*["']?([a-z-]+)""", re.I)
+# quoted values keep their spaces and end at any quote, as script-built
+# anchors hold the other one: href="#' + id + '", SVG anchors use xlink:href
+LINK_REGEX = re.compile(
+    r"""(?:(?<=[\s"'])|(?<=xlink:))href\s*=\s*(?:["']([^"'>]*)|([^\s"'>]+))""", re.I
+)
+NOFOLLOW_REGEX = re.compile(
+    r"""(?<=[\s"'])rel\s*=\s*(?:"[^"]*?|'[^']*?|[^\s"'>]*?)\bnofollow\b""", re.I
+)
+
+
+@lru_cache(maxsize=4096)
+def _host_parts(
+    scheme: str, netloc: str
+) -> tuple[str, str, str | None, str | None] | None:
+    """Return the normalized scheme and host, and the domain label and name
+    of a netloc without userinfo, or None if the host is unsuitable."""
+    scheme, _, host = normalize_netloc_parts(SplitResult(scheme, netloc, "", "", ""))
+    # domain_filter expects host[:port]
+    if not host or domain_filter(host) is False:
+        return None
+    label, domain = get_tldinfo(f"{scheme}://{host}")
+    return scheme, host, label, domain
+
+
+def _file_path(path: str) -> str:
+    "Return the path whose extension counts, the one of an embedded URL (Wayback Machine)."
+    if "://" in path:
+        path = path.rpartition("://")[2].partition("/")[2]
+    return path
 
 
 def check_url(
@@ -69,57 +103,88 @@ def check_url(
     Raises:
         Nothing: invalid URLs are caught internally and None is returned.
     """
+    return _check_url(url, strict, with_redirects, language, with_nav, trailing_slash)
 
+
+def _check_url(
+    url: str,
+    strict: bool,
+    with_redirects: bool,
+    language: str | None,
+    with_nav: bool,
+    trailing_slash: bool,
+    external: bool | None = None,
+    ref_label: str | None = None,
+) -> tuple[str, str] | None:
+    """check_url, plus an early host gate: with external set, keep only the links
+    on that side of the reference domain label, as is_external would."""
     # scrub, parse and normalize, then filter on the normalized parts
     # and the final form so the output is a fixed point
     try:
-        # length test
-        if basic_filter(url) is False:
-            raise ValueError
+        # scrub_url is slow on long garbage
+        if isinstance(url, str) and len(url) > MAX_RAW_LENGTH:
+            raise ValueError("basic filter")
 
         # clean
         url = scrub_url(url)
+
+        # length test
+        if basic_filter(url) is False:
+            raise ValueError("basic filter")
 
         # get potential redirect, can raise ValueError
         if with_redirects:
             url = redirection_test(url)
 
         # split and validate
-        validation_test, parsed_url = validate_url(url)
-        if validation_test is False or parsed_url is None:
-            raise ValueError
+        _, parsed_url = validate_url(url)
+        if parsed_url is None:
+            raise ValueError("validation test")
+
+        # unsuitable domain/host name, userinfo is dropped before the cache
+        hostinfo = _host_parts(parsed_url.scheme, parsed_url.netloc.rpartition("@")[2])
+        if hostinfo is None:
+            raise ValueError("domain name")
+        scheme, host, label, domain = hostinfo
+
+        # links on the unwanted side are dropped before the path work
+        if external is not None and external != (label != ref_label):
+            return None
 
         # normalized parts, shared with the rebuild; the query comes last as
         # it is the expensive one and the filters below may reject first
         path = normalize_path(parsed_url.path)
 
         # content filter based on extensions
-        if extension_filter(path) is False:
-            raise ValueError
-
-        scheme, netloc, host = normalize_netloc_parts(parsed_url)
-
-        # unsuitable domain/host name (without userinfo; domain_filter expects host[:port])
-        if not host or domain_filter(host) is False:
-            raise ValueError
+        if extension_filter(_file_path(path)) is False:
+            raise ValueError("extension filter")
 
         # spam & structural elements, also hidden in the query or the fragment
         pre_normalized = url
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
-            raise ValueError
+            raise ValueError("type filter")
 
         query = clean_query(parsed_url.query, strict, language)
+
+        # rebuild_url strips this slash, dates need it, the stripped path has to pass
+        if not trailing_slash and not query and path[-1:] == "/":
+            if extension_filter(_file_path(path).rstrip("/")) is False:
+                raise ValueError("extension filter")
+            if SITE_DATES.search(f"{host}{path}") and not (
+                with_nav and is_navigation_page(url)
+            ):
+                raise ValueError("type filter")
 
         # strict content filtering: the query has to be the one that survives
         # normalization, else a stripped param keeps an index page that
         # check_url would reject on a second pass
         if strict and path_filter(path, query) is False:
-            raise ValueError
+            raise ValueError("path filter")
 
         # rebuild
         url = rebuild_url(
             scheme,
-            netloc,
+            host,
             path,
             query,
             parsed_url.fragment,
@@ -133,22 +198,23 @@ def check_url(
             url != pre_normalized
             and type_filter(url, strict=strict, with_nav=with_nav) is False
         ):
-            raise ValueError
+            raise ValueError("type filter")
 
         # internationalization and language heuristics in URL
         if (
             language is not None
             and lang_filter(url, language, strict, trailing_slash) is False
         ):
-            raise ValueError
+            raise ValueError("lang filter")
 
         # domain info: use blacklist in strict mode only
-        domain = extract_domain(url, blacklist=BLACKLIST if strict else None)
-        if domain is None:
-            return None
+        if not domain or (strict and (label in BLACKLIST or domain in BLACKLIST)):
+            raise ValueError("domain name")
 
-    except (AttributeError, ValueError):
-        LOGGER.debug("discarded URL: %s", url)
+    except (AttributeError, ValueError) as err:
+        # the step that rejected the URL, the language param or the network
+        reason = err.args[0] if isinstance(err, ValueError) and err.args else "input"
+        LOGGER.debug("rejected, %s: %s", reason, url)
         return None
 
     return url, domain
@@ -167,7 +233,7 @@ def extract_links(
     redirects: bool = False,
     reference: str | None = None,
     base_url: str | None = None,
-) -> set[str]:
+) -> list[str]:
     """Filter links in a HTML document using a series of heuristics
 
     Args:
@@ -187,7 +253,8 @@ def extract_links(
         reference: provide a host reference for external/internal evaluation
 
     Returns:
-        A set containing filtered HTTP links checked for sanity and consistency.
+        A list of filtered HTTP links checked for sanity and consistency,
+        in document order.
 
     Raises:
         ValueError: if the deprecated 'base_url' argument is provided.
@@ -197,63 +264,71 @@ def extract_links(
 
     base_url = get_base_url(url or "")
     url = url or base_url
-    candidates: set[str] = set()
-    validlinks: set[str] = set()
     if not pagecontent:
-        return validlinks
+        return []
+    # document order, so that the first variant of a link wins
+    candidates: dict[str, None] = {}
+    validlinks: dict[str, None] = {}
 
     # define host reference
     reference = reference or base_url
+    ref_label = _compared_host(get_tldinfo(reference)[0]) if reference else None
 
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
-        if "rel=" in link and "nofollow" in link:
+        # cheap gates first, any case
+        lowered = link.lower()
+        if "ollow" in lowered and NOFOLLOW_REGEX.search(link):
             continue
         # https://en.wikipedia.org/wiki/Hreflang
-        if no_filter is False and language is not None and "hreflang" in link:
-            langmatch = HREFLANG_REGEX.search(link)
-            if langmatch and (
+        if (
+            no_filter is False
+            and language is not None
+            and "hreflang" in lowered
+            and (langmatch := HREFLANG_REGEX.search(link))
+            and not (
                 (lang := langmatch[1].lower()).startswith(language)
                 or lang == "x-default"
-            ):
-                linkmatch = LINK_REGEX.search(link)
-                if linkmatch:
-                    candidates.add(linkmatch[1])
-        # default
-        else:
-            linkmatch = LINK_REGEX.search(link)
-            if linkmatch:
-                candidates.add(linkmatch[1])
+            )
+        ):
+            continue
+        linkmatch = LINK_REGEX.search(link)
+        if linkmatch:
+            href = linkmatch[linkmatch.lastindex]  # type: ignore[index]
+            # inner spaces are encoded as browsers do, scrub_url would join them
+            candidates[decode_entities(href).strip().replace(" ", "%20")] = None
 
     # filter candidates
     for link in candidates:
         # repair using base
         if not link.startswith("http"):
-            link = fix_relative_urls(url, link)
+            try:
+                link = fix_relative_urls(url, link)
+            except ValueError:
+                LOGGER.debug("unresolvable link: %s", link)
+                continue
         # check
         if no_filter is False:
-            checked = check_url(
+            # with the external/internal links filter
+            checked = _check_url(
                 link,
-                strict=strict,
-                trailing_slash=trailing_slash,
-                with_nav=with_nav,
-                with_redirects=redirects,
-                language=language,
+                strict,
+                redirects,
+                language,
+                with_nav,
+                trailing_slash,
+                external_bool if reference else None,
+                ref_label,
             )
             if checked is None:
                 continue
             link = checked[0]
-            # external/internal links
-            if reference and external_bool != is_external(
-                url=link, reference=reference, ignore_suffix=True
-            ):
-                continue
         if is_known_link(link, validlinks):
             continue
-        validlinks.add(link)
+        validlinks[link] = None
 
     LOGGER.info("%s links found – %s valid links", len(candidates), len(validlinks))
-    return validlinks
+    return list(validlinks)
 
 
 def filter_links(

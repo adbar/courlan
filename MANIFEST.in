@@ -2,4 +2,7 @@ include CONTRIBUTING.md HISTORY.md README.md LICENSE
 include courlan/py.typed
 
 include tests/*.py
+# reads docs/source, which the sdist does not ship
+exclude tests/test_docs_examples.py
+include scripts/__init__.py scripts/update_psl.py
 graft tests/data/

@@ -3,19 +3,21 @@ Regenerate courlan/_psl_data.py from the Mozilla Public Suffix List (PSL).
 
 Usage:
     python scripts/update_psl.py          # fetch, regenerate, and write the file
-    python scripts/update_psl.py --check  # exit 1 if stale, 2 on a bad fetch, 0 if current
+    python scripts/update_psl.py --check  # exit 1 if stale, 2 on a bad fetch or usage error, 0 if current
 
 Only pull the list from the canonical URL below -- the list's own header
 instructs against using any other source (e.g. VCS mirrors).
 """
 
+import argparse
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 import urllib3
 
-from courlan.hosts import _idna_encode
+from courlan.hosts import _ascii_host, _unicode_host
 from courlan.network import RETRY_STRATEGY
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -101,14 +103,13 @@ def extract_icann_rules(raw: str) -> list[str]:
 
 
 def idna_normalize(rule: str) -> str:
-    "Punycode a rule via the shared runtime encoder; hard-fail on any problem."
-    try:
-        encoded = _idna_encode(rule)
-    except UnicodeError as err:
-        raise RuntimeError(f"cannot encode rule {rule!r}: {err}") from err
-    # reject lossy encodings (ß->ss, ς->σ, ZWJ/ZWNJ) that diverge from UTS-46
-    if not rule.isascii() and encoded.encode("ascii").decode("idna") != rule:
-        raise RuntimeError(f"lossy IDNA encoding in rule {rule!r}")
+    """Punycode a rule via the shared runtime encoder.
+    Hard-fail on non-NFC rules and on rules that do not round-trip."""
+    if not unicodedata.is_normalized("NFC", rule):
+        raise RuntimeError(f"rule {rule!r} is not NFC-normalized")
+    encoded = _ascii_host(rule)
+    if _unicode_host(encoded) != rule:
+        raise RuntimeError(f"rule {rule!r} does not round-trip through punycode")
     return encoded
 
 
@@ -157,14 +158,29 @@ def strip_header_metadata(content: str) -> str:
     )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Regenerate courlan/_psl_data.py from the PSL."
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit 1 if the bundled data is stale, write nothing",
+    )
+    args = parser.parse_args(argv)
+
     # any data problem (bad fetch, malformed markers, bad IDNA) is exit 2,
     # never --check's exit-1 "stale"
     try:
         raw = fetch_psl()
         version, commit = extract_version_commit(raw)
         suffixes, wildcards, exceptions = build_rule_sets(extract_icann_rules(raw))
-    except (RuntimeError, IndexError, urllib3.exceptions.HTTPError) as err:
+    except (
+        RuntimeError,
+        IndexError,
+        UnicodeError,
+        urllib3.exceptions.HTTPError,
+    ) as err:
         print(f"error: {err}")
         return 2
 
@@ -177,7 +193,7 @@ def main() -> int:
         return 2
     content = render(suffixes, wildcards, exceptions, version, commit)
 
-    if "--check" in sys.argv[1:]:
+    if args.check:
         current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
         if strip_header_metadata(content) != strip_header_metadata(current):
             print(f"{OUTPUT_PATH} is stale ({counts} available).")

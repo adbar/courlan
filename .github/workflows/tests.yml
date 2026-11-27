@@ -22,38 +22,43 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         # https://github.com/actions/python-versions/blob/main/versions-manifest.json
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15-dev"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
         include:
+        # oldest Python with the oldest allowed dependencies
+        - os: ubuntu-latest
+          python-version: "3.10"
+          resolution: lowest-direct
         # other OS version necessary
         - os: macos-latest
           python-version: "3.13"
         - os: windows-latest
           python-version: "3.13"
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     # Python and uv setup
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v10.3.2
       with:
         enable-cache: true
         cache-dependency-glob: pyproject.toml
 
     - name: Install dependencies
-      run: uv pip install --system -e ".[dev]"
+      run: uv pip install --system --resolution ${{ matrix.resolution || 'highest' }} -e ".[dev]"
 
     # tests
     - name: Lint, format check and type checking
-      if: ${{ matrix.python-version == '3.13' }}
+      if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
       run: |
         ruff check courlan tests
         ruff format --check --diff courlan tests
         mypy -p courlan
+        mypy tests
 
     - name: Test with pytest
       run: |
@@ -61,15 +66,25 @@ jobs:
 
     - name: Test docs
       # version matches .readthedocs.yml
-      if: ${{ matrix.python-version == '3.13' }}
+      if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
       run: |
         uv pip install --system -e ".[docs]"
         pytest docs/test_docs.py
 
+    # packaging
+    - name: Test the sdist
+      # the shipped tests must pass from the unpacked sdist
+      if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
+      run: |
+        uv build --out-dir "$RUNNER_TEMP/dist"
+        tar -xzf "$RUNNER_TEMP"/dist/*.tar.gz -C "$RUNNER_TEMP"
+        cd "$RUNNER_TEMP"/courlan-*/
+        python -m pytest
+
     # coverage
     - name: Upload coverage to Codecov
-      if: ${{ matrix.python-version == '3.13' }}
-      uses: codecov/codecov-action@v5
+      if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
+      uses: codecov/codecov-action@v7
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:

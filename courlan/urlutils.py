@@ -2,13 +2,34 @@
 Functions related to URL manipulation and extraction of URL parts.
 """
 
+import html
 import re
+from collections.abc import Collection
+from html.entities import html5
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from .hosts import _canonical_ip, get_registrable_domain
+from .hosts import (
+    _ascii_host,
+    _canonical_ip,
+    _compared_host,
+    _split_port,
+    get_registrable_domain,
+)
 
-_NUMERIC_AMP = re.compile(r"&#0*38;|&#x0*26;", re.I)
+ENTITY = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
+
+
+def _decode_entity(match: re.Match[str]) -> str:
+    ref = match[0]
+    # html.unescape() also expands name prefixes, "&param;" would give "\xb6m;"
+    return html.unescape(ref) if ref[1] == "#" else html5.get(ref[1:], ref)
+
+
+def decode_entities(url: str) -> str:
+    """Decode the semicolon-terminated HTML entities of a URL, the others stay:
+    "&para=2" is a query param, not a pilcrow."""
+    return ENTITY.sub(_decode_entity, url) if "&" in url else url
 
 
 def _strip_trailing_dot(host: str) -> str:
@@ -38,33 +59,32 @@ def get_tldinfo(url: str) -> tuple[str | None, str | None]:
         netloc_host = _strip_trailing_dot(parsed.netloc.rsplit("@", 1)[-1])
         if netloc_host.count(":") >= 2 and (ip := _canonical_ip(netloc_host)):
             return ip, ip
-    return get_registrable_domain(host)
+    label, domain = get_registrable_domain(host)
+    # "www." plus a public suffix is the site of the suffix ("www.gov.uk")
+    if label == "www" and domain:
+        label = domain = domain[4:]
+    return label, domain
 
 
 def extract_domain(
     url: str, blacklist: set[str] | None = None, fast: bool = False
 ) -> str | None:
     """Extract domain name information using top-level domain info.
+    Follows the ICANN section of the Public Suffix List only, so ``foo.blogspot.com`` gives ``blogspot.com``.
     ``fast`` is accepted for backward compatibility but no longer has any effect."""
-    if blacklist is None:
-        blacklist = set()
     domain, full_domain = get_tldinfo(url)
-
-    return (
-        full_domain
-        if full_domain and domain not in blacklist and full_domain not in blacklist
-        else None
-    )
+    if not full_domain or (
+        blacklist and (domain in blacklist or full_domain in blacklist)
+    ):
+        return None
+    return full_domain
 
 
 def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
         try:
-            # "&amp;" and numeric ampersand entities only: full unescape()
-            # also expands query keys that happen to be entity names,
-            # turning "&param=" into "\xb6m="
-            parsed_url = urlsplit(_NUMERIC_AMP.sub("&", url.replace("&amp;", "&")))
+            parsed_url = urlsplit(decode_entities(url))
         except ValueError:
             # malformed URL (e.g. bad IPv6 literal): degrade to empty parts like a hostless URL.
             parsed_url = SplitResult("", "", "", "", "")
@@ -80,10 +100,20 @@ def get_base_url(url: str | SplitResult) -> str:
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
     if parsed_url.scheme:
-        scheme = parsed_url.scheme + "://"
-    else:
-        scheme = ""
-    return scheme + parsed_url.netloc
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
+    return parsed_url.netloc
+
+
+def get_ascii_url(url: str) -> str:
+    """Return the URL with its host in punycode, the form HTTP clients can fetch.
+    Other URL parts are left as they are."""
+    try:
+        netloc = urlsplit(url).netloc
+    except ValueError:
+        return url
+    userinfo, sep, hostport = netloc.rpartition("@")
+    host, colon, port = _split_port(hostport)
+    return url.replace(netloc, f"{userinfo}{sep}{_ascii_host(host)}{colon}{port}", 1)
 
 
 def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
@@ -91,35 +121,30 @@ def get_host_and_path(url: str | SplitResult) -> tuple[str, str]:
     Accepts strings and urllib.parse ParseResult objects."""
     parsed_url = _parse(url)
     hostname = get_base_url(parsed_url)
-    pathval = urlunsplit(
-        ["", "", parsed_url.path, parsed_url.query, parsed_url.fragment]
-    )
-    # correction for root/homepage
-    if pathval == "":
-        pathval = "/"
-    if not hostname or not pathval:
+    if not hostname:
         raise ValueError(f"incomplete URL: {url}")
-    return hostname, pathval
+    # "/" for the root/homepage
+    path = urlunsplit(("", "", parsed_url.path, parsed_url.query, parsed_url.fragment))
+    return hostname, path or "/"
 
 
 def get_hostinfo(url: str) -> tuple[str | None, str]:
     "Convenience function returning domain and host info (protocol + host/domain) from a URL."
-    domainname = extract_domain(url)
-    base_url = get_base_url(url)
-    return domainname, base_url
+    return extract_domain(url), get_base_url(url)
 
 
 def fix_relative_urls(baseurl: str, url: str) -> str:
-    "Prepend protocol and host information to relative links."
+    """Prepend protocol and host information to relative links.
+
+    Raises:
+        ValueError: if the base URL or the link is malformed.
+    """
     if url.startswith("{"):
         return url
 
-    # a malformed netloc passes through unchanged, like an absolute URL
-    try:
-        parsed_base = urlsplit(baseurl)
-        split_url = urlsplit(url)
-    except ValueError:
-        return url
+    # malformed URLs raise ValueError, callers rely on it to drop them
+    parsed_base = urlsplit(baseurl)
+    split_url = urlsplit(url)
 
     if split_url.netloc not in (parsed_base.netloc, ""):
         if split_url.scheme:
@@ -131,27 +156,22 @@ def fix_relative_urls(baseurl: str, url: str) -> str:
 
 def filter_urls(link_list: list[str], urlfilter: str | None) -> list[str]:
     "Return a list of links corresponding to the given substring pattern."
-    if urlfilter is None:
-        return sorted(set(link_list))
-    # filter links
-    filtered_list = [link for link in link_list if urlfilter in link]
-    # feedburner option: filter and wildcards for feeds
-    if not filtered_list:
-        filtered_list = [
+    if urlfilter is not None:
+        # feedburner option: filter and wildcards for feeds
+        link_list = [link for link in link_list if urlfilter in link] or [
             link for link in link_list if FEED_WHITELIST_REGEX.search(link)
         ]
-    return sorted(set(filtered_list))
+    return sorted(set(link_list))
 
 
 def is_external(url: str, reference: str, ignore_suffix: bool = True) -> bool:
     """Determine if a link leads to another host, takes a reference URL and
     a URL as input, returns a boolean"""
-    stripped_ref, ref = get_tldinfo(reference)
-    stripped_domain, domain = get_tldinfo(url)
-    # comparison
-    if ignore_suffix:
-        return stripped_domain != stripped_ref
-    return domain != ref
+    # domain label or full domain, compared in unicode form as check_url decodes punycode
+    i = 0 if ignore_suffix else 1
+    return _compared_host(get_tldinfo(url)[i]) != _compared_host(
+        get_tldinfo(reference)[i]
+    )
 
 
 def _swap_scheme(url: str) -> str:
@@ -164,22 +184,15 @@ def _slash_variant(url: str) -> str:
     return url.rstrip("/") if url[-1] == "/" else url + "/"
 
 
-def is_known_link(link: str, known_links: set[str]) -> bool:
+def is_known_link(link: str, known_links: Collection[str]) -> bool:
     "Compare the link and its possible variants to the existing URL base."
     if not link:
         return False
-    # check exact link
-    if link in known_links:
+    # exact link and trailing slash variant
+    if link in known_links or _slash_variant(link) in known_links:
         return True
-
-    # check link and variants with trailing slashes
-    if _slash_variant(link) in known_links:
-        return True
-
-    # check link and variants with modified protocol
-    if link.startswith("http"):
-        protocol_test = _swap_scheme(link)
-        if protocol_test in known_links or _slash_variant(protocol_test) in known_links:
-            return True
-
-    return False
+    if not link.startswith("http"):
+        return False
+    # the same with the other protocol
+    swapped = _swap_scheme(link)
+    return swapped in known_links or _slash_variant(swapped) in known_links

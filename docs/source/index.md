@@ -4,9 +4,13 @@ myst:
     description: "courlan — Python library for URL filtering, normalization, cleaning, and web crawl scheduling."
 ---
 
-# courlan — URL Filtering and Normalization for Python
+# courlan — Filter, Clean, and Sample URLs for Web Crawling in Python
 
 courlan provides an additional "brain" for web crawling, scraping, and document management. It facilitates web navigation through a set of filters to enhance the quality of resulting document collections: save bandwidth by steering clear of low-value pages, identify content by language, and deduplicate URL collections at scale.
+
+<iframe src="https://www.youtube-nocookie.com/embed/vN0UyARvPs8" title="Crawl or Skip? Filter and Sample URLs with courlan" style="display: block; margin: 0 auto; width: 75%; min-width: min(356px, 100%); aspect-ratio: 16 / 9; min-height: 200px; border: 0;" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[Watch the video on YouTube](https://youtu.be/vN0UyARvPs8)
 
 ## Common tasks
 
@@ -14,29 +18,29 @@ courlan provides an additional "brain" for web crawling, scraping, and document 
 :gutter: 3
 
 :::{grid-item-card} Validate & filter URLs
-:link: usage/python
-:link-type: doc
+:link: check-url
+:link-type: ref
 
 `check_url` — validate, normalize, and filter in one call.
 :::
 
 :::{grid-item-card} Clean & normalize
-:link: usage/python
-:link-type: doc
+:link: cleaning
+:link-type: ref
 
 `clean_url`, `normalize_url` — fix up messy URLs without full filtering.
 :::
 
 :::{grid-item-card} Extract links from HTML
-:link: usage/python
-:link-type: doc
+:link: link-extraction
+:link-type: ref
 
 `extract_links`, `filter_links` — general-purpose and crawl-aware extraction.
 :::
 
 :::{grid-item-card} Sample by domain
-:link: usage/python
-:link-type: doc
+:link: sampling
+:link-type: ref
 
 `sample_urls` — pick N URLs per domain from a larger collection.
 :::

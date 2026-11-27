@@ -1,0 +1,33 @@
+name: PSL check
+
+on:
+  schedule:
+    - cron: '0 6 1 */2 *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.13"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.3.2
+      with:
+        enable-cache: true
+        cache-dependency-glob: pyproject.toml
+
+    - name: Install courlan
+      run: uv pip install --system -e .
+
+    # exit 1 if the bundled data is stale, 2 on a bad fetch
+    - name: Check the bundled Public Suffix List data
+      run: python scripts/update_psl.py --check
