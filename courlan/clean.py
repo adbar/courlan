@@ -177,9 +177,12 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
     "Look for trackers in URL fragments using query analysis, normalize the output."
     if "=" in fragment:
         if "&" in fragment:
-            # the separators stay, else a second pass reads one param
-            return quote(clean_query(fragment, False, language), safe="/%!=:,-&")
-        elif TRACKERS_RE.search(fragment):
+            fragment = clean_query(fragment, False, language)
+            # params keep their separators, as on a second pass
+            if "=" in fragment:
+                return quote(fragment, safe="/%!=:,-&")
+        # keys only, as in clean_query
+        elif TRACKERS_RE.search(fragment.partition("=")[0].lower()):
             fragment = ""
     return normalize_part(fragment)
 

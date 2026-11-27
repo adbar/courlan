@@ -471,6 +471,18 @@ def test_type_filter():
     # nav
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=False) is False
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
+    # a query or a fragment after the tag name keeps a tag page
+    for url in (
+        "https://example.org/tag/news?page=2",
+        "https://example.org/author/bob#x",
+    ):
+        assert type_filter(url) is False, url
+    # but is no tag name itself, and a slash before it is a valid page
+    for url in (
+        "https://crazy-julia.de/das-leben-in-einem-tag/?x=1",
+        "https://example.org/tag/news/?page=2",
+    ):
+        assert type_filter(url) is True, url
     assert type_filter("http://www.example.org/page/10/", with_nav=False) is False
     assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
     assert type_filter("https://example.org/topics/2011/", with_nav=False) is False
@@ -710,6 +722,10 @@ def test_validate():
         "https://example.com/path",
         "example.com",
     )
+    assert check_url("https://user%40name@example.org/a") == (
+        "https://example.org/a",
+        "example.org",
+    )
 
 
 def test_decode_punycode():
@@ -823,6 +839,9 @@ def test_normalization():
     assert normalize_url("http://test.org/?a=1&#0038;b=2") == "http://test.org/?a=1&b=2"
     assert normalize_url("http://test.org/?a=1&#X26;b=2") == "http://test.org/?a=1&b=2"
     assert normalize_url("http://test.org/#partnerid=123") == "http://test.org"
+    # the key is tested in any case, not the value
+    assert normalize_url("http://test.org/#UTM_SOURCE=x") == "http://test.org"
+    assert normalize_url("http://test.org/#tab=source") == "http://test.org/#tab=source"
     assert (
         normalize_url(
             "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"

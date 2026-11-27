@@ -40,16 +40,18 @@ from .urlutils import (
 
 LOGGER = logging.getLogger(__name__)
 
+MAX_RAW_LENGTH = 2000
+
 FIND_LINKS_REGEX = re.compile(r"<a\s+[^<>]+?>", re.I)
-# attributes, also glued after a quote, not data-href, :href or a "/hreflang-guide" path
-HREFLANG_REGEX = re.compile(r"""(?<![\w:-])hreflang\s*=\s*["']?([a-z-]+)""", re.I)
+# attributes, also glued after a quote, not data-href, :href or inside a value
+HREFLANG_REGEX = re.compile(r"""(?<=[\s"'])hreflang\s*=\s*["']?([a-z-]+)""", re.I)
 # quoted values keep their spaces and end at any quote, as script-built
-# anchors hold the other one: href="#' + id + '"
+# anchors hold the other one: href="#' + id + '", SVG anchors use xlink:href
 LINK_REGEX = re.compile(
-    r"""(?<![\w:-])href\s*=\s*(?:["']([^"'>]*)|([^\s"'>]+))""", re.I
+    r"""(?:(?<=[\s"'])|(?<=xlink:))href\s*=\s*(?:["']([^"'>]*)|([^\s"'>]+))""", re.I
 )
 NOFOLLOW_REGEX = re.compile(
-    r"""(?<![\w:-])rel\s*=\s*(?:"[^"]*?|'[^']*?|[^\s"'>]*?)\bnofollow\b""", re.I
+    r"""(?<=[\s"'])rel\s*=\s*(?:"[^"]*?|'[^']*?|[^\s"'>]*?)\bnofollow\b""", re.I
 )
 
 
@@ -67,12 +69,11 @@ def _host_parts(
     return scheme, host, label, domain
 
 
-def _file_path(path: str, trailing_slash: bool) -> str:
-    """Return the path whose extension counts: the one of an embedded URL
-    (Wayback Machine), without the slashes that rebuild_url strips."""
+def _file_path(path: str) -> str:
+    "Return the path whose extension counts, the one of an embedded URL (Wayback Machine)."
     if "://" in path:
         path = path.rpartition("://")[2].partition("/")[2]
-    return path if trailing_slash else path.rstrip("/")
+    return path
 
 
 def check_url(
@@ -120,6 +121,10 @@ def _check_url(
     # scrub, parse and normalize, then filter on the normalized parts
     # and the final form so the output is a fixed point
     try:
+        # scrub_url is slow on long garbage
+        if isinstance(url, str) and len(url) > MAX_RAW_LENGTH:
+            raise ValueError("basic filter")
+
         # clean
         url = scrub_url(url)
 
@@ -151,23 +156,24 @@ def _check_url(
         path = normalize_path(parsed_url.path)
 
         # content filter based on extensions
-        if extension_filter(_file_path(path, trailing_slash)) is False:
+        if extension_filter(_file_path(path)) is False:
             raise ValueError("extension filter")
 
         # spam & structural elements, also hidden in the query or the fragment
         pre_normalized = url
         if type_filter(url, strict=strict, with_nav=with_nav) is False:
             raise ValueError("type filter")
-        # dates need the slash that rebuild_url strips
-        if (
-            not trailing_slash
-            and path[-1:] == "/"
-            and SITE_DATES.search(f"{host}{path}")
-            and not (with_nav and is_navigation_page(url))
-        ):
-            raise ValueError("type filter")
 
         query = clean_query(parsed_url.query, strict, language)
+
+        # rebuild_url strips this slash, dates need it, the stripped path has to pass
+        if not trailing_slash and not query and path[-1:] == "/":
+            if extension_filter(_file_path(path).rstrip("/")) is False:
+                raise ValueError("extension filter")
+            if SITE_DATES.search(f"{host}{path}") and not (
+                with_nav and is_navigation_page(url)
+            ):
+                raise ValueError("type filter")
 
         # strict content filtering: the query has to be the one that survives
         # normalization, else a stripped param keeps an index page that
@@ -270,14 +276,15 @@ def extract_links(
 
     # extract links
     for link in (m[0] for m in FIND_LINKS_REGEX.finditer(pagecontent)):
-        # cheap gate first, "nofollow" and "NOFOLLOW" alike
-        if ("ollow" in link or "OLLOW" in link) and NOFOLLOW_REGEX.search(link):
+        # cheap gates first, any case
+        lowered = link.lower()
+        if "ollow" in lowered and NOFOLLOW_REGEX.search(link):
             continue
         # https://en.wikipedia.org/wiki/Hreflang
         if (
             no_filter is False
             and language is not None
-            and "hreflang" in link
+            and "hreflang" in lowered
             and (langmatch := HREFLANG_REGEX.search(link))
             and not (
                 (lang := langmatch[1].lower()).startswith(language)

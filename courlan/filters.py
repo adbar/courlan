@@ -44,7 +44,7 @@ SITE_STRUCTURE = re.compile(
     r"paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|"
     r"archives|uploads|modules|attachment|oembed)/|"
     # wordpress + short URL, a query or a fragment is not a tag name
-    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/?#]+/?$",
+    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/?#]+(?:[?#]|/?$)",
     re.IGNORECASE,
 )
 # mixed/blogspot dates
@@ -271,7 +271,7 @@ def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
         or (host.startswith("www.") and len(host) < 8)
         # "exa mple.org" is not "example.org", "%" leaves templates and garbage
         or " " in netloc
-        or "%" in netloc
+        or "%" in hostport
         # reject dotless/colonless hosts (e.g. "1234", "localhost")
         or ("." not in hostport and ":" not in hostport)
     ):

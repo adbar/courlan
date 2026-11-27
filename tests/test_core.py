@@ -24,7 +24,7 @@ from courlan import (
     normalize_url,
     validate_url,
 )
-from courlan.core import _host_parts, filter_links
+from courlan.core import MAX_RAW_LENGTH, _host_parts, filter_links
 from courlan.hosts import get_registrable_domain
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
@@ -292,6 +292,9 @@ def test_urlcheck_fixed_point():
         "https://example.org/a/%c3%a9/%40user/C%2b%2b",
         # the fragment separators stay, a second pass reads the same params
         "https://example.org/t#a=b&c=d{g/open-source/",
+        # bare keys left alone, a value read as a tracker
+        "https://example.org/p#utm_source=x&a&b",
+        "https://example.org/p#tab=source&utm_medium=x",
     ]
     for url in urls:
         for config in CONFIGS:
@@ -353,6 +356,24 @@ def test_urlcheck_dates_without_slash():
         url[:-1],
         "example.org",
     )
+    # with a query the slash stays, so the path is checked as it is
+    for url in (
+        "https://example.org/2024/05/?a=1",
+        "https://example.org/report.pdf/?a=1",
+    ):
+        assert check_url(url, trailing_slash=False) == (url, "example.org")
+    assert (
+        check_url("https://example.org/report.pdf/?utm_source=x", trailing_slash=False)
+        is None
+    )
+
+
+def test_urlcheck_raw_length():
+    "Long raw input is rejected before scrubbing, even if scrubbing would shorten it."
+    core = "https://example.org/a" + "<b>" * 600
+    url = " " * (MAX_RAW_LENGTH - len(core)) + core
+    assert check_url(url) == ("https://example.org/a", "example.org")
+    assert check_url(" " + url) is None
 
 
 @pytest.mark.xfail(reason="item 29, a terminal language segment is no cue")
@@ -598,6 +619,12 @@ def test_extraction():
         ('<a href=" /a ">', "/a"),
         ('<a class="x"href="/a">', "/a"),
         ('<a :href="loginLink">', None),
+        ('<a xlink:href="/svg">', "/svg"),
+        # not a name inside another value
+        ('<a onclick="location.href=\'/js\'" href="/a">', "/a"),
+        ('<a data-track="x&href=/no" href="/a">', "/a"),
+        ('<a href="/a?rel=nofollow">', "/a?rel=nofollow"),
+        ('<a href="/a?hreflang=fr">', "/a?hreflang=fr"),
         # script-built anchors end at the other quote
         ("<a href=\"/a' + posturl + '\">", "/a"),
         # a share link keeps the embedded URL past its inner space
@@ -608,6 +635,7 @@ def test_extraction():
         # nofollow in the rel attribute only, in any case
         ('<a href="/nofollow-policy" rel="author">', "/nofollow-policy"),
         ('<a href="/a" REL="NOFOLLOW">', None),
+        ('<a href="/a" rel="nOfOlLoW">', None),
         ('<a rel="noopener nofollow" href="/a">', None),
         ("<a href=/a rel=nofollow>", None),
         ('<a href="/a"rel="nofollow">', None),
@@ -615,6 +643,7 @@ def test_extraction():
         ('<a href="/blog/hreflang-guide">', "/blog/hreflang-guide"),
         ('<a href="/a" hreflang="fr">', None),
         ('<a href="/a" hreflang="en-GB">', "/a"),
+        ('<a href="/a" HREFLANG="fr">', None),
     ],
 )
 def test_extraction_attributes(anchor, expected):
