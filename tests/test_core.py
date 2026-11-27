@@ -436,23 +436,36 @@ def test_urlcheck_redirects():
             "bücher.de",
         )
         assert mock_request.call_args.args == ("HEAD", "https://xn--bcher-kva.de/a")
+        # so is the GET fallback
+        mock_request.side_effect = [_fake_head(405), _fake_head(200)]
+        assert check_url("https://bücher.de/a", with_redirects=True)
+        assert mock_request.call_args.args == ("GET", "https://xn--bcher-kva.de/a")
 
 
 @contextmanager
 def _serve(routes):
-    "Serve HEAD requests from {path: [(status, location), ...]}, the last pair repeats."
+    """Serve {path: [(status, location), ...]}, the last pair repeats.
+    GET requests use and log the "GET <path>" key."""
     log = []
 
     class Handler(BaseHTTPRequestHandler):
-        def do_HEAD(self):
-            log.append(self.path)
-            replies = routes.get(self.path, [(404, None)])
+        def reply(self, key, body):
+            log.append(key)
+            replies = routes.get(key, [(404, None)])
             status, location = replies.pop(0) if len(replies) > 1 else replies[0]
             self.send_response(status)
             if location:
                 self.send_header("Location", location)
-            self.send_header("Content-Length", "0")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
+            if self.command == "GET":
+                self.wfile.write(body)
+
+        def do_HEAD(self):
+            self.reply(self.path, b"")
+
+        def do_GET(self):
+            self.reply(f"GET {self.path}", b"x" * 1000)
 
         def log_message(self, *args):
             pass
@@ -498,6 +511,36 @@ def test_redirection():
             assert "/c4" not in log
             with pytest.raises(ValueError):
                 redirection_test(f"{base}/missing")
+
+
+def test_redirection_head_fallback():
+    "HEAD not implemented: no HEAD retry, GET with the usual retries and redirects."
+    routes = {
+        "/h500": [(500, None)],
+        "GET /h500": [(200, None)],
+        "/h405": [(405, None)],
+        "GET /h405": [(302, "/final")],
+        "GET /final": [(200, None)],
+        "/h501": [(501, None)],
+        "GET /h501": [(500, None), (200, None)],
+        "/broken": [(500, None)],
+        "GET /broken": [(404, None)],
+    }
+    with _serve(routes) as (base, log):
+        assert redirection_test(f"{base}/h500") == f"{base}/h500"
+        assert log == ["/h500", "GET /h500"]
+        assert redirection_test(f"{base}/h405") == f"{base}/final"
+        assert "GET /final" in log
+        # the GET keeps the retry on 500
+        assert redirection_test(f"{base}/h501") == f"{base}/h501"
+        assert log.count("/h501") == 1
+        assert log.count("GET /h501") == 2
+        with pytest.raises(ValueError):
+            redirection_test(f"{base}/broken")
+        # other errors do not fall back to GET
+        with pytest.raises(ValueError):
+            redirection_test(f"{base}/missing")
+        assert "GET /missing" not in log
 
 
 def test_extraction():

@@ -21,6 +21,7 @@ RETRY_STRATEGY = urllib3.util.Retry(
     status_forcelist=[
         429,
         499,
+        500,
         502,
         503,
         504,
@@ -44,6 +45,12 @@ HTTP_POOL = urllib3.PoolManager(
 
 ACCEPTABLE_CODES = {200, 300, 301, 302, 303, 304, 305, 306, 307, 308}
 
+# HEAD not implemented by the server: answer at once, then retry with GET
+HEAD_FALLBACK_CODES = {405, 500, 501}
+HEAD_RETRY = RETRY_STRATEGY.new(
+    status_forcelist=set(RETRY_STRATEGY.status_forcelist or ()) - HEAD_FALLBACK_CODES
+)
+
 
 # Test redirects
 def redirection_test(url: str) -> str:
@@ -57,28 +64,22 @@ def redirection_test(url: str) -> str:
     Raises:
         ValueError: if the URL cannot be reached or returns an unacceptable status.
     """
+    ascii_url = get_ascii_url(url)
     try:
-        rhead = HTTP_POOL.request("HEAD", get_ascii_url(url))
+        response = HTTP_POOL.request("HEAD", ascii_url, retries=HEAD_RETRY)
+        if response.status in HEAD_FALLBACK_CODES:
+            # headers only, the connection is closed before the body is read
+            response = HTTP_POOL.request("GET", ascii_url, preload_content=False)
+            response.close()
     except Exception as err:
         LOGGER.warning("cannot reach URL: %s %s", url, err)
         raise ValueError(f"cannot reach URL: {url}") from err
-    # response
-    if rhead.status in ACCEPTABLE_CODES:
+    if response.status in ACCEPTABLE_CODES:
         # geturl() can be a bare path, resolve the last Location against its hop
         final_url = url
-        for hop in rhead.retries.history if rhead.retries else ():
+        for hop in response.retries.history if response.retries else ():
             if hop.redirect_location:
                 final_url = urljoin(hop.url or url, hop.redirect_location)
-        LOGGER.debug("result found: %s %s", final_url, rhead.status)
+        LOGGER.debug("result found: %s %s", final_url, response.status)
         return final_url
-    # Some sites don't implement HEAD, fallback to GET
-    if rhead.status == 500:
-        try:
-            rget = HTTP_POOL.request("GET", url)
-            if rget.status in ACCEPTABLE_CODES:
-                final_url = rget.geturl() or url
-                LOGGER.debug("result found with GET: %s %s", final_url, rget.status)
-                return final_url
-        except Exception as err:
-            LOGGER.warning("cannot reach URL with GET: %s %s", url, err)
     raise ValueError(f"cannot reach URL: {url}")
