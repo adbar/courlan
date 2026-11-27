@@ -376,10 +376,15 @@ def test_urlcheck_raw_length():
     assert check_url(" " + url) is None
 
 
-@pytest.mark.xfail(reason="item 29, a terminal language segment is no cue")
-def test_urlcheck_terminal_language_segment():
+def test_urlcheck_language_cues():
+    "A last segment counts as a cue, the language argument ignores case."
     assert check_url("https://www.sitemaps.org/da/", language="de") is None
     assert check_url("https://www.sitemaps.org/da", language="de") is None
+    assert check_url("https://example.org/en/article", language="EN") == (
+        "https://example.org/en/article",
+        "example.org",
+    )
+    assert check_url("https://example.org/de/article", language="EN") is None
 
 
 def test_urlcheck_port():
@@ -649,10 +654,11 @@ def test_extraction():
 def test_extraction_attributes(anchor, expected):
     "The href, rel and hreflang attributes are read as attributes."
     expected = [f"https://test.com{expected}"] if expected else []
-    assert (
-        extract_links(anchor, "https://test.com", language="en", strict=False)
-        == expected
-    )
+    for language in ("en", "EN", "en_US"):
+        assert (
+            extract_links(anchor, "https://test.com", language=language, strict=False)
+            == expected
+        )
 
 
 def test_extraction_entities_no_filter():

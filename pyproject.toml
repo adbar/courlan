@@ -89,6 +89,7 @@ docs = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["error::DeprecationWarning:courlan"]
 
 [tool.ruff]
 target-version = "py310"

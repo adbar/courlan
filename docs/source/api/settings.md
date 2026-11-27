@@ -16,7 +16,7 @@ Configuration constants for URL filtering and content detection.
 | `BLACKLIST` | `set[str]` | Domain fragments to exclude (social media, CDNs, e-commerce, etc.) |
 | `ALLOWED_PARAMS` | `set[str]` | Query parameters preserved during cleaning (content IDs, pagination) |
 | `LANG_PARAMS` | `set[str]` | Query parameter names used for language detection (e.g. `lang`, `language`) |
-| `TARGET_LANGS` | `dict[str, set[str]]` | ISO 639-1 codes mapped to accepted variants (e.g. `"de"` → `{"de", "deutsch", "ger"}`). Consulted **only** for the value of a `lang`/`language` query parameter — a target language absent from this mapping skips that check entirely. Path- and subdomain-based detection uses the CLDR code sets in `courlan.langcodes` instead. |
+| `TARGET_LANGS` | `dict[str, set[str]]` | ISO 639-1 codes mapped to accepted variants (e.g. `"de"` → `{"de", "deutsch", "ger"}`). Consulted **only** for the value of a `lang`/`language` query parameter, case and region ignored. A target language in this mapping accepts its code and its variants (lower case). A target language absent from it only rejects values naming another language. Path- and subdomain-based detection uses the CLDR code sets in `courlan.langcodes` instead. |
 
 ## Customizing settings
 

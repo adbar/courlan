@@ -4,6 +4,7 @@ Bundles functions needed to target text content and validate the input.
 
 import logging
 import re
+import warnings
 from urllib.parse import SplitResult, urlsplit
 
 from .hosts import _canonical_ip, _unicode_host
@@ -65,14 +66,10 @@ ADULT_AND_VIDEOS = re.compile(
 )
 
 # language filter
-PATH_LANG_FILTER = re.compile(
-    r"https?://[^/]+/[a-z]{2}(?:[_-][a-z]{2})?(?:/|$)", re.IGNORECASE
+PATH_LANG_START = re.compile(
+    r"https?://[^/?#]*/([a-z]{2}(?:[_-][a-z]{2})?)(?:[/?#]|$)", re.IGNORECASE
 )
-# lookahead on the trailing slash so adjacent segments (/en/de/) don't share it
-ALL_PATH_LANGS = re.compile(r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/)", re.IGNORECASE)
-ALL_PATH_LANGS_NO_TRAILING = re.compile(
-    r"/([a-z]{2})(?:[_-][a-z]{2})?(?=/|$)", re.IGNORECASE
-)
+PATH_LANG_SEGMENT = re.compile(r"[a-z]{2}(?:[_-][a-z]{2})?", re.IGNORECASE)
 HOST_LANG_FILTER = re.compile(
     r"https?://([a-z]{2})\.(?:[^.]{4,})\.(?:[^.]+)(?:\.[^.]+)?(?:/|$)", re.IGNORECASE
 )
@@ -202,20 +199,26 @@ def lang_filter(
     url: str,
     language: str | None = None,
     strict: bool = False,
-    trailing_slash: bool = True,
+    trailing_slash: bool | None = None,
 ) -> bool:
-    "Heuristics targeting internationalization and linguistic elements based on a score."
+    """Heuristics targeting internationalization and linguistic elements based on a score.
+    trailing_slash is deprecated and has no effect."""
+    if trailing_slash is not None:
+        warnings.warn(
+            "lang_filter: trailing_slash is deprecated and has no effect",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     if language is None:
         return True
     score = 0
-    # first test: internationalization cues in the URL path
-    if PATH_LANG_FILTER.match(url):
-        regex = ALL_PATH_LANGS if trailing_slash else ALL_PATH_LANGS_NO_TRAILING
-        occurrences = regex.findall(url)
+    # first test: internationalization cues in the URL path, if it starts with one
+    if match := PATH_LANG_START.match(url):
+        path = url[match.start(1) :].partition("?")[0].partition("#")[0]
+        codes = [s for s in path.split("/") if PATH_LANG_SEGMENT.fullmatch(s)]
         # skip if there are too many candidates: > 2
-        if 0 < len(occurrences) <= 2:
-            for code in occurrences:
-                score += langcodes_score(language, code)
+        if len(codes) <= 2:
+            score += sum(langcodes_score(language, code) for code in codes)
     # second test: prepended language cue in the host subdomain
     if strict and (match := HOST_LANG_FILTER.match(url)):
         score += langcodes_score(language, match[1])

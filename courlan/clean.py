@@ -15,6 +15,7 @@ from urllib.parse import (
 
 from .filters import is_valid_url
 from .hosts import _canonical_ip, _split_port, _unicode_host
+from .langcodes import langcodes_score, primary_subtag
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
 from .urlutils import _parse, _strip_trailing_dot, decode_entities
 
@@ -120,6 +121,16 @@ def _encode_param(string: str) -> str:
     return quote_plus(string, errors="surrogateescape")
 
 
+def _foreign_lang(value: str, language: str) -> bool:
+    "A lang= value outside the target's TARGET_LANGS entry, or naming another language."
+    language, value = primary_subtag(language), primary_subtag(value)
+    if (names := TARGET_LANGS.get(language)) is not None:
+        return value != language and value not in names
+    return langcodes_score(language, value) < 0 or any(
+        value in variants for variants in TARGET_LANGS.values()
+    )
+
+
 def clean_query(querystring: str, strict: bool, language: str | None = None) -> str:
     "Strip unwanted query elements"
     if not querystring:
@@ -147,10 +158,10 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
             continue
         # control language, a param without value doesn't state any
         if (
-            language in TARGET_LANGS
+            language
             and teststr in LANG_PARAMS
             and (lang := next(filter(None, qdict[qelem]), None))
-            and lang not in TARGET_LANGS[language]
+            and _foreign_lang(lang, language)
         ):
             raise ValueError("lang param")
         # insert

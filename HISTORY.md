@@ -12,6 +12,9 @@
 - `validate_url()` rejects hosts with a space or a `%`, and runs its length checks on the host `check_url()` outputs (without userinfo, port or trailing dot, punycode decoded), so that its output passes again
 - `extract_domain()` and `is_external()`: `www.gov.uk` gives `gov.uk` again, as in 1.4.0
 - Sampling (`sample_urls()`, CLI `--sample`) applies the filters of `check_url()`
+- The `language` argument ignores case and region (`EN`, `en_US`), in all functions, `UrlStore` and the CLI `-l`
+- `lang=` query values ignore case and region (`EN`, `en-US`, `de_DE`), and values naming another language are now rejected for languages without a `TARGET_LANGS` entry too
+- `lang_filter()`: a last path segment counts as a cue (`/da`), the query and fragment no longer do. Its `trailing_slash` argument has no effect anymore and raises a `DeprecationWarning`
 - `CITATION.cff` added
 - Tests skip the bracket checks on Python patch releases whose `urlsplit` lacks them
 
