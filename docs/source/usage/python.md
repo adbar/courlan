@@ -253,8 +253,8 @@ Exclude domains that are too small or too large:
 sample = sample_urls(urls, samplesize=5, exclude_min=2, exclude_max=1000)
 ```
 
-`sample_urls` validates and normalizes the input URLs and merges duplicates, but it does not apply the content filters of `check_url`.
-`sample_urls` also accepts `strict` (stricter query trimming on the input URLs)
+`sample_urls` keeps the input URLs that pass `check_url`, in their normalized form, and merges duplicates.
+`sample_urls` also accepts `strict` (the strict mode of `check_url`)
 and `verbose` (dump unvisited URLs on SIGINT or SIGTERM, as in `UrlStore`).
 The `courlan.sampling` logger reports skipped domains.
 With `verbose`, these messages are logged at WARNING level and show up without any setup.

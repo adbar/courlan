@@ -6,7 +6,8 @@ import logging
 import re
 from urllib.parse import SplitResult, urlsplit
 
-from .hosts import _canonical_ip
+from .hosts import _canonical_ip, _unicode_host
+from .hosts import _split_port as _split_hostport
 from .langcodes import langcodes_score
 from .urlutils import _strip_trailing_dot
 
@@ -42,8 +43,8 @@ SITE_STRUCTURE = re.compile(
     r"/(?:wp-(?:admin|content|includes|json|themes)|"
     r"paged?|seite|search|suche|gall?er[a-z]{1,2}|labels|"
     r"archives|uploads|modules|attachment|oembed)/|"
-    # wordpress + short URL
-    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/]+/?$",
+    # wordpress + short URL, a query or a fragment is not a tag name
+    r"[/_-](?:tags?|schlagwort|[ck]ategor[a-z]{1,2}|[ck]at|auth?or|user)/[^/?#]+/?$",
     re.IGNORECASE,
 )
 # mixed/blogspot dates
@@ -126,7 +127,7 @@ HOST_EXTENSIONS = WHITELISTED_EXTENSIONS - {".do", ".pl"}
 
 def basic_filter(url: str) -> bool:
     "Filter URLs based on basic formal characteristics."
-    return bool(url.startswith("http") and 10 <= len(url) < 500)
+    return bool(url[:4].lower() == "http" and 10 <= len(url) < 500)
 
 
 def _valid_port(tail: str) -> bool:
@@ -254,20 +255,25 @@ def validate_url(url: str | None) -> tuple[bool, SplitResult | None]:
     if not isinstance(url, str):
         return False, None
     try:
-        parsed_url = urlsplit(url)
+        parsed_url = urlsplit(url.strip())
     except ValueError:
         return False, None
 
     if parsed_url.scheme not in PROTOCOLS:
         return False, None
 
-    # plausibility checks on the network location (case-insensitive for "www.")
+    # plausibility checks, on the host as check_url outputs it
     netloc = parsed_url.netloc
+    hostport = _strip_trailing_dot(netloc.rpartition("@")[2]).lower()
+    host = _unicode_host(_split_hostport(hostport)[0])
     if (
-        len(netloc) < 4
-        or (netloc.lower().startswith("www.") and len(netloc) < 8)
+        len(host) < 4
+        or (host.startswith("www.") and len(host) < 8)
+        # "exa mple.org" is not "example.org", "%" leaves templates and garbage
+        or " " in netloc
+        or "%" in netloc
         # reject dotless/colonless hosts (e.g. "1234", "localhost")
-        or ("." not in netloc and ":" not in netloc)
+        or ("." not in hostport and ":" not in hostport)
     ):
         return False, None
 

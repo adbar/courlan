@@ -153,6 +153,25 @@ def test_cli_sample_language(tmp_path):
     assert "https://www.test.org/de/a-longer-path2.html" in sample
     assert "https://www.test.org/en/a-longer-path1.html" not in sample
     assert "https://www.test.org/es/a-longer-path3.html" not in sample
+    # a lang param of another language drops the URL, in the query or the fragment
+    inputfile = tmp_path / "lang.txt"
+    inputfile.write_text(
+        "https://example.org/page?lang=fr&id=1\n"
+        "https://example.org/page#lang=fr&x=1\n"
+        "https://example.org/page?lang=de&id=2\n",
+        encoding="utf-8",
+    )
+    testargs = ["-i", str(inputfile), "-o", str(samplefile), "--sample", "10"]
+    cli.process_args(cli.parse_args([*testargs, "-l", "de"]))
+    sample = samplefile.read_text(encoding="utf-8").splitlines()
+    assert sample == ["https://example.org/page?id=2&lang=de"]
+    # --strict applies the strict filters of batch mode
+    testargs = ["-i", INPUTFILE, "-o", str(samplefile), "--sample", "10", "--strict"]
+    cli.process_args(cli.parse_args(testargs))
+    sample = samplefile.read_text(encoding="utf-8").splitlines()
+    assert "https://www.test.org/a-longer-path.html" in sample
+    assert "http://www.example.org/index" not in sample
+    assert not any(url.endswith(".mp4") for url in sample)
 
 
 def test_cli_verbose(tmp_path):
@@ -300,7 +319,7 @@ def test_cli_sample_error(tmp_path):
     outfile.write_text("kept\n", encoding="utf-8")
     testargs = ["-i", INPUTFILE, "-o", str(outfile), "--sample", "1"]
     with (
-        patch("courlan.cli.UrlStore.add_urls", side_effect=MemoryError),
+        patch("courlan.cli.UrlStore._add_checked", side_effect=MemoryError),
         pytest.raises(MemoryError),
     ):
         cli.process_args(cli.parse_args(testargs))
@@ -419,6 +438,21 @@ def test_sample(caplog):
     assert len(sample_urls(mylist, 1, verbose=True)) == 2
     assert not sample_urls(mylist, 1, exclude_min=10, verbose=True)
     assert len(sample_urls(mylist, 1, exclude_max=1, verbose=True)) == 1
+    # the filters of check_url apply
+    urls = [
+        "https://a.org/x.jpg",
+        "https://a.org/feed/",
+        "https://a.org/tag/news",
+        "https://a.org/article",
+        "https://a.org/impressum",
+        "https://twitter.com/a",
+    ]
+    assert sample_urls(urls, 10) == [
+        "https://a.org/article",
+        "https://a.org/impressum",
+        "https://twitter.com/a",
+    ]
+    assert sample_urls(urls, 10, strict=True) == ["https://a.org/article"]
     bound_urls = [f"http://bound.org/{i}" for i in range(3)]
     assert len(sample_urls(bound_urls, 10, exclude_min=3)) == 3
     assert not sample_urls(bound_urls, 10, exclude_min=4)

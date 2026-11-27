@@ -2,8 +2,10 @@
 Functions related to URL manipulation and extraction of URL parts.
 """
 
+import html
 import re
 from collections.abc import Collection
+from html.entities import html5
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 from .hosts import (
@@ -14,8 +16,20 @@ from .hosts import (
     get_registrable_domain,
 )
 
-_NUMERIC_AMP = re.compile(r"&#0*38;|&#x0*26;", re.I)
+ENTITY = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 FEED_WHITELIST_REGEX = re.compile(r"(?:feed(?:burner|proxy))", re.I)
+
+
+def _decode_entity(match: re.Match[str]) -> str:
+    ref = match[0]
+    # html.unescape() also expands name prefixes, "&param;" would give "\xb6m;"
+    return html.unescape(ref) if ref[1] == "#" else html5.get(ref[1:], ref)
+
+
+def decode_entities(url: str) -> str:
+    """Decode the semicolon-terminated HTML entities of a URL, the others stay:
+    "&para=2" is a query param, not a pilcrow."""
+    return ENTITY.sub(_decode_entity, url) if "&" in url else url
 
 
 def _strip_trailing_dot(host: str) -> str:
@@ -45,7 +59,11 @@ def get_tldinfo(url: str) -> tuple[str | None, str | None]:
         netloc_host = _strip_trailing_dot(parsed.netloc.rsplit("@", 1)[-1])
         if netloc_host.count(":") >= 2 and (ip := _canonical_ip(netloc_host)):
             return ip, ip
-    return get_registrable_domain(host)
+    label, domain = get_registrable_domain(host)
+    # "www." plus a public suffix is the site of the suffix ("www.gov.uk")
+    if label == "www" and domain:
+        label = domain = domain[4:]
+    return label, domain
 
 
 def extract_domain(
@@ -66,10 +84,7 @@ def _parse(url: str | SplitResult) -> SplitResult:
     "Parse a string or use urllib.parse object directly."
     if isinstance(url, str):
         try:
-            # "&amp;" and numeric ampersand entities only: full unescape()
-            # also expands query keys that happen to be entity names,
-            # turning "&param=" into "\xb6m="
-            parsed_url = urlsplit(_NUMERIC_AMP.sub("&", url.replace("&amp;", "&")))
+            parsed_url = urlsplit(decode_entities(url))
         except ValueError:
             # malformed URL (e.g. bad IPv6 literal): degrade to empty parts like a hostless URL.
             parsed_url = SplitResult("", "", "", "", "")

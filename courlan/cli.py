@@ -15,7 +15,7 @@ from itertools import islice
 from typing import IO
 
 from .core import check_url
-from .sampling import _make_sample
+from .sampling import _checked_urls, _make_sample
 from .urlstore import UrlStore
 
 LOGGER = logging.getLogger(__name__)
@@ -189,7 +189,7 @@ def _cli_sample(args: argparse.Namespace) -> None:
                 LOGGER.debug(
                     "skipped %s lines with invalid UTF-8", len(batch) - len(urls)
                 )
-            urlstore.add_urls(urls)
+            urlstore._add_checked(_checked_urls(urls, args.strict, args.language))
     # output last, so a read failure does not truncate it
     with _open(args.outputfile, "w") as outputfh:
         for url in _make_sample(

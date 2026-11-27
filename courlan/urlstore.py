@@ -5,6 +5,7 @@ Defines a URL store which holds URLs along with relevant information and entails
 import gc
 import logging
 import pickle
+import re
 import signal
 import sys
 
@@ -37,9 +38,23 @@ from .clean import normalize_and_split, normalize_netloc_parts
 from .core import filter_links
 from .filters import lang_filter, validate_url
 from .meta import clear_caches
-from .urlutils import _parse, _slash_variant, _swap_scheme, get_base_url
+from .urlutils import (
+    _parse,
+    _slash_variant,
+    _swap_scheme,
+    decode_entities,
+    get_base_url,
+)
 
 LOGGER = logging.getLogger(__name__)
+
+HOST_END = re.compile(r"[^/]+//[^/?#]*")
+
+
+def _split_checked(url: str) -> tuple[str, str, str]:
+    "Split a normalized URL without userinfo into URL, store key and path."
+    end = HOST_END.match(url).end()  # type: ignore[union-attr]
+    return url, url[:end], url[end:] or "/"
 
 
 def _decompress(data: bytes) -> bytes:
@@ -269,7 +284,7 @@ class UrlStore:
 
     def _split(self, url: str) -> tuple[str, str, str] | None:
         "Return the normalized URL, the store key and the path, None if the URL is invalid."
-        _, parsed_url = validate_url(url)
+        _, parsed_url = validate_url(decode_entities(url))
         if parsed_url is None:
             return None
         try:
@@ -280,11 +295,15 @@ class UrlStore:
             return None
 
     def _buffer_urls(
-        self, data: list[str], visited: bool
+        self,
+        data: list[str],
+        visited: bool,
+        splitter: Callable[[str], tuple[str, str, str] | None] | None = None,
     ) -> defaultdict[str, deque[UrlPathTuple]]:
+        splitter = splitter or self._split
         inputdict: defaultdict[str, deque[UrlPathTuple]] = defaultdict(deque)
         for url in dict.fromkeys(data):
-            split = self._split(url)
+            split = splitter(url)
             # filter on the final form, as in check_url
             if split is None or (
                 self.language is not None
@@ -458,6 +477,13 @@ class UrlStore:
                 self._store_urls(host, urltuples)
             for host, urltuples in left.items():
                 self._store_urls(host, urltuples, left=True)
+
+    def _add_checked(self, urls: list[str]) -> None:
+        "Add check_url output made with the store's strict and trailing_slash."
+        right = self._buffer_urls(urls, False, _split_checked)
+        with self._lock:
+            for host, urltuples in right.items():
+                self._store_urls(host, urltuples)
 
     def add_from_html(
         self,
