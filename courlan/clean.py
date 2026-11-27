@@ -4,12 +4,19 @@ Functions performing URL trimming and cleaning
 
 import logging
 import re
-from urllib.parse import SplitResult, parse_qsl, quote, quote_plus, urlunsplit
+from urllib.parse import (
+    SplitResult,
+    parse_qsl,
+    quote,
+    quote_plus,
+    unquote,
+    urlunsplit,
+)
 
 from .filters import is_valid_url
 from .hosts import _canonical_ip, _split_port, _unicode_host
 from .settings import ALLOWED_PARAMS, LANG_PARAMS, TARGET_LANGS
-from .urlutils import _parse, _strip_trailing_dot
+from .urlutils import _parse, _strip_trailing_dot, decode_entities
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,13 +25,18 @@ PROTOCOLS = re.compile(r"https?://")
 SELECTION = re.compile(r'(https?://[^">&? ]+?)(?:https?://)')
 
 MIDDLE_URL = re.compile(r"https?://.+?(https?://.+?)(?:https?://|$)")
+EMBEDDED_HOST = re.compile(r"https?://([^/?#]*)")
 
 # netloc
 DEFAULT_PORTS = {"http": 80, "https": 443}
 
 # path
-PATH1 = re.compile(r"/+")
+# repeated slashes, except the "//" of an embedded URL (Wayback Machine)
+PATH1 = re.compile(r"(?<!:)//+")
 PATH2 = re.compile(r"^(?:/\.\.(?![^/]))+")
+PERCENT_ESCAPE = re.compile(r"%[0-9a-fA-F]{2}")
+# written literally, so that both forms give one key
+LITERAL_ESCAPES = {"%40": "@", "%2B": "+", "%3B": ";"}
 
 # scrub
 CONTROL_CHARS = "".join(map(chr, range(0x20)))
@@ -58,6 +70,9 @@ def scrub_url(url: str) -> str:
     # strip space in input string
     url = "".join(url.split()).strip(CONTROL_CHARS)
 
+    # before the markup and double URL steps
+    url = decode_entities(url)
+
     # <![CDATA[http://...]]>
     if url.startswith("<![CDATA["):
         url = url.replace("<![CDATA[", "").replace("]]>", "")
@@ -65,8 +80,7 @@ def scrub_url(url: str) -> str:
     # markup rests
     url = REMAINING_MARKUP.sub("", url)
 
-    # & and &amp;
-    url = TRAILING_AMP.sub("", url.replace("&amp;", "&"))
+    url = TRAILING_AMP.sub("", url)
 
     # double/faulty URLs
     protocols = PROTOCOLS.findall(url)
@@ -77,16 +91,27 @@ def scrub_url(url: str) -> str:
             url = match[1]
         else:
             match = MIDDLE_URL.match(url)
-            if match and is_valid_url(match[1]):
-                url = match[1]
+            if match and is_valid_url(embedded := _embedded_url(match[1])):
+                url = embedded
 
     match = TRAILING_PARTS.match(url)
     if match:
         url = match[1]
-    # trailing slashes in URLs without path or in embedded URLs
-    if url.count("/") == 3 or url.count("://") > 1:
+    # trailing slashes in URLs without path, embedded URLs keep theirs
+    if url.count("/") == 3 and "?" not in url and "#" not in url:
         url = url.rstrip("/")
 
+    return url
+
+
+def _embedded_url(url: str) -> str:
+    """Cut the outer params off an embedded URL, unless its own query
+    started before them, and decode a percent-encoded host."""
+    head, amp, _ = url.partition("&")
+    if amp and "?" not in head:
+        url = head
+    if "%" in EMBEDDED_HOST.match(url)[1]:  # type: ignore[index]
+        url = unquote(url)
     return url
 
 
@@ -127,7 +152,7 @@ def clean_query(querystring: str, strict: bool, language: str | None = None) -> 
             and (lang := next(filter(None, qdict[qelem]), None))
             and lang not in TARGET_LANGS[language]
         ):
-            raise ValueError
+            raise ValueError("lang param")
         # insert
         key = _encode_param(qelem)
         params.extend(
@@ -153,7 +178,11 @@ def normalize_fragment(fragment: str, language: str | None = None) -> str:
     if "=" in fragment:
         if "&" in fragment:
             fragment = clean_query(fragment, False, language)
-        elif TRACKERS_RE.search(fragment):
+            # params keep their separators, as on a second pass
+            if "=" in fragment:
+                return quote(fragment, safe="/%!=:,-&")
+        # keys only, as in clean_query
+        elif TRACKERS_RE.search(fragment.partition("=")[0].lower()):
             fragment = ""
     return normalize_part(fragment)
 
@@ -183,7 +212,13 @@ def normalize_path(path: str) -> str:
     "Collapse repeated slashes, drop leading /../ segments, then percent-normalize."
     # https://github.com/saintamh/alcazar/blob/master/alcazar/utils/urls.py
     # leading /../'s in the path are removed
-    return normalize_part(PATH2.sub("", PATH1.sub("/", path)))
+    path = quote(PATH2.sub("", PATH1.sub("/", path)), safe="/%!=:,-@+;")
+    return PERCENT_ESCAPE.sub(_path_escape, path) if "%" in path else path
+
+
+def _path_escape(match: re.Match[str]) -> str:
+    escape = match[0].upper()
+    return LITERAL_ESCAPES.get(escape, escape)
 
 
 def rebuild_url(

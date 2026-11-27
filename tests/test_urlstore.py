@@ -18,7 +18,7 @@ from urllib.robotparser import RobotFileParser
 import pytest
 
 import courlan
-from courlan import UrlStore, load_store
+from courlan import UrlStore, check_url, load_store
 from courlan.urlstore import (
     _NEAR,
     HAS_BZ2,
@@ -27,6 +27,7 @@ from courlan.urlstore import (
     DomainEntry,
     State,
     UrlPathTuple,
+    _split_checked,
 )
 
 
@@ -204,6 +205,31 @@ def test_urlstore_filters():
     my_urls.urldict["https://www.sitemaps.org"].state = State.ALL_VISITED
     my_urls._set_done()
     assert my_urls.done
+
+
+def test_split_checked():
+    "check_url output needs no second normalization: both splits agree."
+    urls = [
+        "https://example.org",
+        "https://Example.org#information",
+        "https://example.org?q=1",
+        "http://user:pw@example.org:8080/a//b/?utm_source=x&b=2#c=d&a=b",
+        "https://www.xn--fa-hia.de/stra%C3%9Fe/",
+        "http://[2001:db8:0:0::1]:80/x",
+        "https://example.org/t#a=b&c=d{g/open-source/",
+        "https://web.archive.org/web/2016/http://www.example.de/",
+    ]
+    for strict in (False, True):
+        store = UrlStore(strict=strict)
+        for url in urls:
+            checked = check_url(url, strict=strict)
+            assert checked, url
+            assert _split_checked(checked[0]) == store._split(checked[0]), url
+    store = UrlStore(language="en")
+    store._add_checked(["https://example.org/de/page", "https://example.org/en/page"])
+    assert store.find_unvisited_urls("https://example.org") == [
+        "https://example.org/en/page"
+    ]
 
 
 def test_urlstore_compression():
@@ -1017,11 +1043,15 @@ def test_store_readers_normalize():
         "https://a.org//c",
         "https://a.org/e#utm_source=x",
         "https://a.org/f/",
+        "https://a.org/p?a=1&amp;b=2",
     ]
     store = UrlStore()
     store.add_urls(inputs)
-    assert [store.is_known(u) for u in inputs] == [True] * 4
+    assert [store.is_known(u) for u in inputs] == [True] * 5
     assert store.is_known("https://a.org/f")
+    # entities are decoded
+    assert store.is_known("https://a.org/p?a=1&#038;b=2")
+    assert "https://a.org/p?a=1&b=2" in store.dump_urls()
     assert not store.has_been_visited("https://a.org/x?utm_source=2")
     malformed = ["https://a.org/x", "http://[bad", "https://a.org/new"]
     assert store.filter_unknown_urls(malformed) == malformed[1:]

@@ -9,6 +9,7 @@ import sys
 import threading
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
@@ -23,7 +24,7 @@ from courlan import (
     normalize_url,
     validate_url,
 )
-from courlan.core import _host_parts, filter_links
+from courlan.core import MAX_RAW_LENGTH, _host_parts, filter_links
 from courlan.hosts import get_registrable_domain
 from courlan.meta import clear_caches
 from courlan.network import redirection_test
@@ -45,6 +46,42 @@ def test_urlcheck():
     assert check_url("http://example.com/test.js") is None
     assert check_url("http://twitter.com/", strict=True) is None
     assert check_url("http://twitter.com/", strict=False) is not None
+    # basic_filter sees the scrubbed URL, in any case
+    for url in (
+        " https://example.org/a",
+        "HTTPS://example.org/a",
+        "Http://example.org/a",
+    ):
+        assert check_url(url) == ("https://example.org/a", "example.org") or check_url(
+            url
+        ) == ("http://example.org/a", "example.org")
+    # no host is made of a host with a space or a "%"
+    for url in ("https://exa mple.org", "https://exa%20mple.org", "http://Du%20bist"):
+        assert validate_url(url) == (False, None)
+    assert validate_url(" https://example.org ")[1] == urlsplit("https://example.org")
+
+
+@pytest.mark.parametrize(
+    "url, kwargs, reason",
+    [
+        ("ftp://x", {}, "basic filter"),
+        ("https://ab", {}, "validation test"),
+        ("https://exa_.org/", {}, "domain name"),
+        ("https://example.org/a.docx", {}, "extension filter"),
+        ("https://example.org/tag/x", {}, "type filter"),
+        ("https://example.org/a?utm_source=x/tag/y/", {}, "type filter"),
+        ("https://example.org/index.html", {"strict": True}, "path filter"),
+        ("https://example.org/fr/a", {"language": "de"}, "lang filter"),
+        ("https://example.org/a?lang=en", {"language": "de"}, "lang param"),
+        ("https://twitter.com/a", {"strict": True}, "domain name"),
+        (5, {}, "input"),
+    ],
+)
+def test_urlcheck_rejection_trace(caplog, url, kwargs, reason):
+    "Each rejection logs the step that made it."
+    with caplog.at_level(logging.DEBUG, logger="courlan.core"):
+        assert check_url(url, **kwargs) is None
+        assert f"rejected, {reason}:" in caplog.text
 
 
 def test_urlcheck_type_and_spam():
@@ -248,19 +285,101 @@ def test_urlcheck_fixed_point():
         "http://test.org/page?M%FCnchen",
         "http://test.org/page#a=&view=grid",
         "http://test.org/page#b&a=M%FC",
+        "https://www.facebook.com/MIXED.de/",
+        "https://example.org/report.pdf/",
+        "https://www.pinterest.com/pin/create/button/?url=https://ex.org/a&#038;media=https://ex.org/b.jpg&#038;description=x",
+        "https://web.archive.org/web/2016/http://www.welpenkaufen24.de/",
+        "https://example.org/a/%c3%a9/%40user/C%2b%2b",
+        # the fragment separators stay, a second pass reads the same params
+        "https://example.org/t#a=b&c=d{g/open-source/",
+        # bare keys left alone, a value read as a tracker
+        "https://example.org/p#utm_source=x&a&b",
+        "https://example.org/p#tab=source&utm_medium=x",
     ]
-    configs = (
-        {"strict": False},
-        {"strict": True},
-        {"strict": False, "language": "de"},
-        {"strict": True, "language": "en"},
-        {"strict": True, "trailing_slash": False},
-    )
     for url in urls:
-        for config in configs:
+        for config in CONFIGS:
             first = check_url(url, **config)
             if first:
                 assert check_url(first[0], **config) == first, (url, config)
+
+
+CONFIGS: tuple[dict[str, Any], ...] = (
+    {"strict": False},
+    {"strict": True},
+    {"strict": False, "language": "de"},
+    {"strict": True, "language": "en"},
+    {"strict": False, "trailing_slash": False},
+    {"strict": True, "trailing_slash": False},
+)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://crazy-julia.de/das-leben-in-einem-tag/",
+        "https://example.org/tag/news",
+        "https://example.org/2024/05/",
+        "https://www.facebook.com/MIXED.de/",
+        "https://example.org/report.pdf/",
+        "https://example.org/index.html",
+        "https://example.org/a?b=1",
+        "https://example.org?next=/",
+        "https://web.archive.org/web/2016/http://www.welpenkaufen24.de/",
+        "https://reddit.com/submit?url=https://example.org/blog/x/&title=T",
+        "https://www.sitemaps.org/fr/",
+    ],
+)
+def test_urlcheck_variant_invariance(url):
+    "A tracker or a bare '?' does not change the result."
+    variants = [url + ("&" if "?" in url else "?") + "utm_source=x"]
+    if "?" not in url:
+        variants.append(url + "?")
+    for config in CONFIGS:
+        expected = check_url(url, **config)
+        for variant in variants:
+            assert check_url(variant, **config) == expected, (variant, config)
+        # without trailing slashes, both forms of a path are one URL,
+        # except for dates, which need the slash: "/2024/05" is no archive page
+        if not config.get("trailing_slash", True) and "?" not in url:
+            other = url.rstrip("/") if url.endswith("/") else url + "/"
+            if "/2024/05" in url:
+                assert expected is None and check_url(other, **config), config
+            else:
+                assert check_url(other, **config) == expected, (other, config)
+
+
+def test_urlcheck_dates_without_slash():
+    "Date archives are rejected before the slash is stripped, except navigation."
+    url = "https://example.org/category/2024/05/"
+    assert check_url(url, trailing_slash=False) is None
+    assert check_url(url, trailing_slash=False, with_nav=True) == (
+        url[:-1],
+        "example.org",
+    )
+    # with a query the slash stays, so the path is checked as it is
+    for url in (
+        "https://example.org/2024/05/?a=1",
+        "https://example.org/report.pdf/?a=1",
+    ):
+        assert check_url(url, trailing_slash=False) == (url, "example.org")
+    assert (
+        check_url("https://example.org/report.pdf/?utm_source=x", trailing_slash=False)
+        is None
+    )
+
+
+def test_urlcheck_raw_length():
+    "Long raw input is rejected before scrubbing, even if scrubbing would shorten it."
+    core = "https://example.org/a" + "<b>" * 600
+    url = " " * (MAX_RAW_LENGTH - len(core)) + core
+    assert check_url(url) == ("https://example.org/a", "example.org")
+    assert check_url(" " + url) is None
+
+
+@pytest.mark.xfail(reason="item 29, a terminal language segment is no cue")
+def test_urlcheck_terminal_language_segment():
+    assert check_url("https://www.sitemaps.org/da/", language="de") is None
+    assert check_url("https://www.sitemaps.org/da", language="de") is None
 
 
 def test_urlcheck_port():
@@ -455,9 +574,14 @@ def test_extraction():
         extract_links(pagecontent, "https://test.com/", False, language="de") == example
     )
     # language + content
-    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example2 ADDITIONAL"/></html>'
+    pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/example2"/><a href="https://test.com/example3 ADDITIONAL"/></html>'
     links = extract_links(pagecontent, "https://test.com/", external_bool=False)
-    assert links == ["https://test.com/example", "https://test.com/example2"]
+    # a quoted href keeps its inner space, encoded
+    assert links == [
+        "https://test.com/example",
+        "https://test.com/example2",
+        "https://test.com/example3%20ADDITIONAL",
+    ]
     assert extract_links(pagecontent, "https://test.com/", language="de") == links
     pagecontent = '<html><a hreflang="de-DE" href="https://test.com/example"/><a href="https://test.com/page/2"/></html>'
     assert extract_links(pagecontent, "https://test.com/", with_nav=False) == example
@@ -475,6 +599,67 @@ def test_extraction():
         "https://test.com/a",
         "https://test.com/b",
     ]
+
+
+@pytest.mark.parametrize(
+    "anchor, expected",
+    [
+        # entities, decoded with or without filters
+        ('<a href="/p?type&#x3D;news&amp;a=1">', "/p?a=1&type=news"),
+        ('<a href="/p?a=1&#038;cpage=2">', "/p?a=1&cpage=2"),
+        # unquoted values end at any whitespace
+        ("<a href=/a\nclass='x'>", "/a"),
+        ("<a href=/a\tclass='x'>", "/a"),
+        ("<a href=/a>", "/a"),
+        # the href attribute, not data-href or ng-href
+        ('<a data-href="/no" href="/a">', "/a"),
+        ('<a ng-href="/no" href="/a">', "/a"),
+        ('<a href = "/a">', "/a"),
+        ("<a HREF='/a'>", "/a"),
+        ('<a href=" /a ">', "/a"),
+        ('<a class="x"href="/a">', "/a"),
+        ('<a :href="loginLink">', None),
+        ('<a xlink:href="/svg">', "/svg"),
+        # not a name inside another value
+        ('<a onclick="location.href=\'/js\'" href="/a">', "/a"),
+        ('<a data-track="x&href=/no" href="/a">', "/a"),
+        ('<a href="/a?rel=nofollow">', "/a?rel=nofollow"),
+        ('<a href="/a?hreflang=fr">', "/a?hreflang=fr"),
+        # script-built anchors end at the other quote
+        ("<a href=\"/a' + posturl + '\">", "/a"),
+        # a share link keeps the embedded URL past its inner space
+        (
+            '<a href="https://twitter.com/intent/tweet?text=A title&url=https://test.com/a">',
+            "/a",
+        ),
+        # nofollow in the rel attribute only, in any case
+        ('<a href="/nofollow-policy" rel="author">', "/nofollow-policy"),
+        ('<a href="/a" REL="NOFOLLOW">', None),
+        ('<a href="/a" rel="nOfOlLoW">', None),
+        ('<a rel="noopener nofollow" href="/a">', None),
+        ("<a href=/a rel=nofollow>", None),
+        ('<a href="/a"rel="nofollow">', None),
+        # hreflang as an attribute only
+        ('<a href="/blog/hreflang-guide">', "/blog/hreflang-guide"),
+        ('<a href="/a" hreflang="fr">', None),
+        ('<a href="/a" hreflang="en-GB">', "/a"),
+        ('<a href="/a" HREFLANG="fr">', None),
+    ],
+)
+def test_extraction_attributes(anchor, expected):
+    "The href, rel and hreflang attributes are read as attributes."
+    expected = [f"https://test.com{expected}"] if expected else []
+    assert (
+        extract_links(anchor, "https://test.com", language="en", strict=False)
+        == expected
+    )
+
+
+def test_extraction_entities_no_filter():
+    "Entities are decoded without the filters too."
+    assert extract_links(
+        '<a href="/p?type&#x3D;news&amp;a=1">', "https://test.com", no_filter=True
+    ) == ["https://test.com/p?type=news&a=1"]
 
 
 def test_extraction_unresolvable(caplog):

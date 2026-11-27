@@ -40,7 +40,13 @@ from courlan.filters import (
     type_filter,
 )
 from courlan.langcodes import langcodes_score
-from courlan.urlutils import _parse, _strip_trailing_dot, is_known_link
+from courlan.urlutils import (
+    _parse,
+    _strip_trailing_dot,
+    decode_entities,
+    get_tldinfo,
+    is_known_link,
+)
 
 
 def test_baseurls():
@@ -89,6 +95,21 @@ def test_ascii_url_fetchable(monkeypatch):
         assert check_url(get_ascii_url(url)) == check_url(url)
 
 
+def _urlsplit_rejects(*urls: str) -> bool:
+    "Tell if urlsplit validates brackets, older patch releases do not."
+    for url in urls:
+        try:
+            urlsplit(url)
+        except ValueError:
+            continue
+        return False
+    return True
+
+
+@pytest.mark.skipif(
+    not _urlsplit_rejects("HTTP://[::1]&"),
+    reason="urlsplit without bracket validation in this patch release",
+)
 def test_malformed_url_degrades():
     # A malformed URL (bad IPv6 literal) made urlsplit raise a raw ValueError that
     # leaked out of get_base_url/get_hostinfo; it now degrades like a hostless URL.
@@ -159,6 +180,10 @@ def test_fix_relative(base, link, expected):
     assert fix_relative_urls(base, link) == expected
 
 
+@pytest.mark.skipif(
+    not _urlsplit_rejects("//[zz]/x", "https://[zz]"),
+    reason="urlsplit without bracket validation in this patch release",
+)
 def test_fix_relative_malformed():
     # malformed URLs raise, extract_links skips them and keeps the page
     for base, link in (
@@ -223,10 +248,10 @@ def test_scrub():
     assert scrub_url("https://g__https://www.dwds.de/") == "https://www.dwds.de"
     # double URL where neither candidate is valid: left untouched
     assert scrub_url("https://g__https://h__") == "https://g__https://h__"
-    # exception for archive URLs
+    # exception for archive URLs, the embedded URL keeps its slash
     assert (
         scrub_url("https://web.archive.org/web/20131021165347/https://www.imdb.com/")
-        == "https://web.archive.org/web/20131021165347/https://www.imdb.com"
+        == "https://web.archive.org/web/20131021165347/https://www.imdb.com/"
     )
     # social sharing
     assert (
@@ -257,6 +282,99 @@ def test_scrub():
     # simply too long, left untouched
     my_url = "https://www.test.com/" + "abcdefg" * 100
     assert scrub_url(my_url) == my_url
+
+
+def test_entities():
+    "Semicolon-terminated entities are decoded, the rest is a query."
+    assert decode_entities("/p?a=1&#038;b=2&#x3D;3&#X3d;&amp;c") == "/p?a=1&b=2=3=&c"
+    # name prefixes are no entities, unknown names stay
+    for url in ("/p?a&para=2", "/p?a&param;", "/p?a&timestamp=1", "/p?a&zzz;"):
+        assert decode_entities(url) == url
+    assert decode_entities("/p?a&para;") == "/p?a\xb6"
+    assert clean_url("https://ex.org/p?a=1&#038;b=2") == "https://ex.org/p?a=1&b=2"
+    assert check_url("https://ex.org/p?a=1&#038;b=2") == (
+        "https://ex.org/p?a=1&b=2",
+        "ex.org",
+    )
+    assert normalize_url("https://ex.org/p?type&#x3D;news") == (
+        "https://ex.org/p?type=news"
+    )
+    # fully encoded URLs, as in 1.4.0
+    assert (
+        clean_url("https&#x3A;&#x2F;&#x2F;www.gofeminin.de&#x2F;abnehmen&#x2F;a.html")
+        == "https://www.gofeminin.de/abnehmen/a.html"
+    )
+    # decoded markup goes the way of literal markup
+    assert scrub_url("https://ex.org/a&lt;/a&gt;") == "https://ex.org/a"
+
+
+def test_embedded_urls():
+    "Share links give the embedded URL without the outer params."
+    assert (
+        scrub_url(
+            "http://reddit.com/submit?url=https://moritz-meyer.net/blog/x/&amp;title=Ich%20habe"
+        )
+        == "https://moritz-meyer.net/blog/x/"
+    )
+    assert (
+        scrub_url(
+            "https://twitter.com/share?url=https://ex.org/a&#038;text=A%20title&via=x"
+        )
+        == "https://ex.org/a"
+    )
+    # the embedded URL has a query of its own: ambiguous, kept whole
+    url = "https://www.facebook.com/sharer.php?u=https://fincompare.de/?post_type=post&p=3438"
+    assert scrub_url(url) == "https://fincompare.de/?post_type=post&p=3438"
+    # percent-encoded embedded host
+    assert (
+        clean_url(
+            "https://www.facebook.com/sharer.php?u=https://www.ndr.de%2fnachrichten%2fx.html"
+        )
+        == "https://www.ndr.de/nachrichten/x.html"
+    )
+    # a slash in the query is not a trailing slash
+    assert scrub_url("https://example.org?next=/") == "https://example.org?next=/"
+    assert scrub_url("https://example.org/#/") == "https://example.org/#/"
+    assert scrub_url("https://example.org/") == "https://example.org"
+
+
+def test_wayback_urls():
+    "Wayback Machine URLs keep the slashes of the archived URL."
+    url = "https://web.archive.org/web/20160401095740/http://www.welpenkaufen24.de/"
+    assert scrub_url(url) == url
+    assert normalize_url(url) == url
+    for strict in (False, True):
+        assert check_url(url, strict=strict) == (url, "archive.org")
+    assert check_url(url, trailing_slash=False) == (url[:-1], "archive.org")
+    url = "https://web.archive.org/web/20/https://example.org/a"
+    assert normalize_url(url) == url
+    assert clean_url(url) == url
+    # the archived URL's own path counts for the extension
+    assert check_url("https://web.archive.org/web/20/https://example.org/a.pdf") is None
+    assert check_url("https://web.archive.org/web/20/https://example.org/a.html")
+    # other repeated slashes are still collapsed
+    assert normalize_path("//a///b/") == "/a/b/"
+
+
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        ("/%c3%a9t%c3%a9", "/%C3%A9t%C3%A9"),
+        ("/@user", "/@user"),
+        ("/%40user", "/@user"),
+        ("/+Name", "/+Name"),
+        ("/C%2b%2B", "/C++"),
+        ("/a;jsessionid=1", "/a;jsessionid=1"),
+        ("/a%3Bb", "/a;b"),
+        ("/a%2fb", "/a%2Fb"),
+        ("/a b%", "/a%20b%"),
+        ("/a/./b/../c", "/a/./b/../c"),
+    ],
+)
+def test_normalize_path_escapes(path, expected):
+    "One form per path: escapes in upper case, @ + ; written literally."
+    assert normalize_path(path) == expected
+    assert normalize_path(expected) == expected
 
 
 @pytest.mark.parametrize(
@@ -353,6 +471,18 @@ def test_type_filter():
     # nav
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=False) is False
     assert type_filter("http://www.example.org/tag/abcde/", with_nav=True) is True
+    # a query or a fragment after the tag name keeps a tag page
+    for url in (
+        "https://example.org/tag/news?page=2",
+        "https://example.org/author/bob#x",
+    ):
+        assert type_filter(url) is False, url
+    # but is no tag name itself, and a slash before it is a valid page
+    for url in (
+        "https://crazy-julia.de/das-leben-in-einem-tag/?x=1",
+        "https://example.org/tag/news/?page=2",
+    ):
+        assert type_filter(url) is True, url
     assert type_filter("http://www.example.org/page/10/", with_nav=False) is False
     assert type_filter("http://www.example.org/page/10/", with_nav=True) is True
     assert type_filter("https://example.org/topics/2011/", with_nav=False) is False
@@ -574,11 +704,27 @@ def test_validate():
     assert not is_valid_url("http://1234")
     assert not is_valid_url("http://localhost/")
     assert not is_valid_url("http://a.b/")
+    # length checks on the host check_url outputs, so its output passes again
+    assert is_valid_url("http://example.com./")
+    assert is_valid_url("http://localhost:8080/")
+    for url in (
+        "http://www.abc./x",
+        "http://user@www.ab/x",
+        "http://www.ab:80/x",
+        "http://www.xn--n3h/x",
+        "http://a.xn--n3h/x",
+    ):
+        assert not is_valid_url(url), url
+        assert check_url(url) is None, url
     # userinfo must not make check_url reject an otherwise-valid host, it is dropped
     assert check_url("http://user@t.co/") == ("http://t.co", "t.co")
     assert check_url("https://user:pass@example.com/path") == (
         "https://example.com/path",
         "example.com",
+    )
+    assert check_url("https://user%40name@example.org/a") == (
+        "https://example.org/a",
+        "example.org",
     )
 
 
@@ -693,6 +839,9 @@ def test_normalization():
     assert normalize_url("http://test.org/?a=1&#0038;b=2") == "http://test.org/?a=1&b=2"
     assert normalize_url("http://test.org/?a=1&#X26;b=2") == "http://test.org/?a=1&b=2"
     assert normalize_url("http://test.org/#partnerid=123") == "http://test.org"
+    # the key is tested in any case, not the value
+    assert normalize_url("http://test.org/#UTM_SOURCE=x") == "http://test.org"
+    assert normalize_url("http://test.org/#tab=source") == "http://test.org/#tab=source"
     assert (
         normalize_url(
             "http://test.org/#mtm_campaign=documentation&mtm_keyword=demo&catpage=3"
@@ -746,6 +895,12 @@ def test_urlutils():
     # what the URL layer adds on top: scheme/query/fragment/userinfo/port/IP parsing.
     assert extract_domain("https://httpbun.org/") == "httpbun.org"
     assert extract_domain("https://news.bbc.co.uk/") == "bbc.co.uk"  # representative
+    # www. plus a public suffix gives the suffix, as in 1.4.0
+    for host in ("gov.uk", "www.gov.uk", "assets.www.gov.uk", "www.www.gov.uk"):
+        assert extract_domain(f"https://{host}/x") == "gov.uk"
+    assert extract_domain("https://www.com/") == "com"
+    assert extract_domain("https://www2.gov.uk/") == "www2.gov.uk"
+    assert get_tldinfo("https://www.nhs.uk/") == ("nhs.uk", "nhs.uk")
     # fast= is accepted for backward compatibility and no longer changes the result
     assert extract_domain("https://www.httpbun.org/", fast=True) == "httpbun.org"
     # query and fragment are stripped
@@ -944,7 +1099,7 @@ def test_clean_query_blank_params_language(query, language, expected):
         ("http://test.net/page?a=", "http://test.net/page"),
         ("http://test.net/page?q=M%FCnchen", "http://test.net/page?q=M%FCnchen"),
         ("http://test.net/page#a=&view=grid", "http://test.net/page#view=grid"),
-        ("http://test.net/page#b&a=M%FC", "http://test.net/page#a=M%FC%26b"),
+        ("http://test.net/page#b&a=M%FC", "http://test.net/page#a=M%FC&b"),
     ],
 )
 def test_normalize_url_blank_params(url, expected):

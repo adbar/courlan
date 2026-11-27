@@ -1,0 +1,11 @@
+authors:
+  - family-names: Barbaresi
+    given-names: Adrien
+    orcid: https://orcid.org/0000-0002-8079-8694
+cff-version: 1.2.0
+license: Apache-2.0
+message: "If you use this software, please cite it as below."
+repository-code: https://github.com/adbar/courlan
+title: "coURLan: Filter, clean, and sample URLs for web crawling"
+type: software
+url: https://courlan.readthedocs.io/

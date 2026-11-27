@@ -1,6 +1,21 @@
 # History / Changelog
 
 
+## Unreleased
+
+- Breaking: new canonical forms, so old `UrlStore` keys of these URLs stop matching: path escapes in upper case, `@`, `+` and `;` written literally (`/@user`, `/+Name`), Wayback Machine URLs keep the `//` of the archived URL, fragments made of params keep their `&` separators (`#v=onepage&q=x`)
+- HTML entities are decoded in `extract_links()`, `scrub_url()`, `clean_url()`, `normalize_url()` and `UrlStore`, which fixes the 1.5.0 known issue
+- Share links give the embedded URL without the outer params, percent-encoded embedded hosts are decoded
+- `extract_links()`: `href` (also `xlink:href`), `rel` and `hreflang` are read as attributes and not inside other values, inner spaces are encoded, `nofollow` and `hreflang` match in any case
+- `check_url()`: upper-case schemes and leading spaces pass, a tracker param no longer decides on tag pages, a one-param fragment is tested on its key only (`#tab=source` is kept), file extensions are tested on the final path with `trailing_slash=False`
+- `check_url()` logs the step that rejected a URL at debug level
+- `validate_url()` rejects hosts with a space or a `%`, and runs its length checks on the host `check_url()` outputs (without userinfo, port or trailing dot, punycode decoded), so that its output passes again
+- `extract_domain()` and `is_external()`: `www.gov.uk` gives `gov.uk` again, as in 1.4.0
+- Sampling (`sample_urls()`, CLI `--sample`) applies the filters of `check_url()`
+- `CITATION.cff` added
+- Tests skip the bracket checks on Python patch releases whose `urlsplit` lacks them
+
+
 ## 1.5.0
 
 - Breaking: `extract_links()` returns a list in document order instead of a set, wrap it in `set()` for set operations (#153)

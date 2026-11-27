@@ -340,8 +340,11 @@ def test_psl_main_unknown_argument():
         # bare public suffixes are distinct domains
         ("https://gov.au/x", "https://gov.uk", True, True),
         ("https://gov.uk/a", "https://gov.uk/b", True, False),
-        # www.gov.uk is its own domain
-        ("https://www.gov.uk/x", "https://gov.uk", True, True),
+        # www. plus a bare public suffix is the site of the suffix
+        ("https://www.gov.uk/x", "https://gov.uk", True, False),
+        ("https://www.gov.uk/x", "https://gov.uk", False, False),
+        ("https://www.nhs.uk/x", "https://www.gov.uk/", True, True),
+        ("https://www.gouv.fr/x", "https://www.gov.uk/", True, True),
         # same IP in different textual forms is the same host
         ("http://[::1]/", "http://[0:0:0:0:0:0:0:1]/", True, False),
         ("http://192.168.0.1/", "http://192.168.0.1./", True, False),

@@ -5,9 +5,20 @@ Utilities dedicated to URL sampling
 import logging
 from random import sample
 
+from .core import check_url
 from .urlstore import UrlStore
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _checked_urls(urls: list[str], strict: bool, language: str | None) -> list[str]:
+    """Keep the URLs that pass the filters of check_url, in their canonical form.
+    With the store language, as the store does not normalize them again."""
+    return [
+        checked[0]
+        for url in urls
+        if (checked := check_url(url, strict=strict, language=language))
+    ]
 
 
 def _make_sample(
@@ -59,6 +70,6 @@ def sample_urls(
     """Sample a list of URLs by domain name, optionally using constraints on their number"""
     # store
     urlstore = UrlStore(compressed=True, language=None, strict=strict, verbose=verbose)
-    urlstore.add_urls(input_urls)
+    urlstore._add_checked(_checked_urls(input_urls, strict, None))
     # return gathered URLs
     return _make_sample(urlstore, samplesize, exclude_min, exclude_max, verbose)
