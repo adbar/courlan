@@ -43,9 +43,13 @@ This page lists common issues and quick fixes when using courlan.
   is matched against [`TARGET_LANGS`](api/settings.md). Subdomain signals are
   only consulted with `strict=True`.
 - Adding a `TARGET_LANGS` entry therefore only affects query parameters — it
-  cannot change how a `/fr/` path segment is scored. Conversely, if the target
-  language is missing from `TARGET_LANGS`, the query-parameter check is skipped
-  and such URLs are accepted.
+  cannot change how a `/fr/` path segment is scored. A target language with an
+  entry only accepts its listed variants. Without an entry, only values naming
+  another language (a CLDR code or a `TARGET_LANGS` variant) are rejected.
+- Case and region are ignored, in the `language` argument and in the cues:
+  `language="EN"`, `/en-US/` and `?lang=en_GB` all count as English.
+- Path signals are read in the path only, if its first segment is a code. A last
+  segment counts too, so `https://www.sitemaps.org/da` is Danish.
 - Some sites do not encode language explicitly. `language=None` (the default)
   disables language filtering altogether.
 

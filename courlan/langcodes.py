@@ -4,12 +4,17 @@ language code set it checks (from babel 2.18, no longer a dependency).
 """
 
 
+def primary_subtag(code: str) -> str:
+    "Lowercase language part of a code: 'en_US' and 'EN-us' give 'en'."
+    return code.replace("_", "-").partition("-")[0].lower()
+
+
 def langcodes_score(language: str, segment: str) -> int:
     "Score a URL segment as a language cue: +1 matching locale, -1 mismatching, 0 unrecognized."
-    lang = segment.replace("_", "-").partition("-")[0].lower()
+    lang = primary_subtag(segment)
     if lang not in ISO_LANGS:
         return 0
-    return 1 if lang == language else -1
+    return 1 if lang == primary_subtag(language) else -1
 
 
 # ISO 639-1 language codes accepted by CLDR (167 codes).

@@ -225,11 +225,19 @@ def test_split_checked():
             checked = check_url(url, strict=strict)
             assert checked, url
             assert _split_checked(checked[0]) == store._split(checked[0]), url
-    store = UrlStore(language="en")
-    store._add_checked(["https://example.org/de/page", "https://example.org/en/page"])
-    assert store.find_unvisited_urls("https://example.org") == [
-        "https://example.org/en/page"
-    ]
+    for language in ("en", "EN"):
+        store = UrlStore(language=language)
+        store._add_checked(
+            ["https://example.org/de/page", "https://example.org/en/page"]
+        )
+        assert store.find_unvisited_urls("https://example.org") == [
+            "https://example.org/en/page"
+        ]
+        store.add_urls(["https://example.org/fr/page", "https://example.org/en/a"])
+        assert store.find_unvisited_urls("https://example.org") == [
+            "https://example.org/en/page",
+            "https://example.org/en/a",
+        ]
 
 
 def test_urlstore_compression():

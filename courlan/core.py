@@ -28,6 +28,7 @@ from .filters import (
     validate_url,
 )
 from .hosts import _compared_host
+from .langcodes import primary_subtag
 from .network import redirection_test
 from .settings import BLACKLIST
 from .urlutils import (
@@ -201,10 +202,7 @@ def _check_url(
             raise ValueError("type filter")
 
         # internationalization and language heuristics in URL
-        if (
-            language is not None
-            and lang_filter(url, language, strict, trailing_slash) is False
-        ):
+        if language is not None and lang_filter(url, language, strict) is False:
             raise ValueError("lang filter")
 
         # domain info: use blacklist in strict mode only
@@ -287,7 +285,7 @@ def extract_links(
             and "hreflang" in lowered
             and (langmatch := HREFLANG_REGEX.search(link))
             and not (
-                (lang := langmatch[1].lower()).startswith(language)
+                (lang := langmatch[1].lower()).startswith(primary_subtag(language))
                 or lang == "x-default"
             )
         ):

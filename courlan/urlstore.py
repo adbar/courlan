@@ -307,10 +307,7 @@ class UrlStore:
             # filter on the final form, as in check_url
             if split is None or (
                 self.language is not None
-                and lang_filter(
-                    split[0], self.language, self.strict, self.trailing_slash
-                )
-                is False
+                and lang_filter(split[0], self.language, self.strict) is False
             ):
                 LOGGER.warning("Discarding URL: %s", url)
                 continue

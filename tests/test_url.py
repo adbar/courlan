@@ -40,6 +40,7 @@ from courlan.filters import (
     type_filter,
 )
 from courlan.langcodes import langcodes_score
+from courlan.settings import TARGET_LANGS
 from courlan.urlutils import (
     _parse,
     _strip_trailing_dot,
@@ -576,9 +577,9 @@ _MUSCLEFOOD = "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html"
 @pytest.mark.parametrize(
     "url, lang, kwargs, expected",
     [
-        ("http://test.com/az", "de", {"trailing_slash": False}, False),
+        ("http://test.com/az", "de", {}, False),
         ("http://test.com/az/", "de", {}, False),
-        ("http://test.com/de", "de", {"trailing_slash": False}, True),
+        ("http://test.com/de", "de", {}, True),
         ("http://test.com/de/", "de", {}, True),
         (_20MIN_FR, None, {}, True),
         (_20MIN_FR, "de", {}, False),
@@ -625,7 +626,7 @@ _MUSCLEFOOD = "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html"
         ("https://example.com/en-ww/page", "de", {}, False),
         ("https://wetter.sueddeutsche.de/de-hh/", "en", {}, False),
         ("https://wetter.sueddeutsche.de/de-hh/", "de", {}, True),
-        ("https://example.org/en-gb", "de", {"trailing_slash": False}, False),
+        ("https://example.org/en-gb", "de", {}, False),
         # cues are case-insensitive
         ("https://example.org/EN/page", "de", {}, False),
         # >2 candidates: unreliable, score stays 0
@@ -641,10 +642,36 @@ _MUSCLEFOOD = "http://de.musclefood.com/neu/neue-nahrungsergaenzungsmittel.html"
         ("http://de.example.com/en/page", "en", {"strict": True}, True),
         ("http://fr.example.com/de/page", "en", {"strict": True}, False),
         ("http://en.example.com/de/page", "en", {"strict": True}, True),
+        # a last segment counts
+        ("https://www.sitemaps.org/da", "de", {}, False),
+        ("https://www.austria.info/de/aktivitaeten/hu", "de", {}, True),
+        ("https://www.austria.info/fr/activites/hu", "de", {}, False),
+        ("https://www.facebook.com/tr?id=1", "en", {}, False),
+        # the query and fragment are no cues
+        ("https://x.com/fr/a?next=/en/b", "en", {}, False),
+        ("https://x.com/fr/a#/en/b", "en", {}, False),
+        ("https://x.com/en?next=/fr/", "en", {}, True),
+        ("https://x.com/a?next=/fr/", "en", {}, True),
+        ("https://x.com?next=/fr/", "en", {}, True),
+        ("https://x.com/a?u=https://y.com/fr/", "en", {}, True),
+        ("ftp://x.com/fr/", "en", {}, True),
+        ("HTTPS://x.com/fr/", "en", {}, False),
+        # only a path starting with a cue is read
+        ("https://x.com/news/fr/page", "en", {}, True),
+        # the language argument is normalized
+        ("https://x.com/en/page", "EN", {}, True),
+        ("https://x.com/de/page", "en-US", {}, False),
+        ("https://de.wikipedia.org/", "DE_de", {"strict": True}, True),
     ],
 )
 def test_lang_filter(url, lang, kwargs, expected):
     assert lang_filter(url, lang, **kwargs) is expected
+
+
+def test_lang_filter_trailing_slash_deprecated():
+    for value in (True, False):
+        with pytest.warns(DeprecationWarning, match="trailing_slash"):
+            assert lang_filter("https://x.com/de", "en", trailing_slash=value) is False
 
 
 @pytest.mark.parametrize(
@@ -663,6 +690,10 @@ def test_lang_filter(url, lang, kwargs, expected):
         ("pt", "pt-BR", 1),
         ("zh", "zh-CN", 1),
         ("en", "zh-CN", -1),
+        # the language argument is normalized too
+        ("EN", "en", 1),
+        ("en_GB", "en-US", 1),
+        ("DE-at", "en", -1),
     ],
 )
 def test_langcodes_score(language, code, expected):
@@ -1081,6 +1112,23 @@ def test_clean_query_blank_params_by_name():
         ("lang=&lang=de", "en", None),
         # non-UTF-8 value
         ("lang=%FC", "en", None),
+        # case, region and the language argument are normalized
+        ("lang=EN", "en", "lang=EN"),
+        ("language=English", "en", "language=English"),
+        ("lang=en-US", "en", "lang=en-US"),
+        ("lang=de_DE", "de", "lang=de_DE"),
+        ("lang=en", "EN", "lang=en"),
+        ("lang=en", "en-GB", "lang=en"),
+        ("lang=de-DE", "en", None),
+        # listed languages only accept their variants (KBS uses lang=k for Korean)
+        ("lang=k", "en", None),
+        # other languages reject values naming another language
+        ("lang=fr", "fr", "lang=fr"),
+        ("lang=fra", "fr", "lang=fra"),
+        ("lang=de", "fr", None),
+        ("lang=EN-us", "fr", None),
+        ("lang=deutsch", "fr", None),
+        ("lang=es_ES", "fr", None),
     ],
 )
 def test_clean_query_blank_params_language(query, language, expected):
@@ -1089,6 +1137,20 @@ def test_clean_query_blank_params_language(query, language, expected):
             clean_query(query, strict=False, language=language)
     else:
         assert clean_query(query, strict=False, language=language) == expected
+
+
+def test_clean_query_language_variants(monkeypatch):
+    "A TARGET_LANGS entry adds variants, the code itself stays accepted."
+    monkeypatch.setitem(TARGET_LANGS, "fr", {"français"})
+    for query in ("lang=fr", "lang=fr-CA", "lang=fran%C3%A7ais"):
+        assert clean_query(query, strict=False, language="fr") == query
+    for query, language in (("lang=fra", "fr"), ("lang=de", "fr"), ("lang=fr", "es")):
+        with pytest.raises(ValueError):
+            clean_query(query, strict=False, language=language)
+    # a variant of a listed language names it for the others
+    monkeypatch.setitem(TARGET_LANGS, "fr", {"fr", "fra"})
+    with pytest.raises(ValueError):
+        clean_query("lang=fra", strict=False, language="es")
 
 
 @pytest.mark.parametrize(

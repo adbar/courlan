@@ -162,9 +162,10 @@ def test_cli_sample_language(tmp_path):
         encoding="utf-8",
     )
     testargs = ["-i", str(inputfile), "-o", str(samplefile), "--sample", "10"]
-    cli.process_args(cli.parse_args([*testargs, "-l", "de"]))
-    sample = samplefile.read_text(encoding="utf-8").splitlines()
-    assert sample == ["https://example.org/page?id=2&lang=de"]
+    for language in ("de", "DE", "de-AT"):
+        cli.process_args(cli.parse_args([*testargs, "-l", language]))
+        sample = samplefile.read_text(encoding="utf-8").splitlines()
+        assert sample == ["https://example.org/page?id=2&lang=de"]
     # --strict applies the strict filters of batch mode
     testargs = ["-i", INPUTFILE, "-o", str(samplefile), "--sample", "10", "--strict"]
     cli.process_args(cli.parse_args(testargs))
